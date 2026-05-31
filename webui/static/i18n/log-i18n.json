@@ -1,0 +1,167 @@
+{
+  "Web UI 地址：http://localhost:{port}": {
+    "zh": "Web UI 地址：http://localhost:{port}",
+    "tw": "Web UI 地址：http://localhost:{port}",
+    "en": "Web UI: http://localhost:{port}"
+  },
+  "WebSocket 地址：ws://localhost:{ws_port}": {
+    "zh": "WebSocket 地址：ws://localhost:{ws_port}",
+    "tw": "WebSocket 地址：ws://localhost:{ws_port}",
+    "en": "WebSocket: ws://localhost:{ws_port}"
+  },
+  "Agent 已初始化：{agent.config.name}": {
+    "zh": "Agent 已初始化：{agent.config.name}",
+    "tw": "Agent 已初始化：{agent.config.name}",
+    "en": "Agent initialized: {agent.config.name}"
+  },
+  "Agent 配置：{agent.config.agent_name}": {
+    "zh": "Agent 配置：{agent.config.agent_name}",
+    "tw": "Agent 配置：{agent.config.agent_name}",
+    "en": "Agent config: {agent.config.agent_name}"
+  },
+  "siper 已停止": {
+    "zh": "siper 已停止",
+    "tw": "siper 已停止",
+    "en": "siper stopped"
+  },
+  "按 Ctrl+C 停止服务": {
+    "zh": "按 Ctrl+C 停止服务",
+    "tw": "按 Ctrl+C 停止服務",
+    "en": "Press Ctrl+C to stop"
+  },
+  "组件已加载：agent + 会话 + 工具 + 技能（协调器：按需加载）": {
+    "zh": "组件已加载：agent + 会话 + 工具 + 技能（协调器：按需加载）",
+    "tw": "元件已載入：agent + 會話 + 工具 + 技能（協調器：按需載入）",
+    "en": "Components loaded: agent + sessions + tools + skills (coordinator: lazy)"
+  },
+  "任务调度器已启动": {
+    "zh": "任务调度器已启动",
+    "tw": "任務排程器已啟動",
+    "en": "Task scheduler started"
+  },
+  "配置：LLM 来自 config.json — 模型={llm_cfg.get": {
+    "zh": "配置：LLM 来自 config.json — 模型={llm_cfg.get",
+    "tw": "配置：LLM 來自 config.json",
+    "en": "Config: LLM from config.json"
+  },
+  "配置：config.json 中无模型，使用默认 LLM 配置": {
+    "zh": "配置：config.json 中无模型，使用默认 LLM 配置",
+    "tw": "配置：config.json 中無模型，使用預設 LLM 配置",
+    "en": "Config: no model in config.json, using default LLM"
+  },
+  "配置：从 config.json 加载了 {len(models)} 个模型，默认={agent.config.default_model}": {
+    "zh": "配置：从 config.json 加载了 {len(models)} 个模型，默认={agent.config.default_model}",
+    "tw": "配置：從 config.json 載入了 {len(models)} 個模型，預設={agent.config.default_model}",
+    "en": "Config: loaded {len(models)} models from config.json, default={agent.config.default_model}"
+  },
+  "配置：未找到 config.json，使用默认 LLM 配置": {
+    "zh": "配置：未找到 config.json，使用默认 LLM 配置",
+    "tw": "配置：未找到 config.json，使用預設 LLM 配置",
+    "en": "Config: config.json not found, using default LLM"
+  },
+  "已注册工具：{agent.tool_registry.list_tools()}": {
+    "zh": "已注册工具：{agent.tool_registry.list_tools()}",
+    "tw": "已註冊工具：{agent.tool_registry.list_tools()}",
+    "en": "Tools registered: {agent.tool_registry.list_tools()}"
+  },
+  "已激活技能：{list(agent.active_skills.keys())}": {
+    "zh": "已激活技能：{list(agent.active_skills.keys())}",
+    "tw": "已啟用技能：{list(agent.active_skills.keys())}",
+    "en": "Skills activated: {agent.active_skills.keys()}"
+  },
+  "WS 客户端已连接：{conn_id}": {
+    "zh": "WS 客户端已连接：{conn_id}",
+    "tw": "WS 客戶端已連線：{conn_id}",
+    "en": "WS client connected: {conn_id}"
+  },
+  "WS 客户端已断开：{conn_id}": {
+    "zh": "WS 客户端已断开：{conn_id}",
+    "tw": "WS 客戶端已斷線：{conn_id}",
+    "en": "WS client disconnected: {conn_id}"
+  },
+  "启动清理：删除了 {len(empty_sids)} 个空会话": {
+    "zh": "启动清理：删除了 {len(empty_sids)} 个空会话",
+    "tw": "啟動清理：刪除了 {len(empty_sids)} 個空會話",
+    "en": "Startup cleanup: removed {len(empty_sids)} empty sessions"
+  },
+  "api_get_sessions: active={len(agent.session_manager.active_sessions)}": {
+    "zh": "api_get_sessions: active={len(agent.session_manager.active_sessions)}",
+    "tw": "api_get_sessions: active={len(agent.session_manager.active_sessions)}",
+    "en": "api_get_sessions: active={len(agent.session_manager.active_sessions)}"
+  },
+  "会议室已创建：{room.room_id} - {name}": {
+    "zh": "会议室已创建：{room.room_id} - {name}",
+    "tw": "會議室已建立：{room.room_id} - {name}",
+    "en": "Meeting room created: {room.room_id} - {name}"
+  },
+  "通过 API 请求重启网关": {
+    "zh": "通过 API 请求重启网关",
+    "tw": "通過 API 請求重啟閘道",
+    "en": "Gateway restart requested via API"
+  },
+  "主题已保存：{name} ({fpath})": {
+    "zh": "主题已保存：{name} ({fpath})",
+    "tw": "主題已儲存：{name} ({fpath})",
+    "en": "Theme saved: {name} ({fpath})"
+  },
+  "主题已删除：{name}": {
+    "zh": "主题已删除：{name}",
+    "tw": "主題已刪除：{name}",
+    "en": "Theme deleted: {name}"
+  },
+  "Agent 初始化失败": {
+    "zh": "Agent 初始化失败",
+    "tw": "Agent 初始化失敗",
+    "en": "Agent init failed"
+  },
+  "HTTP 处理错误：{e}": {
+    "zh": "HTTP 处理错误：{e}",
+    "tw": "HTTP 處理錯誤：{e}",
+    "en": "HTTP handler error: {e}"
+  },
+  "websockets 未安装。请运行：pip install websockets": {
+    "zh": "websockets 未安装。请运行：pip install websockets",
+    "tw": "websockets 未安裝。請執行：pip install websockets",
+    "en": "websockets not installed. Run: pip install websockets"
+  },
+  "保存 Agent 文件错误：{e}": {
+    "zh": "保存 Agent 文件错误：{e}",
+    "tw": "儲存 Agent 檔案錯誤：{e}",
+    "en": "Save agent file error: {e}"
+  },
+  "切换 Agent 错误：{e}": {
+    "zh": "切换 Agent 错误：{e}",
+    "tw": "切換 Agent 錯誤：{e}",
+    "en": "Switch agent error: {e}"
+  },
+  "图片上传失败：{e}": {
+    "zh": "图片上传失败：{e}",
+    "tw": "圖片上傳失敗：{e}",
+    "en": "Image upload failed: {e}"
+  },
+  "调度器错误：{e}": {
+    "zh": "调度器错误：{e}",
+    "tw": "排程器錯誤：{e}",
+    "en": "Scheduler error: {e}"
+  },
+  "api_get_sessions DB 查询失败：{e}": {
+    "zh": "api_get_sessions DB 查询失败：{e}",
+    "tw": "api_get_sessions DB 查詢失敗：{e}",
+    "en": "api_get_sessions DB query failed: {e}"
+  },
+  "主题保存错误：{e}": {
+    "zh": "主题保存错误：{e}",
+    "tw": "主題儲存錯誤：{e}",
+    "en": "Theme save error: {e}"
+  },
+  "主题删除错误：{e}": {
+    "zh": "主题删除错误：{e}",
+    "tw": "主題刪除錯誤：{e}",
+    "en": "Theme delete error: {e}"
+  },
+  "主题加载错误：{e}": {
+    "zh": "主题加载错误：{e}",
+    "tw": "主題載入錯誤：{e}",
+    "en": "Theme load error: {e}"
+  }
+}
