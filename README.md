@@ -23,7 +23,7 @@ SiPer 是一个**独立运行的 AI Agent 框架**，不依赖任何外部 Agent
 ### 为什么选择 SiPer？
 
 - **零外部依赖**：核心仅依赖 `openai` + `websockets` + `jinja2`，23 个工具中 21 个纯 stdlib
-- **多模型支持**：OpenAI 兼容接口，支持 LongCat、DeepSeek、SenseNova 等
+- **多模型支持**：OpenAI 兼容接口，支持任意兼容模型
 - **多智能体**：每个智能体独立配置、独立会话数据库
 - **Web UI**：内置完整的 Web 管理界面，支持实时聊天、配置管理、会话查看
 - **技能系统**：自动加载、预筛选、上下文注入、使用统计
@@ -234,8 +234,8 @@ siper-agent/
   "session_timeout": 3600,
   "max_tools": 300,
   "max_tool_rounds": 100,
-  "available_models": ["LongCat-2.0-Preview", "deepseek-v4-flash"],
-  "default_chat_model": "LongCat-2.0-Preview"
+  "available_models": ["your-model-id"],
+  "default_chat_model": "your-model-id"
 }
 ```
 
