@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Siper AI Agent</title>
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  <script src="/static/js/echarts.min.js"></script>
+  <script src="/static/js/md-render.js"></script>
+</head>
+<body>
+
+
+  <!-- Main Content -->
+<div class="main" id="mainContent">
+
+  <!-- Chat Page (Three Column Layout) -->
+  <div class="page" id="page-chat">
+    <!-- Left: Collapsible Nav Sidebar (dark, icon-only / expanded) -->
+    <div class="siper-sidebar" id="chatSidebar">
+      <div class="siper-sidebar-header" onclick="toggleChatSidebar()" title="展开/折叠">
+        <img src="/static/default_avatar.webp" class="siper-sidebar-avatar" alt="avatar" onerror="this.src='/static/default_avatar_256.png'">
+        <span class="siper-sidebar-brand">SiPer</span>
+      </div>
+      <nav class="siper-sidebar-nav">
+        <div class="siper-nav-section">
+          <div class="siper-nav-title" data-i18n="nav.main">主要功能</div>
+          <div class="siper-nav-item active" data-page="chat" onclick="chatSwitchPage('chat')"><span>💬</span><span class="siper-nav-item-label" data-i18n="nav.chat">对话</span></div>
+        </div>
+        <div class="siper-nav-section">
+          <div class="siper-nav-title" data-i18n="nav.agent">智能体</div>
+          <div class="siper-nav-item" data-page="skills" onclick="chatSwitchPage('skills')"><span>🧩</span><span class="siper-nav-item-label" data-i18n="nav.skills">技能</span></div>
+          <div class="siper-nav-item" data-page="token" onclick="chatSwitchPage('token')"><span>📊</span><span class="siper-nav-item-label" data-i18n="nav.token">Token</span></div>
+        </div>
+        <div class="siper-nav-section">
+          <div class="siper-nav-title" data-i18n="nav.system">系统</div>
+          <div class="siper-nav-item" data-page="global-settings" onclick="chatSwitchPage('global-settings')"><span>⚙️</span><span class="siper-nav-item-label" data-i18n="nav.globalSettings">全局设置</span></div>
+          <div class="siper-nav-item" data-page="logs" onclick="chatSwitchPage('logs')"><span>📜</span><span class="siper-nav-item-label" data-i18n="nav.logs">日志</span></div>
+          <div class="siper-nav-item" data-page="gateway" onclick="chatSwitchPage('gateway')"><span>🌐</span><span class="siper-nav-item-label" data-i18n="nav.gateway">网关</span></div>
+        </div>
+      </nav>
+      <!-- Upgrade status: expanded=full info below nav, collapsed=icon in footer -->
+      <div id="sidebarUpgradeWrap" class="siper-sidebar-upgrade-wrap">
+        <div class="siper-sidebar-upgrade-expanded">
+          <div class="siper-sidebar-upgrade-title">系统升级</div>
+          <div id="sidebarUpgradeStatus" class="siper-sidebar-upgrade-status">检测中...</div>
+          <button id="sidebarUpgradeBtn" class="siper-btn primary small hidden" onclick="chatDoUpgrade()">立即升级</button>
+        </div>
+      </div>
+      <div class="siper-sidebar-footer">
+      </div>
+    </div>
+
+    <!-- Middle: Agent Groups (expandable, sessions under each agent) -->
+    <div class="siper-middle" id="chatMiddle">
+      <div class="siper-middle-header">
+        <div class="siper-search-box">
+          <span>🔍</span>
+          <input type="text" class="siper-search-input" id="chatSearchInput" placeholder="搜索智能体..." oninput="chatHandleSearch(this.value)" aria-label="搜索智能体">
+        </div>
+      </div>
+      <div class="siper-middle-list" id="chatMiddleList">
+        <!-- Agent groups rendered by JS -->
+      </div>
+    </div>
+
+    <!-- Right: Content Area (dynamic: chat / sessions / tasks / agent / memory / skills / token / theme / settings / logs / gateway) -->
+    <div class="siper-chat" id="chatRight">
+      <div class="siper-chat-header" id="chatRightHeader">
+        <span class="siper-chat-header-name" id="chatRightHeaderName">选择一个 Agent 开始对话</span>
+      </div>
+      <div class="siper-content" id="chatContentArea">
+        <!-- Dynamic content loaded by chatSwitchPage() -->
+      </div>
+    </div>
+  </div>
+
+      <!-- Sessions Page -->
+  <div class="page" id="page-sessions">
+    <div class="page-header">
+      <h2 data-i18n="sessions.title">会话管理</h2>
+      <div class="actions">
+        <button class="btn-sm primary" onclick="newSession()" data-i18n="sessions.new">+ 新会话</button>
+        <button class="btn-sm" onclick="refreshSessions()" data-i18n="sessions.refresh">刷新</button>
+      </div>
+    </div>
+      <div class="page-body page-body-flex">
+      <div class="session-list" id="sessionsList"></div>
+      <div class="session-preview" id="sessionPreview">
+        <div class="empty-state" data-i18n="sessions.selectPrompt">← 点击会话查看消息</div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="page" id="page-memory">
+    <div class="page-header">
+      <h2 data-i18n="memory.title">记忆管理</h2>
+      <div class="actions flex-align-8">
+        <select id="memoryAgentSelector" onchange="onMemoryAgentChange(this.value)" class="select-input select-wide" aria-label="记忆智能体">
+          <option value="" data-i18n="memory.selectAgent">选择智能体...</option>
+        </select>
+        <button class="btn-sm" onclick="refreshMemoryPage()" data-i18n="memory.refresh">刷新</button>
+        <button class="btn-sm primary" onclick="saveMemoryMd()" data-i18n="memory.save">保存记忆</button>
+        <button class="btn-sm primary" onclick="saveMemoryConfig()" data-i18n="memory.saveConfig">保存配置</button>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="memory-grid">
+        <!-- Left: memory.md editor -->
+        <div class="card card-flex-col">
+          <div class="card-title flex-center gap-8">
+            <span class="model-badge badge-accent2">memory.md</span>
+            <span data-i18n="memory.mdFile">记忆文件</span>
+            <span id="memoryAgentLabel" class="text-muted-small"></span>
+          </div>
+          <textarea class="agent-file-editor code-editor-flex" id="memoryMdEditor" placeholder="加载中..." aria-label="记忆内容编辑器"></textarea>
+          <div class="flex-end-row mt-8">
+            <button class="btn-sm" onclick="refreshMemoryPage()" data-i18n="memory.reset">重置</button>
+            <button class="btn-sm primary" onclick="saveMemoryMd()" data-i18n="memory.save">保存</button>
+          </div>
+        </div>
+        <!-- Right: memory integration config -->
+        <div class="card card-flex-col">
+          <div class="card-title flex-center gap-8">
+            <span class="model-badge badge-green" data-i18n="memory.integration">记忆整合</span>
+            <span data-i18n="memory.integrationTitle">记忆整合进提示词的方式</span>
+          </div>
+          <div class="padding-overflow-flex">
+            <div class="setting-row">
+              <div class="setting-label" data-i18n="memory.mode">整合模式<br><small data-i18n="memory.modeHint">记忆内容如何嵌入提示词</small></div>
+              <select id="memMode" class="select-input" onchange="updateMemoryPreview()" aria-label="记忆模式">
+                <option value="append" data-i18n="memory.modeAppend">追加到系统提示词后</option>
+                <option value="prepend" data-i18n="memory.modePrepend">插入到系统提示词前</option>
+                <option value="system" data-i18n="memory.modeSystem">替换系统提示词</option>
+                <option value="none" data-i18n="memory.modeNone">不整合（仅手动引用）</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <div class="setting-label" data-i18n="memory.maxTokens">最大 Token 数<br><small data-i18n="memory.maxTokensHint">记忆内容最大长度限制</small></div>
+              <input type="number" id="memMaxTokens" value="2000" min="100" max="50000" step="100" onchange="updateMemoryPreview()" class="number-input" aria-label="记忆最大 Token">
+            </div>
+            <div class="setting-row">
+              <div class="setting-label" data-i18n="memory.template">提示词模板<br><small data-i18n="memory.templateHint">用 {memory} 占位符插入记忆内容</small></div>
+            </div>
+            <textarea id="memTemplate" class="code-preview" oninput="updateMemoryPreview()" placeholder="例如：以下是历史记忆：
+{memory}
+请参考以上记忆回答用户问题。" aria-label="记忆模板"></textarea>
+            <div class="mt-12">
+              <div class="section-label" data-i18n="memory.preview">预览效果</div>
+              <div id="memPreview" class="code-preview-dim"></div>
+            </div>
+          </div>
+          <div class="flex-end-row mt-8">
+            <button class="btn-sm" onclick="showConfirm({title:'重置记忆配置',msg:'确定要重置记忆配置为默认值吗？',scope:'影响范围：记忆整合设置（模式/位置/Token限制/模板）将恢复默认',okText:'重置',onConfirm:resetMemoryConfig})" data-i18n="memory.resetConfig">重置</button>
+            <button class="btn-sm primary" onclick="saveMemoryConfig()" data-i18n="memory.saveConfig">保存配置</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Skills Page -->
+  <div class="page" id="page-skills">
+    <div class="page-header">
+      <h2 data-i18n="skills.title">技能管理</h2>
+      <div class="actions">
+        <button class="btn-sm" onclick="refreshSkills()" data-i18n="skills.refresh">刷新</button>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <!-- Pre-filter Debugger (top) -->
+      <div class="skill-debug-top">
+        <div class="skill-debug-header">
+          <span class="skill-debug-title">🔍 预筛选调试器</span>
+          <div class="skill-debug-input">
+            <input type="text" id="skillPreviewInput" placeholder="输入用户消息，预览匹配的技能..." / aria-label="技能预览输入">
+            <button class="btn-sm" onclick="previewSkillFilter()">预览</button>
+          </div>
+        </div>
+        <div id="skillPreviewOutput" class="skill-preview-output"></div>
+      </div>
+
+      <div id="skillsList"></div>
+    </div>
+  </div>
+
+  <!-- Logs Page -->
+  <div class="page" id="page-logs">
+    <div class="page-header">
+      <h2 data-i18n="logs.title">系统日志</h2>
+      <div class="actions">
+        <button class="btn-sm" onclick="refreshLogs()" data-i18n="logs.refresh">刷新</button>
+        <button class="btn-sm" onclick="toggleAutoRefresh()" id="btnAutoRefresh" data-i18n="logs.autoOff">自动刷新: 关</button>
+        <button class="btn-sm danger" onclick="showConfirm({title:'清空日志',msg:'确定要清空日志显示吗？',scope:'影响范围：页面日志显示（不影响文件日志）',danger:true,okText:'清空',onConfirm:clearLogs})" data-i18n="logs.clear">清空显示</button>
+      </div>
+    </div>
+    <div class="log-filter-bar">
+      <div class="flex-wrap-center">
+        <!-- Level filters -->
+        <div class="flex-center gap-4">
+          <span class="text-dim-mr" data-i18n="logs.level">级别:</span>
+          <span id="logLevelFilters"></span>
+        </div>
+        <!-- Source filter -->
+        <div class="flex-center gap-4">
+          <span class="text-dim-mr" data-i18n="logs.source">来源:</span>
+          <select class="log-filter-select input-small" id="logSourceFilter" onchange="applyLogFilters()" aria-label="日志来源筛选">
+            <option value="" data-i18n="logs.all">全部</option>
+          </select>
+        </div>
+        <!-- Search -->
+        <div class="flex-center gap-4">
+          <input type="text" id="logSearchInput" placeholder="搜索关键词..." data-i18n="logs.searchPh" oninput="applyLogLogsDebounced()" class="input-small input-w160" aria-label="日志搜索">
+        </div>
+        <!-- Page size -->
+        <div class="flex-center gap-4">
+          <span class="text-dim-small" data-i18n="logs.perPage">每页:</span>
+          <select id="logPageSize" onchange="applyLogFilters()" class="input-small" aria-label="日志每页条数">
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="200">200</option>
+            <option value="500">500</option>
+          </select>
+        </div>
+        <!-- Stats -->
+        <span id="logStats" class="text-dim-ml"></span>
+      </div>
+    </div>
+    <div class="page-body font-mono" id="logsList"></div>
+    <!-- Pagination -->
+    <div id="logPagination" class="pagination"></div>
+  </div>
+
+  <!-- Token Page -->
+  <div class="page" id="page-token">
+    <div class="page-header">
+      <h2 data-i18n="token.title">Token 用量</h2>
+      <div class="actions">
+        <button class="btn-sm" onclick="refreshTokenStats()" data-i18n="token.refresh">刷新</button>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="stats-grid" id="tokenStats"></div>
+      <!-- Charts row: Model + Hourly side by side -->
+      <div class="token-charts-row">
+        <div class="card chart-card">
+          <div class="card-title">📊 分模型 Token 分布</div>
+          <div id="chartModel" class="chart-canvas"></div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-title">⏰ 24小时 Token 分布</div>
+          <div id="chartHourly" class="chart-canvas"></div>
+        </div>
+      </div>
+      <div class="card mt-12">
+        <div class="card-title">📈 每日 Token 趋势（近30天）</div>
+        <div id="chartDate" class="chart-canvas chart-canvas-sm"></div>
+      </div>
+      <div class="card">
+        <div class="card-title" data-i18n="token.ctxWindow">上下文窗口</div>
+        <div class="mt-8">
+          <div class="token-bar-text">
+            <span data-i18n="token.used">已用 Token</span>
+            <span id="ctxUsed">0 / 4000</span>
+          </div>
+          <div class="token-bar token-bar-fill green w-0"><div id="ctxBar"></div></div>
+        </div>
+      </div>
+      <div class="card mt-12">
+        <div class="card-title" data-i18n="token.modelStats">模型统计</div>
+        <table>
+          <thead><tr><th data-i18n="token.model">Model</th><th data-i18n="token.totalCalls">调用</th><th data-i18n="token.prompt">Prompt</th><th data-i18n="token.completion">Completion</th><th data-i18n="token.total">Total</th></tr></thead>
+          <tbody id="tokenModelStats"></tbody>
+        </table>
+      </div>
+      <div class="card mt-12">
+        <div class="card-title" data-i18n="token.recent">最近请求</div>
+        <table>
+          <thead><tr><th data-i18n="token.time">时间</th><th data-i18n="token.model">Model</th><th data-i18n="token.prompt">Prompt</th><th data-i18n="token.completion">Completion</th><th data-i18n="token.total">Total</th></tr></thead>
+          <tbody id="tokenHistory"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Settings Page -->
+  <div class="page" id="page-global-settings">
+    <div class="page-header">
+      <h2>⚙️ 全局设置</h2>
+      <div class="actions">
+        <button class="btn-sm" onclick="refreshGlobalSettings()">🔄 刷新</button>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <!-- Status Overview -->
+      <div class="stats-grid" id="settingsStats"></div>
+
+      <!-- ===== Model Management ===== -->
+      <div class="card">
+        <div class="card-title">🤖 模型管理</div>
+        <div class="card-body">
+
+          <!-- Auto Discover -->
+          <div class="settings-divider">🔍 自动发现模型</div>
+          <div class="section-subtitle">选择 Provider 或输入 Base URL + API Key，自动获取可用模型列表</div>
+          <div class="grid-2col grid-2col-mb-sm">
+            <select id="providerPreset" onchange="applyProviderPreset()" class="form-input form-input-cursor" aria-label="Provider 预设">
+              <option value="">— 选择 Provider 预设 —</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="moonshot">Moonshot (Kimi)</option>
+              <option value="qwen">Qwen (DashScope)</option>
+              <option value="longcat">LongCat</option>
+              <option value="zhipuai">ZhipuAI (GLM)</option>
+              <option value="minimax">MiniMax</option>
+              <option value="groq">Groq</option>
+              <option value="openrouter">OpenRouter</option>
+              <option value="ollama">Ollama (本地)</option>
+              <option value="custom">自定义</option>
+            </select>
+            <input type="text" id="discoverBaseUrl" placeholder="Base URL (如 https://api.openai.com/v1)" class="form-input" aria-label="发现 Base URL">
+          </div>
+          <div class="grid-2col grid-2col-mb-sm">
+            <input type="password" id="discoverApiKey" placeholder="API Key" class="form-input" aria-label="发现 API Key">
+            <div class="flex-end-row">
+              <button class="btn-sm primary" id="discoverBtn" onclick="discoverModels()">🔍 获取模型列表</button>
+            </div>
+          </div>
+          <div id="discoverResult" class="mb-12"></div>
+
+          <!-- Configured Models -->
+          <div class="settings-divider settings-divider-mt">📋 已配置模型 <span id="settingsModelCount" class="settings-model-count"></span></div>
+          <div id="settingsModelsList" class="mb-12"></div>
+
+        </div>
+      </div>
+
+      <!-- ===== System Parameters ===== -->
+      <div class="card">
+        <div class="card-title" data-i18n="settings.systemParams">🔧 系统参数</div>
+        <div class="card-body">
+          <div class="settings-divider" data-i18n="settings.systemRuntime">运行时</div>
+          <div class="setting-row">
+            <div class="setting-label" data-i18n="settings.wsHeartbeatTimeout">WS 心跳超时 (秒)<br><small data-i18n="settings.wsHeartbeatTimeoutHint">无消息时断开 WebSocket 连接的时间</small></div>
+            <input type="number" id="sysWsHeartbeatTimeout" class="flex-1" min="60" max="3600" value="300" aria-label="WS 心跳超时">
+          </div>
+          <div class="setting-row">
+            <div class="setting-label" data-i18n="settings.sessionListLimit">会话列表加载数<br><small data-i18n="settings.sessionListLimitHint">会话列表页面最多显示的会话条数</small></div>
+            <input type="number" id="sysSessionListLimit" class="flex-1" min="10" max="500" value="50" aria-label="会话列表加载数">
+          </div>
+          <div class="setting-row">
+            <div class="setting-label" data-i18n="settings.logBufferSize">日志缓冲区大小<br><small data-i18n="settings.logBufferSizeHint">内存中保留的日志条数（影响内存占用）</small></div>
+            <input type="number" id="sysLogBufferSize" class="flex-1" min="100" max="10000" value="2000" aria-label="日志缓冲区大小">
+          </div>
+          <div class="setting-row">
+            <div class="setting-label" data-i18n="settings.tokenUsageMax">Token 记录上限<br><small data-i18n="settings.tokenUsageMaxHint">Token 用量历史最大记录数</small></div>
+            <input type="number" id="sysTokenUsageMax" class="flex-1" min="100" max="5000" value="500" aria-label="Token 记录上限">
+          </div>
+          <div class="setting-row">
+            <div class="setting-label" data-i18n="settings.ctxWindowDefault">上下文窗口默认值<br><small data-i18n="settings.ctxWindowDefaultHint">models.json 中未指定 context_window 时的默认值</small></div>
+            <input type="number" id="sysCtxWindowDefault" class="flex-1" min="1024" max="1000000" value="8192" aria-label="上下文窗口默认值">
+          </div>
+          <div class="flex-end-mt">
+            <span class="text-dim settings-hint" data-i18n="settings.restartRequired">✦ 修改后需重启服务生效</span>
+            <button class="btn-sm" onclick="resetSystemParams()" data-i18n="settings.resetDefaults">重置默认</button>
+            <button class="btn-sm primary" onclick="saveSystemParams()" data-i18n="settings.saveAndRestart">保存并重启</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Gateway Page -->
+  <div class="page" id="page-gateway">
+    <div class="page-header">
+      <h2 data-i18n="gateway.title">网关控制</h2>
+      <div class="actions">
+        <button class="btn-sm primary" onclick="showConfirm({title:'重启全部',msg:'确定要重启全部服务吗？',scope:'影响范围：所有运行中的服务将短暂中断',danger:true,okText:'重启',onConfirm:function(){controlGateway('restart_all')}})" data-i18n="gateway.restartAll">重启全部</button>
+        <button class="btn-sm" onclick="refreshGateway()" data-i18n="gateway.refresh">刷新</button>
+      </div>
+    </div>
+    <div class="page-body">
+      <div id="gatewayList"></div>
+    </div>
+  </div>
+
+  <!-- Agent Config Page (dynamically rendered in chatContentArea) -->
+  <!-- Theme Settings Page -->
+  <div class="page" id="page-theme-settings">
+    <div class="page-header">
+      <h2 data-i18n="theme.title">外观设置</h2>
+      <div class="actions">
+        <button class="btn-sm theme-reset-btn" onclick="resetTheme()" data-i18n="theme.reset">重置默认</button>
+        <button class="btn-sm" onclick="exportTheme()" data-i18n="theme.export">导出</button>
+        <button class="btn-sm" onclick="importTheme()" data-i18n="theme.import">导入</button>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="theme-preset-bar" id="themePresetBar">
+        <span data-i18n="theme.presets" class="text-dim-mr13">预设主题：</span>
+      </div>
+      <div class="flex-wrap-24">
+        <div class="flex-1-340">
+          <div class="card">
+            <div class="card-title" data-i18n="theme.sizes">尺寸设置</div>
+            <div class="size-group" id="themeSizeSettings"></div>
+          </div>
+          <div class="card mt-12">
+            <div class="card-title" data-i18n="theme.templates">模板管理</div>
+            <div class="theme-save-form">
+              <input type="text" id="templateName" placeholder="输入模板名称..." data-i18n-ph="theme.templateNamePh" class="flex-1" aria-label="模板名称">
+              <button class="btn-sm primary" onclick="saveThemeTemplate()" data-i18n="theme.saveTemplate">保存模板</button>
+            </div>
+            <div id="themeTemplateList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay-base" id="confirmOverlay" onclick="cancelConfirm(event)">
+  <div class="confirm-dialog modal-dialog-base" onclick="event.stopPropagation()">
+    <div class="modal-header-base">
+      <span class="title-text"><span class="warn-icon">⚠️</span><span id="confirmTitle">确认操作</span></span>
+      <button class="modal-close-base" onclick="cancelConfirm()">×</button>
+    </div>
+    <div class="modal-body-base">
+      <div id="confirmMsg"></div>
+      <div class="modal-scope-base hidden" id="confirmScope"></div>
+      <div class="modal-impact-base hidden" id="confirmImpact"></div>
+    </div>
+    <div class="modal-footer-base">
+      <button id="confirmCancelBtn" onclick="cancelConfirm()" data-i18n="dialog.cancel">取消</button>
+      <button id="confirmOkBtn" class="primary" onclick="execConfirm()" data-i18n="dialog.confirm">确认</button>
+    </div>
+  </div>
+</div>
+
+  <!-- Input Modal -->
+<div class="modal-overlay-base" id="inputOverlay">
+  <div class="confirm-dialog modal-dialog-base" style="flex-direction:column;align-items:stretch;gap:16px;">
+    <div class="modal-header-base">
+      <span class="title-text" id="inputTitle">输入</span>
+      <button class="modal-close-base" onclick="cancelInput()">&times;</button>
+    </div>
+    <div class="modal-body-base" style="padding:0 0 8px;">
+      <textarea id="inputField" rows="6" style="width:100%;resize:vertical;font-family:'SF Mono',Consolas,monospace;font-size:13px;padding:10px 12px;border:1px solid var(--color-border);border-radius:6px;background:var(--color-bg);color:var(--color-text);outline:none;" placeholder="在此输入..."></textarea>
+    </div>
+    <div class="modal-footer-base" style="border-top:none;padding:0;">
+      <button class="primary" id="inputOkBtn" onclick="execInput()">确认</button>
+      <button id="inputCancelBtn" onclick="cancelInput()">取消</button>
+    </div>
+  </div>
+</div>
+
+  <!-- ESM Phase 5: Vite-bundled entry (replaces all old page-*.js) -->
+  <script type="module" src="/js/app.js"></script>
+
+<!-- Image Lightbox -->
+<div id="imageLightbox" class="image-lightbox" onclick="closeImageLightbox()">
+  <span class="image-lightbox-close" onclick="closeImageLightbox()">&times;</span>
+  <img id="imageLightboxImg" class="image-lightbox-img" onclick="event.stopPropagation()">
+  <div id="imageLightboxCaption" class="image-lightbox-caption"></div>
+</div>
+
+
+<!-- CDN libs replaced with local fallbacks to avoid DNS timeout blocking page load -->
+<script>
+  // Fallback stubs when CDN is unreachable
+  window.Prism = window.Prism || { highlightElement: function(){} };
+  window.katex = window.katex || { renderToString: function(s){ return s; } };
+  window.renderMathInElement = window.renderMathInElement || function(){};
+  window.mermaid = window.mermaid || { initialize: function(){}, render: function(){ return Promise.resolve({svg:''}); } };
+</script>
+</div><!-- /mainContent -->
+</body>
+</html>

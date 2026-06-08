@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment
+.env
+.siper.pid
+
+# Runtime data（程序自动生成）
+agents/
+models.json
+settings.json
+
+# Uploads
+uploads/
+
+# Temp files
+.tmp/
+*.tgz
+
+# Node / Vite
+node_modules/
+package-lock.json
+webui/dist/
+webui/dev/
+
+# Backup
+.cleanup_backup/
+
+# IDE
+.vscode/
+.idea/
+
+# Dev test files（不发布）
+check_input.py
+debug_ws.js
+test_siper.py
+
+# Dev skills（不发布）
+skills/watchlist/
+skills/siper-coding/
+skills/web-search/
+
+# Other
+references/
