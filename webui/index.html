@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<style>.skip-link{position:absolute;left:-9999px;top:4px;z-index:99999;padding:8px 16px;background:var(--color-primary);color:var(--color-primary-fg);border-radius:4px;text-decoration:none;font-size:14px}.skip-link:focus{left:50%;transform:translateX(-50%);top:4px}</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Siper AI Agent</title>
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  <script src="/static/js/echarts.min.js"></script>
+  <script src="/static/js/md-render.js"></script>
+</head>
+<body>
+<a href="#mainContent" class="skip-link" data-i18n="a11y.skipToContent">跳转到主内容</a>
+
+
+  <!-- Main Content -->
+<div class="main" id="mainContent" tabindex="-1">
+
+  <!-- Chat Page (Three Column Layout) — 常驻 DOM，用 display:none 隐藏 -->
+  <div id="page-chat" style="display:flex">
+    <!-- Left: Collapsible Nav Sidebar (dark, icon-only / expanded) -->
+    <div class="siper-sidebar" id="chatSidebar">
+      <div class="siper-sidebar-header" onclick="toggleChatSidebar()" title="展开/折叠">
+        <img src="/static/default_avatar.webp" class="siper-sidebar-avatar" alt="avatar" width="36" height="36" onerror="this.src='/static/default_avatar_256.png'">
+        <span class="siper-sidebar-brand">SiPer</span>
+      </div>
+      <nav class="siper-sidebar-nav" role="navigation" aria-label="主导航">
+        <div class="siper-nav-section">
+          <div class="siper-nav-title" data-i18n="nav.main">主要功能</div>
+          <div class="siper-nav-item active" data-page="chat" onclick="chatSwitchPage('chat')"><span>💬</span><span class="siper-nav-item-label" data-i18n="nav.chat">对话</span></div>
+        </div>
+        <div class="siper-nav-section">
+          <div class="siper-nav-title" data-i18n="nav.agent">智能体</div>
+          <div class="siper-nav-item" data-page="skills" onclick="chatSwitchPage('skills')"><span>🧩</span><span class="siper-nav-item-label" data-i18n="nav.skills">技能</span></div>
+          <div class="siper-nav-item" data-page="token" onclick="chatSwitchPage('token')"><span>📊</span><span class="siper-nav-item-label" data-i18n="nav.token">Token</span></div>
+        </div>
+        <div class="siper-nav-section">
+          <div class="siper-nav-title" data-i18n="nav.system">系统</div>
+          <div class="siper-nav-item" data-page="global-settings" onclick="chatSwitchPage('global-settings')"><span>⚙️</span><span class="siper-nav-item-label" data-i18n="nav.globalSettings">全局设置</span></div>
+          <div class="siper-nav-item" data-page="logs" onclick="chatSwitchPage('logs')"><span>📜</span><span class="siper-nav-item-label" data-i18n="nav.logs">日志</span></div>
+        </div>
+      </nav>
+
+      <div class="siper-sidebar-footer">
+      </div>
+    </div>
+
+    <!-- Middle: Agent Groups (expandable, sessions under each agent) -->
+    <div class="siper-middle" id="chatMiddle">
+      <div class="siper-middle-header">
+        <div class="siper-search-box">
+          <span>🔍</span>
+          <input type="text" class="siper-search-input" id="chatSearchInput" placeholder="搜索智能体..." oninput="chatHandleSearch(this.value)" aria-label="搜索智能体">
+        </div>
+      </div>
+      <div class="siper-middle-list" id="chatMiddleList">
+      </div>
+    </div>
+
+    <!-- Right: Content Area (dynamic: chat / sessions / tasks / agent / memory / skills / token / theme / settings / logs) -->
+    <div class="siper-chat" id="chatRight">
+      <div class="siper-chat-header" id="chatRightHeader">
+        <span class="siper-chat-header-name" id="chatRightHeaderName">选择一个 Agent 开始对话</span>
+      </div>
+      <div class="siper-content" id="chatContentArea">
+      </div>
+    </div>
+  </div>
+
+  <!-- Dynamic Page Container — 非对话家族页面渲染到这里，对话页面用 display:none 隐藏 -->
+  <div id="page-dynamic" class="page-dynamic"></div>
+
+  <!-- Standalone page templates (hidden, cloned into #page-dynamic by navigateToPage) -->
+  <div id="tpl-sessions" style="display:none">
+    <div class="page-header">
+      <h2 data-i18n="sessions.title">会话管理</h2>
+      <div class="actions">
+        <button class="btn-sm primary" onclick="newSession()" data-i18n="sessions.new">+ 新会话</button>
+        <button class="btn-sm" onclick="refreshSessions()" data-i18n="sessions.refresh">刷新</button>
+      </div>
+    </div>
+    <div class="page-body page-body-flex">
+      <div class="session-list" id="sessionsList"></div>
+      <div class="session-preview" id="sessionPreview">
+        <div class="empty-state" data-i18n="sessions.selectPrompt">← 点击会话查看消息</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tpl-memory" style="display:none">
+    <div class="page-header">
+      <h2 data-i18n="memory.title">记忆管理</h2>
+      <div class="actions flex-align-8">
+        <select id="memoryAgentSelector" onchange="onMemoryAgentChange(this.value)" class="select-input select-wide" aria-label="记忆智能体">
+          <option value="" data-i18n="memory.selectAgent">选择智能体...</option>
+        </select>
+        <button class="btn-sm" onclick="refreshMemoryPage()" data-i18n="memory.refresh">刷新</button>
+        <button class="btn-sm primary" onclick="saveMemoryMd()" data-i18n="memory.save">保存记忆</button>
+        <button class="btn-sm primary" onclick="saveMemoryConfig()" data-i18n="memory.saveConfig">保存配置</button>
+      </div>
+    </div>
+    <div class="memory-grid">
+      <div class="memory-file-section">
+        <div class="section-header">
+          <span class="model-badge badge-accent2">memory.md</span>
+          <span data-i18n="memory.mdFile">记忆文件</span>
+          <span id="memoryAgentLabel" class="text-muted-small"></span>
+        </div>
+        <textarea class="agent-file-editor code-editor-flex" id="memoryMdEditor" placeholder="加载中..." aria-label="记忆内容编辑器"></textarea>
+      </div>
+      <div class="memory-config-section">
+        <div class="section-header">
+          <span class="model-badge badge-green" data-i18n="memory.integration">记忆整合</span>
+          <span data-i18n="memory.integrationTitle">记忆整合进提示词的方式</span>
+        </div>
+        <div class="config-grid">
+          <div class="setting-label" data-i18n="memory.mode">整合模式<br><small data-i18n="memory.modeHint">记忆内容如何嵌入提示词</small></div>
+          <select id="memMode" class="select-input">
+            <option value="append" data-i18n="memory.modeAppend">追加到系统提示词后</option>
+            <option value="prepend" data-i18n="memory.modePrepend">插入到系统提示词前</option>
+            <option value="system" data-i18n="memory.modeSystem">替换系统提示词</option>
+            <option value="none" data-i18n="memory.modeNone">不整合（仅手动引用）</option>
+          </select>
+          <div class="setting-label" data-i18n="memory.maxTokens">最大 Token 数<br><small data-i18n="memory.maxTokensHint">记忆内容最大长度限制</small></div>
+          <input type="number" id="memMaxTokens" class="select-input" value="2000" min="100" max="10000" aria-label="最大 Token 数">
+          <div class="setting-label" data-i18n="memory.template">提示词模板<br><small data-i18n="memory.templateHint">用 {memory} 占位符插入记忆内容</small></div>
+          <textarea id="memTemplate" rows="3" class="code-input" placeholder="提示词模板">{memory}</textarea>
+          <div class="section-label" data-i18n="memory.preview">预览效果</div>
+          <div id="memPreview" class="preview-box"></div>
+        </div>
+        <button class="btn-sm" onclick="showConfirm({title:'重置记忆配置',msg:'确定要重置记忆配置为默认值吗？',scope:'影响范围：记忆整合设置（模式/位置/Token限制/模板）将恢复默认',okText:'重置',onConfirm:resetMemoryConfig})" data-i18n="memory.resetConfig">重置</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tpl-agent-config" style="display:none">
+    <div class="page-header">
+      <h2 data-i18n="agentConfig.title">智能体配置</h2>
+      <div class="actions">
+        <button class="btn-sm primary" onclick="window.navigateToPage('chat')" data-i18n="agentConfig.backToChat">← 返回对话</button>
+      </div>
+    </div>
+    <div id="agentConfigContent">
+      <div id="agentSelector" class="agent-selector"></div>
+      <div id="agentConfigTitle" class="agent-config-title"></div>
+      <!-- Tabs -->
+      <div class="agent-tabs">
+        <button class="agent-tab active" data-tab="about" id="agentTabAbout" onclick="switchConfigAgentPageTab('about')">关于</button>
+        <button class="agent-tab" data-tab="files" id="agentTabFiles" onclick="switchConfigAgentPageTab('files')">属性文件</button>
+        <button class="agent-tab" data-tab="memory" id="agentTabMemory" onclick="switchConfigAgentPageTab('memory')">记忆</button>
+        <button class="agent-tab" data-tab="limits" onclick="switchConfigAgentPageTab('limits')">限制</button>
+        <button class="agent-tab" data-tab="models" onclick="switchConfigAgentPageTab('models')">模型</button>
+        <button class="agent-tab" data-tab="avatar" onclick="switchConfigAgentPageTab('avatar')">头像</button>
+      </div>
+      <!-- Tab: About -->
+      <div class="agent-tab-content active" id="agentTabContentAbout">
+        <div class="config-section">
+          <label class="config-label" for="cfgAgentName">智能体名称<span class="required-mark">*</span></label>
+          <input type="text" id="cfgAgentName" class="select-input" oninput="triggerAgentAutoSave()">
+          <label class="config-label" for="cfgAgentIconBtn">图标</label>
+          <div class="icon-display">
+            <span id="cfgAgentIcon" class="agent-icon-large"></span>
+            <button class="btn-sm" id="cfgAgentIconBtn" onclick="toggleIconPicker()">选择图标</button>
+          </div>
+          <label class="config-label" for="cfgAgentMsgBg">消息气泡颜色</label>
+          <input type="color" id="cfgAgentMsgBg" oninput="triggerAgentAutoSave()">
+          <label class="config-label" for="cfgAgentMsgBorder">消息气泡边框</label>
+          <input type="color" id="cfgAgentMsgBorder" oninput="triggerAgentAutoSave()">
+          <label class="config-label" for="cfgAgentMsgFontSize">消息字体大小</label>
+          <input type="range" id="cfgAgentMsgFontSize" min="12" max="20" oninput="triggerAgentAutoSave()">
+          <span id="cfgAgentMsgFontSizeVal"></span>
+          <label class="config-label" for="cfgAgentMsgText">消息文字颜色</label>
+          <input type="color" id="cfgAgentMsgText" oninput="triggerAgentAutoSave()">
+          <label class="config-label" for="agentSoulContent">Soul.md 内容</label>
+          <textarea id="agentSoulContent" rows="8" class="code-input" oninput="triggerAgentAutoSave()"></textarea>
+        </div>
+      </div>
+      <!-- Tab: Files -->
+      <div class="agent-tab-content" id="agentTabContentFiles">
+        <div class="config-section">
+          <label class="config-label" for="agentMdContent">Agent.md 行为指令</label>
+          <textarea id="agentMdContent" rows="12" class="code-input" oninput="triggerAgentAutoSave()"></textarea>
+          <label class="config-label" for="agentMemoryContent">System Prompt 预览</label>
+          <div id="agentMemoryContent" class="preview-box"></div>
+          <button class="btn-sm" onclick="saveAgentFile()" data-i18n="agentConfig.saveFiles">保存文件</button>
+        </div>
+      </div>
+      <!-- Tab: Memory -->
+      <div class="agent-tab-content" id="agentTabContentMemory">
+        <div class="config-section">
+          <label class="config-label" for="agentCfgMemoryPath">记忆文件路径</label>
+          <input type="text" id="agentCfgMemoryPath" class="select-input" oninput="triggerAgentAutoSave()">
+          <label class="config-label" for="agentCfgMemoryMaxTokens">记忆最大 Token 数</label>
+          <input type="number" id="agentCfgMemoryMaxTokens" class="select-input" oninput="triggerAgentAutoSave()">
+        </div>
+      </div>
+      <!-- Tab: Limits -->
+      <div class="agent-tab-content" id="tab-limits">
+        <div class="config-section">
+          <!-- LLM 调用与会话 -->
+          <div class="config-group-title">LLM 调用与会话</div>
+          <label class="config-label" for="agentCfgLlmTimeout">超时 (秒)</label>
+          <input type="number" id="agentCfgLlmTimeout" class="select-input" oninput="triggerAgentAutoSave()">
+          <label class="config-label" for="agentCfgLlmMaxRetries">最大重试次数</label>
+          <input type="number" id="agentCfgLlmMaxRetries" class="select-input" oninput="triggerAgentAutoSave()">
+          <label class="config-label" for="agentCfgLlmMaxTokens">最大 Token 数</label>
+          <input type="number" id="agentCfgLlmMaxTokens" class="select-input" oninput="triggerAgentAutoSave()">
+          <label class="config-label" for="agentCfgMaxToolRounds">最大工具调用轮次</label>
+          <input type="number" id="agentCfgMaxToolRounds" class="select-input" oninput="triggerAgentAutoSave()">
+          <label class="config-label" for="agentCfgMaxTools">最大工具数量</label>
+          <input type="number" id="agentCfgMaxTools" class="select-input" oninput="triggerAgentAutoSave()">
+          <label class="config-label" for="agentCfgSessionTimeout">会话超时 (分钟)</label>
+          <input type="number" id="agentCfgSessionTimeout" class="select-input" oninput="triggerAgentAutoSave()">
+          <label class="config-label" for="agentCfgMaxHistoryMessages">最大历史消息数</label>
+          <input type="number" id="agentCfgMaxHistoryMessages" class="select-input" oninput="triggerAgentAutoSave()">
+          <!-- 其他 -->
+          <div class="config-group-title">其他</div>
+          <label class="config-label" for="agentCfgMemoryMaxTokens">记忆最大 Token 数</label>
+          <input type="number" id="agentCfgMemoryMaxTokens" class="select-input" oninput="triggerAgentAutoSave()">
+          <label class="config-label" for="agentCfgSkillPreFilterTopK">技能预筛选 Top K</label>
+          <input type="number" id="agentCfgSkillPreFilterTopK" class="select-input" oninput="triggerAgentAutoSave()">
+          <button class="btn-sm" onclick="resetAgentLimits()" data-i18n="agentConfig.resetLimits">重置限制</button>
+        </div>
+      </div>
+      <!-- Tab: Models -->
+      <div class="agent-tab-content" id="tab-models">
+        <div class="config-section">
+          <label class="config-label" for="agentDefaultChatModel">默认对话模型</label>
+          <select id="agentDefaultChatModel" class="select-input" onchange="autoSaveAgentModels()"></select>
+          <label class="config-label" for="agentDefaultVisionModel">默认视觉模型</label>
+          <select id="agentDefaultVisionModel" class="select-input" onchange="autoSaveAgentModels()"></select>
+          <button class="btn-sm" onclick="loadGlobalModelsForAgent()" data-i18n="agentConfig.loadGlobalModels">加载全局模型</button>
+          <div id="agentModelListSection" class="model-list"></div>
+        </div>
+      </div>
+      <!-- Tab: Avatar -->
+      <div class="agent-tab-content" id="tab-avatar">
+        <div class="config-section">
+          <div class="avatar-section">
+            <img id="cfgAgentAvatar" src="/static/default_avatar.webp" class="avatar-preview" alt="avatar" width="64" height="64" onclick="document.getElementById('avatarFileInput').click()" style="cursor:pointer">
+            <div class="avatar-controls">
+              <input type="file" id="avatarFileInput" accept="image/*" onchange="uploadAgentAvatar()" style="display:none">
+              <span class="text-muted-small">点击头像选择图片上传</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="agent-config-footer">
+        <button class="btn-sm" id="cfgAgentDeleteBtn" onclick="if(typeof confirmDeleteAgent==='function'&&currentConfigAgent)confirmDeleteAgent(currentConfigAgent)" data-i18n="agentConfig.deleteAgent">删除智能体</button>
+        <button class="btn-sm" id="currentAgentLabelLimits" onclick="switchChatAgentTab('limits')">当前限制</button>
+        <button class="btn-sm primary" onclick="saveAllChatAgentConfig()" data-i18n="agentConfig.saveAll">保存全部</button>
+      </div>
+    </div>
+    <!-- Icon Picker Popup -->
+    <div id="iconPickerPopup" class="icon-picker-popup hidden"></div>
+  </div>
+
+  <div id="tpl-theme-settings" style="display:none">
+    <div class="page-header">
+      <h2 data-i18n="theme.title">外观设置</h2>
+      <div class="actions">
+        <button class="btn-sm theme-reset-btn" onclick="resetTheme()" data-i18n="theme.reset">重置默认</button>
+        <button class="btn-sm" onclick="exportTheme()" data-i18n="theme.export">导出</button>
+        <button class="btn-sm" onclick="importTheme()" data-i18n="theme.import">导入</button>
+      </div>
+    </div>
+    <div class="theme-settings-content">
+      <div class="theme-section">
+        <div class="section-label" data-i18n="theme.preset">预设主题</div>
+        <div id="themePresetBar" class="theme-preset-bar"></div>
+      </div>
+      <div class="theme-section">
+        <div class="section-label" data-i18n="theme.customColors">自定义颜色</div>
+        <div id="themeCustomColors" class="color-grid">
+          <!-- Dynamically populated by showThemeSettings() -->
+        </div>
+      </div>
+      <div class="theme-section">
+        <div class="section-label" data-i18n="theme.sizeSettings">尺寸设置</div>
+        <div id="themeSizeSettings" class="size-settings">
+          <!-- Dynamically populated by renderSizeSettings() -->
+        </div>
+      </div>
+      <div class="theme-section">
+        <div class="section-label" data-i18n="theme.templates">主题模板</div>
+        <div class="template-controls">
+          <input type="text" id="templateName" class="select-input" placeholder="模板名称" aria-label="主题模板名称">
+          <button class="btn-sm primary" onclick="saveThemeTemplate()" data-i18n="theme.saveTemplate">保存模板</button>
+          <button class="btn-sm" onclick="renderTemplateList()" data-i18n="theme.refreshTemplates">刷新</button>
+        </div>
+        <div id="themeTemplateList" class="template-list"></div>
+      </div>
+    </div>
+  </div>
+
+<!-- 通知系统由 toast.js 动态创建，不再需要静态 HTML 元素 -->
+<!-- ESM entry -->
+  <script type="module" src="/js/app.js"></script>
+
+
+<!-- CDN libs replaced with local fallbacks to avoid DNS timeout blocking page load -->
+<script>
+  // Fallback stubs when CDN is unreachable
+  window.Prism = window.Prism || { highlightElement: function(){} };
+  window.katex = window.katex || { renderToString: function(s){ return s; } };
+  window.renderMathInElement = window.renderMathInElement || function(){};
+  window.mermaid = window.mermaid || { initialize: function(){}, render: function(){ return Promise.resolve({svg:''}); } };
+</script>
+</div><!-- /mainContent -->
+</body>
+</html>

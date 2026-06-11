@@ -1,0 +1,413 @@
+// chat/stream.js — 流式响应处理
+// 从 page-chat.js 拆分
+import {
+  chatSessionId, chatCurrentAgent,
+  _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps,
+  chatModelContextWindow, isSending,
+  _getStreamState, _syncStreamFromCurrent, _syncStreamToCurrent,
+  chatAgents, setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, updateStreamingBadge,
+  setIsThinking
+} from './state.js';
+import { chatEscapeHtml, chatRenderMarkdown, updateCtxInfoDisplay } from './message.js';
+import { renderMiddleList } from './sidebar.js';
+
+// ===== Stream Handlers =====
+
+export function chatHandleStreamDelta(delta, streamSessionId) {
+  // If user already stopped, ignore late deltas
+  if (!isSending) return;
+  if (streamSessionId && chatSessionId && streamSessionId !== chatSessionId) {
+    const s = _getStreamState(streamSessionId);
+    s.acc += delta || '';
+    return;
+  }
+  _syncStreamFromCurrent();
+  const msgs = document.getElementById('chatMessages');
+  if (!msgs) { _syncStreamToCurrent(); return; }
+  const empty = document.getElementById('chatEmptyState');
+  if (empty) empty.style.display = 'none';
+  setChatStreamAcc(_chatStreamAcc + (delta || ''));
+
+  if (!_chatStreamRow) {
+    // Thinking panel already shown by chatSendMessage, just update text
+    chatThinkingClear();
+    chatThinkingAddTextRow('正在生成回复...');
+  }
+
+  if (!_chatStreamRow) {
+    const row = document.createElement('div');
+    row.className = 'siper-msg-row agent siper-stream-row';
+    const avatarUrl = chatCurrentAgent && chatCurrentAgent.name
+      ? '/api/avatar?agent=' + encodeURIComponent(chatCurrentAgent.name)
+      : '/static/default_avatar.webp';
+    row.innerHTML = `
+      <img src="${avatarUrl}" class="siper-msg-avatar" alt="" onerror="this.src='/static/default_avatar_256.png'">
+      <div class="siper-bubble-col">
+        <div class="siper-msg-time"></div>
+        <div class="siper-bubble agent-bubble"><div class="siper-msg-body"><span class="siper-stream-text"></span></div></div>
+        <div class="siper-msg-actions">
+          <button class="siper-msg-action-btn" onclick="copyChatMsg(this)" title="复制">📋</button>
+          <button class="siper-msg-action-btn" onclick="insertChatMsg(this)" title="嵌入">↩</button>
+        </div>
+      </div>
+    `;
+    msgs.appendChild(row);
+    setChatStreamRow(row);
+    if (chatSessionId) updateStreamingBadge(chatSessionId, true);
+  }
+
+  const textEl = _chatStreamRow.querySelector('.siper-stream-text');
+  if (textEl) {
+    // Throttle markdown render: only render every 3rd delta to reduce CPU usage
+    // The final stream_end will always render the complete text
+    const _accLen = _chatStreamAcc.length;
+    if (_accLen < 200 || _accLen % 3 === 0 || delta.length > 50) {
+      textEl.innerHTML = '';
+      if (typeof renderMarkdown === 'function') {
+        textEl.appendChild(renderMarkdown(_chatStreamAcc));
+      } else {
+        textEl.innerHTML = chatRenderMarkdown(_chatStreamAcc);
+      }
+    }
+  }
+  _chatStreamRow.dataset.rawText = _chatStreamAcc;
+  const _msgs = msgs;
+  const _distanceFromBottom = _msgs.scrollHeight - _msgs.scrollTop - _msgs.clientHeight;
+  if (_distanceFromBottom < 80) {
+    // 用户在底部，自动滚动
+    _msgs.scrollTop = _msgs.scrollHeight;
+    _hideNewMsgIndicator();
+  } else {
+    // 用户不在底部，显示新消息指示器
+    _showNewMsgIndicator();
+  }
+  _syncStreamToCurrent();
+}
+
+export function chatHandleStreamEnd(data, streamSessionId) {
+  if (streamSessionId && chatSessionId && streamSessionId !== chatSessionId) {
+    const s = _getStreamState(streamSessionId);
+    // Always clear thinking state for the completed session (even if s.row was already cleaned)
+    s.thinking = false;
+    s.thinkingSteps = [];
+    setIsThinking(false);
+    chatThinkingHide();
+    if (s.row) {
+      s.row.classList.remove('siper-stream-row');
+      const streamTextEl = s.row.querySelector('.siper-stream-text');
+      if (streamTextEl) {
+        const parent = streamTextEl.parentElement;
+        if (parent) { parent.innerHTML = ''; if (typeof renderMarkdown === 'function') parent.appendChild(renderMarkdown(s.acc)); }
+      }
+      s.row = null; s.bubble = null; s.acc = '';
+    }
+    // Stop wave badge for cross-session stream end
+    updateStreamingBadge(streamSessionId, false);
+    return;
+  }
+  _syncStreamFromCurrent();
+  const text = _chatStreamAcc;
+  const streamRow = _chatStreamRow;
+
+  if (data && data.usage) updateCtxFromStreamEnd(data.usage);
+
+  // Add dict button — show for any agent message that has a message_id
+  if (streamRow && data && data.message_id) {
+    try {
+      const actions = streamRow.querySelector('.siper-msg-actions');
+      if (actions) {
+        const existing = actions.querySelector('.siper-dict-btn');
+        if (existing) existing.remove();
+        const dictBtn = document.createElement('button');
+        dictBtn.className = 'siper-msg-action-btn siper-dict-btn';
+        dictBtn.innerHTML = '{}';
+        dictBtn.title = '查看完整响应数据';
+        dictBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showDictModal(data);
+          // Save response dict to sessions.db via API
+          if (data.message_id) {
+            fetch('/api/save-response-dict', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({
+                message_id: data.message_id,
+                response_dict: data
+              })
+            }).catch(() => {});
+          }
+        });
+        actions.appendChild(dictBtn);
+      }
+    } catch(e) {}
+  }
+
+  if (streamRow) {
+    const timeEl = streamRow.querySelector('.siper-msg-time');
+    if (timeEl) timeEl.textContent = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+    // Render meta info inside bubble
+    if (data && (data.usage || data.model || data.processing_time_ms || data.tool_call_steps || data.skills_used || data.skills_active)) {
+      const bubbleEl = streamRow.querySelector('.siper-bubble');
+      if (bubbleEl) {
+        const metaEl = document.createElement('div');
+        metaEl.className = 'siper-bubble-meta';
+        const lines = [];
+        if (data.usage) {
+          const u = data.usage;
+          const fmt = n => n == null ? '' : n >= 1000000 ? (n/1000000).toFixed(1).replace(/\.0$/,'') + 'M' : n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/,'') + 'K' : String(n);
+          const parts = [];
+          if (u.prompt_tokens != null) parts.push('⬆️ 输入token：~ ' + fmt(u.prompt_tokens));
+          if (u.completion_tokens != null) parts.push('⬇️ 输出token：~ ' + fmt(u.completion_tokens));
+          if (data.model) parts.push('🤖 ' + data.model);
+          if (data.processing_time_ms) {
+            const ms = data.processing_time_ms;
+            const t = ms < 1000 ? ms + 'ms' : ms < 60000 ? (ms/1000).toFixed(1) + 's' : Math.floor(ms/60000) + 'm ' + Math.floor((ms%60000)/1000) + 's';
+            parts.push('⏱ ' + t);
+          }
+          if (parts.length) lines.push(parts.join('；'));
+        }
+        if (data.tool_call_steps && data.tool_call_steps.length) {
+          const toolNames = data.tool_call_steps.map(s => s.tool_name).filter(Boolean);
+          lines.push('🔧 工具：' + (toolNames.length ? toolNames.join(', ') : data.tool_call_steps.length + ' calls'));
+        }
+        if (data.skills_used && data.skills_used.length) lines.push('🧩 技能：' + data.skills_used.join(', '));
+        if (data.skills_recommended && data.skills_recommended.length) {
+          const notUsed = data.skills_recommended.filter(s => !data.skills_used || !data.skills_used.includes(s));
+          if (notUsed.length) lines.push('<span style="opacity:0.5">💡 推荐：' + notUsed.join(', ') + '</span>');
+        }
+        if (data.finish_reason && data.finish_reason !== 'stop') lines.push('🏁 ' + data.finish_reason);
+        metaEl.innerHTML = lines.map(l => l.startsWith('<span') ? '<div>' + l + '</div>' : '<div>' + chatEscapeHtml(l) + '</div>').join('');
+        bubbleEl.appendChild(metaEl);
+      }
+    }
+  }
+
+  // Finalize stream row — convert to normal message
+  if (_chatStreamRow) {
+    _chatStreamRow.classList.remove('siper-stream-row');
+    const streamTextEl2 = _chatStreamRow.querySelector('.siper-stream-text');
+    if (streamTextEl2) {
+      const parent = streamTextEl2.parentElement;
+      if (parent) {
+        parent.innerHTML = '';
+        if (text) {
+          if (typeof renderMarkdown === 'function') parent.appendChild(renderMarkdown(text));
+          else parent.innerHTML = chatRenderMarkdown(text);
+        } else if (data && data.tool_call_steps && data.tool_call_steps.length) {
+          const toolNames = data.tool_call_steps.map(s => s.tool_name).filter(Boolean);
+          const summary = document.createElement('div');
+          summary.className = 'siper-tool-summary';
+          summary.textContent = '🔧 执行工具：' + (toolNames.length ? toolNames.join(', ') : data.tool_call_steps.length + ' calls');
+          parent.appendChild(summary);
+        }
+      }
+    }
+  }
+
+  setChatStreamAcc('');
+  setChatStreamRow(null);
+  setChatStreamBubble(null);
+  _thinkingSteps.length = 0;
+  setIsThinking(false);
+  if (chatSessionId) updateStreamingBadge(chatSessionId, false);
+  _syncStreamToCurrent();
+  setIsSending(false);
+  const _csb = document.getElementById('chatSendBtn');
+  if (_csb) _csb.disabled = false;
+  const _cstb = document.getElementById('chatStopBtn');
+  if (_cstb) _cstb.classList.add('hidden');
+  chatThinkingHide();
+  _hideNewMsgIndicator();
+  if (chatSessionId && chatCurrentAgent) {
+    const _agent = chatAgents.find(a => a.name === chatCurrentAgent.name);
+    if (_agent) {
+      const _sess = _agent.sessions.find(s => s.session_id === chatSessionId);
+      if (_sess) {
+        _sess.last_message = (text || '').replace(/\n/g, ' ').substring(0, 60);
+        _sess.updated_at = new Date().toISOString();
+        // 只更新对应 session item 的 DOM，不重新渲染整个中栏
+        const container = document.getElementById('chatMiddleList');
+        if (container) {
+          const items = container.querySelectorAll('.siper-session-item');
+          for (const item of items) {
+            if (item.dataset.sessionId === chatSessionId) {
+              const preview = item.querySelector('.siper-session-preview');
+              if (preview) preview.textContent = _sess.last_message;
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// ===== Stop Handler =====
+
+export function chatHandleStopped() {
+  // Called when backend sends 'stopped' message — clean up stream state
+  _syncStreamFromCurrent();
+  if (_chatStreamRow) {
+    const text = _chatStreamAcc;
+    const streamRow = _chatStreamRow;
+    streamRow.classList.remove('siper-stream-row');
+    const streamTextEl = streamRow.querySelector('.siper-stream-text');
+    if (streamTextEl) {
+      const parent = streamTextEl.parentElement;
+      if (parent) {
+        parent.innerHTML = '';
+        if (text) {
+          if (typeof renderMarkdown === 'function') parent.appendChild(renderMarkdown(text));
+          else parent.innerHTML = chatRenderMarkdown(text);
+        }
+      }
+    }
+  }
+  setChatStreamAcc('');
+  setChatStreamRow(null);
+  setChatStreamBubble(null);
+  _thinkingSteps.length = 0;
+  setIsThinking(false);
+  setIsSending(false);
+  const _csb = document.getElementById('chatSendBtn');
+  if (_csb) _csb.disabled = false;
+  const _cstb = document.getElementById('chatStopBtn');
+  if (_cstb) _cstb.classList.add('hidden');
+  chatThinkingHide();
+  _hideNewMsgIndicator();
+  // Stop wave badge for this session
+  if (chatSessionId && typeof updateStreamingBadge === 'function') updateStreamingBadge(chatSessionId, false);
+}
+
+// ===== Thinking Panel =====
+
+export function chatThinkingShow() {
+  const panel = document.getElementById('chatThinkingPanel');
+  if (panel) panel.classList.add('open');
+}
+
+export function chatThinkingHide() {
+  const panel = document.getElementById('chatThinkingPanel');
+  if (panel) panel.classList.remove('open');
+}
+
+export function chatThinkingClear() {
+  const body = document.getElementById('chatThinkingBody');
+  if (body) body.innerHTML = '';
+  _thinkingSteps.length = 0;
+}
+
+export function chatThinkingAddToolStep(callId, toolName, status, params, resultSummary) {
+  const body = document.getElementById('chatThinkingBody');
+  if (!body) return;
+  const existing = body.querySelector('[data-call-id="' + callId + '"]');
+  if (existing) existing.remove();
+  let paramStr = '';
+  if (params) {
+    if (toolName === 'web_search' && params.query) paramStr = params.query;
+    else if (toolName === 'web_extract' && params.urls) paramStr = (Array.isArray(params.urls) ? params.urls.length : 1) + ' urls';
+    else if (toolName === 'execute_code') paramStr = 'code';
+    else if (toolName === 'read_file' && params.path) paramStr = params.path;
+    else if (toolName === 'write_file' && params.path) paramStr = params.path;
+    else if (toolName === 'patch' && params.path) paramStr = params.path;
+    else if (toolName === 'skill_view' && params.name) paramStr = params.name;
+    else paramStr = Object.keys(params).join(', ');
+  }
+  if (paramStr.length > 80) paramStr = paramStr.substring(0, 77) + '...';
+  let resultStr = '';
+  if (status === 'completed' && resultSummary) {
+    resultStr = resultSummary;
+    if (resultStr.length > 100) resultStr = resultStr.substring(0, 97) + '...';
+  }
+  const icon = status === 'completed' ? '✓' : status === 'failed' ? '✗' : '⟳';
+  const iconClass = status === 'completed' ? 'done' : status === 'failed' ? 'error' : 'running';
+  const step = document.createElement('div');
+  step.className = 'siper-thinking-step';
+  step.setAttribute('data-call-id', callId);
+  step.innerHTML =
+    '<span class="siper-thinking-step-icon ' + iconClass + '">' + icon + '</span>' +
+    '<span><span class="siper-thinking-step-name">' + chatEscapeHtml(toolName) + '</span>' +
+    (paramStr ? '<span class="siper-thinking-step-params">(' + chatEscapeHtml(paramStr) + ')</span>' : '') +
+    (resultStr ? '<span class="siper-thinking-step-result">' + chatEscapeHtml(resultStr) + '</span>' : '') +
+    '</span>';
+  body.appendChild(step);
+  const steps = body.querySelectorAll('.siper-thinking-step');
+  if (steps.length > 6) steps[0].remove();
+  // Track in _thinkingSteps for cross-session persistence
+  const existingIdx = _thinkingSteps.findIndex(s => s.type === 'tool' && s.callId === callId);
+  const entry = { type: 'tool', callId, toolName, status, params: paramStr, resultSummary: resultStr };
+  if (existingIdx >= 0) _thinkingSteps[existingIdx] = entry;
+  else _thinkingSteps.push(entry);
+}
+
+export function chatThinkingAddTextRow(text) {
+  const body = document.getElementById('chatThinkingBody');
+  if (!body) return;
+  const prev = body.querySelector('.siper-thinking-text-row');
+  if (prev) prev.remove();
+  const row = document.createElement('div');
+  row.className = 'siper-thinking-text-row';
+  row.textContent = text;
+  body.appendChild(row);
+  // Track in _thinkingSteps for cross-session persistence
+  const existingIdx = _thinkingSteps.findIndex(s => s.type === 'text');
+  if (existingIdx >= 0) _thinkingSteps[existingIdx] = { type: 'text', text };
+  else _thinkingSteps.push({ type: 'text', text });
+}
+
+// 新消息到达指示器（用户不在底部时显示）
+function _showNewMsgIndicator() {
+  const msgs = document.getElementById('chatMessages');
+  if (!msgs) return;
+  if (msgs.querySelector('.siper-new-msg-indicator')) return; // 已存在
+  const btn = document.createElement('div');
+  btn.className = 'siper-new-msg-indicator';
+  btn.innerHTML = '▼ 新消息';
+  btn.onclick = function() {
+    msgs.scrollTop = msgs.scrollHeight;
+    _hideNewMsgIndicator();
+  };
+  msgs.appendChild(btn);
+}
+
+function _hideNewMsgIndicator() {
+  const msgs = document.getElementById('chatMessages');
+  if (!msgs) return;
+  const btn = msgs.querySelector('.siper-new-msg-indicator');
+  if (btn) btn.remove();
+}
+
+export function chatHandleToolProgress(d) {
+  const toolName = d.tool_name || 'unknown';
+  const status = d.status || 'running';
+  const callId = d.call_id || toolName;
+  const params = d.info && d.info.parameters ? d.info.parameters : null;
+  let resultSummary = '';
+  if (status === 'completed' && d.info) {
+    if (toolName === 'web_search' && d.info.metadata && d.info.metadata.count) {
+      resultSummary = '→ ' + d.info.metadata.count + ' results';
+    } else if (d.info.result && typeof d.info.result === 'string') {
+      resultSummary = '→ ' + d.info.result.replace(/\n/g, ' ');
+    }
+  }
+  // Show thinking panel on any tool status if not already open
+  const panel = document.getElementById('chatThinkingPanel');
+  const body = document.getElementById('chatThinkingBody');
+  if (panel && !panel.classList.contains('open')) {
+    chatThinkingShow();
+    if (!body || body.querySelectorAll('.siper-thinking-step').length === 0) {
+      chatThinkingClear();
+    }
+  }
+  chatThinkingAddToolStep(callId, toolName, status, params, resultSummary);
+}
+
+// ===== Context Info =====
+
+export function updateCtxFromStreamEnd(usage) {
+  if (!usage) return;
+  const used = usage.prompt_tokens || 0;
+  window.chatCtxTokens = { used: used, total: chatModelContextWindow };
+  updateCtxInfoDisplay();
+}
