@@ -3,7 +3,7 @@
 SiPer Agent deployment packager.
 Produces a clean tar.gz with:
 - No .git, __pycache__, .pyc
-- No .env, models.json (contain API keys)
+- No .env (contains API keys)
 - No sessions.db, token.db (conversation / usage history)
 - No meta.json, todos.json, skill_stats.json (runtime generated)
 - No uploads/, data/, .tmp/, tmp/, .cleanup_backup/
@@ -49,7 +49,6 @@ EXCLUDE_FILES = {
     ".siper.pid",
     ".gitignore",
     "test_siper.py",
-    "models.json",
     "settings.json",
     "sessions.db",
     "sessions.db-shm",
@@ -151,33 +150,6 @@ TEMPLATE_SETTINGS = """\
 }
 """
 
-TEMPLATE_MODELS = """\
-{
-  "version": 2,
-  "providers": {
-    "": {
-      "base_url": "https://api.example.com/v1",
-      "api_key": "YOUR_API_KEY_HERE",
-      "models": [
-        {
-          "id": "your-model-id",
-          "name": "Your Model Name",
-          "alias": "",
-          "provider": "",
-          "base_url": "https://api.example.com/v1",
-          "api_key": "YOUR_API_KEY_HERE",
-          "context_window": 131072,
-          "capabilities": ["chat", "function_calling", "reasoning", "code"],
-          "is_default": true
-        }
-      ]
-    }
-  },
-  "default_provider": "",
-  "default_model": "your-model-id"
-}
-"""
-
 TEMPLATE_ENV = """\
 # SiPer Agent environment config
 # Copy to .env and fill in real API key
@@ -270,7 +242,6 @@ INSTALL_MD = """\
 3. Configure (copy templates and edit)
    ```bash
    cp .env.template .env
-   cp models.json.template models.json
    cp settings.json.template settings.json
    cp agents/default/config.json.template agents/default/config.json
    cp agents/default/skill_config.json.template agents/default/skill_config.json
@@ -287,8 +258,7 @@ INSTALL_MD = """\
 
 | File | Purpose |
 |------|---------|
-| `.env` | API Key |
-| `models.json` | LLM provider and models |
+|| `.env` | API Key |
 | `settings.json` | System parameters |
 | `agents/default/config.json` | Agent config |
 | `agents/default/skill_config.json` | Skill config |
@@ -303,7 +273,6 @@ INSTALL_MD = """\
 
 def create_templates(dst: Path):
     (dst / "settings.json.template").write_text(TEMPLATE_SETTINGS)
-    (dst / "models.json.template").write_text(TEMPLATE_MODELS)
     (dst / ".env.template").write_text(TEMPLATE_ENV)
 
     agents_default = dst / "agents" / "default"
@@ -375,7 +344,7 @@ def main():
             file_count = sum(1 for m in members if not m.endswith("/"))
 
             sensitive_patterns = [
-                ".env", "models.json", "sessions.db",
+                ".env", "sessions.db",
                 "token.db", "settings.json"
             ]
             leaked = []
