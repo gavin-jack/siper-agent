@@ -476,7 +476,7 @@ async def main():
     _cfg_key_default = ""
     # Load models from SQLite (agents/default/models.db)
     from ai_agent.models_db import ModelsDB as _ModelsDB
-    _models_db = _ModelsDB(str(PROJECT_ROOT / "agents" / "default" / "models.db"))
+    _models_db = _ModelsDB(str(PROJECT_ROOT / "models.db"))
     _gm_models = []
     _gm_default = ""
     if _models_db.get_all_models():

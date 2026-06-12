@@ -1,6 +1,6 @@
 """
 模型数据库管理 — models.db
-存储位置: agents/default/models.db
+存储位置: models.db（项目根目录）
 替代 models.json，提供并发安全的 SQLite 存储。
 """
 import json

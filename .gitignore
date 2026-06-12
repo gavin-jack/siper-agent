@@ -10,6 +10,9 @@ __pycache__/
 # Runtime data（程序自动生成）
 agents/
 models.json
+models.db
+models.db-shm
+models.db-wal
 settings.json
 skill_stats.json
 

@@ -74,7 +74,7 @@ siper-agent/
 
 | 文件 | 说明 |
 |------|------|
-| `agents/default/models.db` | 模型和提供商配置（SQLite） |
+| `models.db` | 模型和提供商配置（SQLite，项目根目录） |
 | `settings.json` | 系统参数（端口、心跳、日志等） |
 | `agents/{name}/sessions.db` | 会话数据库（运行时生成） |
 | `agents/{name}/config.json` | 智能体配置 |
