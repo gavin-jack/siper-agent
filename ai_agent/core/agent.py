@@ -164,7 +164,7 @@ class AIAgent:
         self.skill_registry = SkillRegistry(skills_dir=config.skills_dir, agent=self)
         self.skill_pre_filter = SkillPreFilter(registry=self.skill_registry)
         self.skill_feedback = SkillFeedback(
-            stats_file=str(Path(config.data_dir).parent.parent / "skill_stats.json")
+            stats_file=str(Path(config.data_dir) / "skill_stats.json")
         )
         self._skill_pre_filter_enabled = True
         self._skill_pre_filter_top_k = config.skill_pre_filter_top_k
