@@ -184,6 +184,10 @@ export function updateSessionPreview(sessionId, text, updatedAt) {
       }
     }
   }
+  // 触发中栏重新排序（updated_at 变化后 DOM 顺序需刷新）
+  if (updatedAt !== undefined && typeof renderMiddleList === 'function') {
+    renderMiddleList();
+  }
 }
 
 // ===== Token Formatting =====

@@ -3763,20 +3763,22 @@ async def main():
 
         # Accumulated streaming response text
         _stream_acc = {"text": ""}
+        _stream_delta_sent = False  # Track whether any delta was actually sent
 
         async def _send_stream_delta(delta_text):
             """Send streaming delta to the frontend in real-time."""
-            if not delta_text:
-                return
             _stream_acc["text"] += delta_text
+            nonlocal _stream_delta_sent
+            _stream_delta_sent = True
+            logger.info(f"[_send_stream_delta] delta={delta_text[:30]!r}, acc_len={len(_stream_acc['text'])}, conn={conn_id}")
             try:
                 await ws.send(json.dumps({
                     "type": "stream_delta",
                     "delta": delta_text,
                     "session_id": session_id,
                 }))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"[_send_stream_delta] 发送失败: {e}, conn={conn_id}")
 
         async def _ws_send(payload):
             """Send a raw payload to the frontend via WebSocket.
@@ -3884,15 +3886,11 @@ async def main():
             # Persist to shared token DB
             _save_token_to_db(entry)
 
-        # Check if generation was stopped by user — if so, skip sending response
-        if _stop_events.get(conn_id) and _stop_events[conn_id].is_set():
-            logger.info(f"生成已被用户停止，跳过发送响应：conn={conn_id}")
-            _stop_events[conn_id].clear()
-            return
-
-
-        # If streaming was used, send a stream_end marker; otherwise send full response
-        if _stream_acc["text"]:
+        # If streaming was used, always send stream_end even if text is empty.
+        # Frontend needs stream_end to trigger reply-finished logic (hide thinking panel, etc.)
+        # The old `if _stream_acc["text"]:` condition caused tool_calls-only responses
+        # to be sent as `response` instead, breaking frontend reply-end detection.
+        if _stream_acc["text"] or _stream_delta_sent:
             try:
                 # Attach image info for frontend rendering
                 if image_paths:
@@ -3901,14 +3899,15 @@ async def main():
                         for p in image_paths
                     ]
                 # Attach server_time for accurate session ordering
-                result["server_time"] = datetime.now().isoformat()
+                result["server_time"] = datetime.datetime.now().isoformat()
                 await ws.send(json.dumps({
                     "type": "stream_end",
                     "session_id": session_id,
                     "data": result,
                 }))
-            except Exception:
-                pass
+                logger.info(f"[stream_end] sent, acc_len={len(_stream_acc['text'])}, conn={conn_id}")
+            except Exception as e:
+                logger.warning(f"[stream_end] send failed: {e}, conn={conn_id}")
         else:
             if image_paths:
                 result["attachments"] = [
@@ -3923,6 +3922,14 @@ async def main():
                 "data": result,
             }
             await ws.send(json.dumps(resp, ensure_ascii=False, default=str))
+            logger.info(f"[response] sent, len={len(result.get('response',''))}, conn={conn_id}")
+
+        # Check if generation was stopped by user — if so, skip sending response
+        _se = _stop_events.get(conn_id)
+        if _se and _se.is_set():
+            logger.info(f"生成已被用户停止，跳过发送响应：conn={conn_id}")
+            _se.clear()
+            return
 
         # Reply finished — clear processing event so heartbeat works again
         _processing_events.get(conn_id, asyncio.Event()).clear()

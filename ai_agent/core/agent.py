@@ -1702,10 +1702,14 @@ Always aim to be helpful, honest, and harmless in your responses.
                         """Runs in executor thread, collects streaming chunks."""
                         nonlocal collected_content, collected_tool_calls, collected_usage, collected_finish, pending_futures
                         last_chunk = None
+                        chunk_count = 0
                         for chunk in self.llm_client.chat_completion_stream(
                             messages=messages,
                             tools=tools_payload,
                         ):
+                            chunk_count += 1
+                            if chunk_count <= 3:
+                                self.logger.info(f"[_stream_collector] chunk#{chunk_count}: keys={list(chunk.keys())}, delta={chunk.get('delta','')[:50]!r}")
                             # Check stop event — break immediately if user cancelled
                             if _stop_event is not None and _stop_event.is_set():
                                 self.logger.info("LLM 流式读取被用户中断（stop_event）")
@@ -1714,6 +1718,7 @@ Always aim to be helpful, honest, and harmless in your responses.
                             delta = chunk.get("delta", "")
                             if delta:
                                 collected_content.append(delta)
+                                self.logger.info(f"[_stream_collector] calling stream_callback, delta={delta[:50]!r}")
                                 # Schedule callback in the event loop thread-safely
                                 future = asyncio.run_coroutine_threadsafe(
                                     stream_callback(delta), loop
@@ -1760,9 +1765,15 @@ Always aim to be helpful, honest, and harmless in your responses.
                         self.logger.warning(f"流式 LLM 响应被截断（finish_reason=length），content 长度={len(content)}")
                         result['content'] += "\n\n[回复因长度限制被截断，如需完整内容请要求继续]"
                     # 空 content 检测：有效 SSE 流但 content 全为空且无 tool_calls
+                    # 注意：finish_reason=tool_calls 时 collected_tool_calls 应该非空（由 llm_client.py 修复后）
+                    # 如果仍然为空（旧版本兼容），只在非 tool_calls 时降级
                     if not content.strip() and not collected_tool_calls:
-                        # 直接降级为非流式调用一次，避免无效的流式重试
-                        self.logger.warning(f"LLM 流式返回空 content，尝试一次非流式调用进行降级")
+                        if collected_finish == 'tool_calls':
+                            # tool_calls 数据可能还在流式传输中，不降级，继续让 agent 处理
+                            self.logger.warning(f"流式返回空 content 但 finish_reason=tool_calls，不降级（tool_calls 可能尚未到达）")
+                        else:
+                            # 直接降级为非流式调用一次，避免无效的流式重试
+                            self.logger.warning(f"LLM 流式返回空 content，尝试一次非流式调用进行降级")
                         # 非流式单次调用
                         result_raw = await asyncio.wait_for(
                             loop.run_in_executor(

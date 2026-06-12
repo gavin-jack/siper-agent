@@ -47,10 +47,7 @@ export function chatHandleStreamDelta(delta, streamSessionId) {
       <div class="siper-bubble-col">
         <div class="siper-msg-time"></div>
         <div class="siper-bubble agent-bubble"><div class="siper-msg-body"><span class="siper-stream-text"></span></div></div>
-        <div class="siper-msg-actions">
-          <button class="siper-msg-action-btn" onclick="copyChatMsg(this)" title="复制">📋</button>
-          <button class="siper-msg-action-btn" onclick="insertChatMsg(this)" title="嵌入">↩</button>
-        </div>
+        <div class="siper-msg-actions"></div>
       </div>
     `;
     msgs.appendChild(row);
@@ -168,6 +165,22 @@ export function chatHandleStreamEnd(data, streamSessionId) {
         metaEl.innerHTML = lines.map(l => l.startsWith('<span') ? '<div>' + l + '</div>' : '<div>' + chatEscapeHtml(l) + '</div>').join('');
         bubbleEl.appendChild(metaEl);
       }
+    }
+    // 追加复制/嵌入按钮（流式结束后才创建）
+    const actionsEl = _chatStreamRow.querySelector('.siper-msg-actions');
+    if (actionsEl && !actionsEl.querySelector('.siper-copy-btn')) {
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'siper-msg-action-btn siper-copy-btn';
+      copyBtn.textContent = '📋';
+      copyBtn.title = '复制';
+      copyBtn.setAttribute('onclick', 'copyChatMsg(this)');
+      actionsEl.appendChild(copyBtn);
+      const insertBtn = document.createElement('button');
+      insertBtn.className = 'siper-msg-action-btn siper-insert-btn';
+      insertBtn.textContent = '↩';
+      insertBtn.title = '嵌入';
+      insertBtn.setAttribute('onclick', 'insertChatMsg(this)');
+      actionsEl.appendChild(insertBtn);
     }
     // 追加 dict 按钮
     if (data && data.message_id) {

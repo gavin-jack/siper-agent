@@ -251,6 +251,9 @@ class LLMClient:
                     continue
 
                 delta_content = getattr(delta, "content", "") or ""
+                # DEBUG: log raw delta content for first 3 chunks
+                if chunk_count <= 3:
+                    self.logger.info(f"[_stream_inner] chunk#{chunk_count}: delta.content={getattr(delta, 'content', 'MISSING')!r}, delta.tool_calls={getattr(delta, 'tool_calls', 'MISSING')}, finish_reason={getattr(choice, 'finish_reason', 'MISSING')}")
                 # Filter out tool call XML that some models embed in content
                 delta_content = _filter_tool_call_xml(delta_content)
 
@@ -287,10 +290,30 @@ class LLMClient:
                         "total_tokens": getattr(usage_obj, "total_tokens", 0),
                     }
 
+                # 构建 tool_calls 列表（从累积的 acc_tool_calls 转换）
+                tool_calls_list = None
+                if acc_tool_calls:
+                    tool_calls_list = []
+                    for idx in sorted(acc_tool_calls.keys()):
+                        entry = acc_tool_calls[idx]
+                        args_str = ''.join(entry["arguments_chars"])
+                        try:
+                            args_obj = json.loads(args_str) if args_str else {}
+                        except (json.JSONDecodeError, TypeError):
+                            args_obj = {"_raw": args_str}
+                        tool_calls_list.append({
+                            "id": entry.get("id", ""),
+                            "type": "function",
+                            "function": {
+                                "name": entry.get("name", ""),
+                                "arguments": args_obj,
+                            },
+                        })
+
                 yield {
                     "delta": delta_content,
                     "finish_reason": None,
-                    "tool_calls": None,
+                    "tool_calls": tool_calls_list,
                     "usage": usage_dict,
                 }
         except Exception as e:
@@ -426,7 +449,12 @@ class LLMClient:
                             filtered = ''.join(result_parts)
                             if filtered:
                                 yield {**item, "delta": filtered}
-                                
+                            else:
+                                # XML 过滤后内容为空，yield 原始 delta 避免丢失数据
+                                yield item
+                        else:
+                            # 没有 XML 标签需要过滤，yield 原始 item
+                            yield item
                     else:
                         # Final chunk or non-delta item — flush any buffered XML content
                         if _xml_buffer:
