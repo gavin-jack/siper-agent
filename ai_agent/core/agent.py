@@ -55,38 +55,17 @@ def _save_summary_token(entry):
         pass
 
 def _find_model_in_global(model_name: str) -> Optional[Dict]:
-    """Look up a model by name in the global models.json file.
-    Returns the model dict with keys: id, name, alias, provider, base_url, api_key,
-    context_window, capabilities, is_default — or None if not found.
+    """Look up a model by name in the global models.db (SQLite).
+    Returns the model dict or None if not found.
     """
     try:
-        # models.json is in the project root (3 levels up from this file)
-        gm_path = Path(__file__).resolve().parent.parent.parent / "models.json"
-        if not gm_path.exists():
-            return None
-        data = json.loads(gm_path.read_text(encoding="utf-8"))
-        if "providers" in data:
-            for prov_cfg in data.get("providers", {}).values():
-                for m in prov_cfg.get("models", []):
-                    if m.get("id") == model_name or m.get("name") == model_name:
-                        return {
-                            "id": m.get("id", m.get("name", "")),
-                            "name": m.get("id", m.get("name", "")),
-                            "alias": m.get("alias", ""),
-                            "provider": m.get("provider", ""),
-                            "base_url": m.get("base_url", "") or prov_cfg.get("base_url", ""),
-                            "api_key": m.get("api_key", "") or prov_cfg.get("api_key", ""),
-                            "context_window": m.get("context_window", 8192),
-                            "capabilities": m.get("capabilities", []),
-                            "is_default": m.get("is_default", False),
-                        }
-        else:
-            # v1 flat format
-            for m in data.get("models", []):
-                if m.get("name") == model_name:
-                    return m
+        from ai_agent.models_db import ModelsDB
+        db_path = str(Path(__file__).resolve().parent.parent.parent / "agents" / "default" / "models.db")
+        db = ModelsDB(db_path)
+        return db.get_model(model_name)
     except Exception:
         pass
+    return None
     return None
 
 
@@ -119,8 +98,8 @@ class AgentConfig:
     agents_dir: str = "./agents"
     icon: str = "🎭"         # display icon/emoji for the agent
     avatar: str = ""         # avatar URL or data URI
-    # Model references (no model config here — all models come from models.json)
-    available_models: List[str] = field(default_factory=list)  # list of model names from models.json
+    # Model references (no model config here — all models come from models.db)
+    available_models: List[str] = field(default_factory=list)  # list of model names from models.db
     default_chat_model: str = ""   # default model for chat
     default_vision_model: str = "" # default model for vision/image analysis
     default_tts_model: str = ""    # default model for TTS

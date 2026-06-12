@@ -474,37 +474,27 @@ async def main():
     from agents import load_agent_config_file
     agent_cfg = load_agent_config_file("default") or {}
     _cfg_key_default = ""
-    # Load models from global models.json (v2 provider-grouped or v1 flat)
+    # Load models from SQLite (agents/default/models.db), fallback to models.json
+    from ai_agent.models_db import ModelsDB as _ModelsDB
+    _models_db = _ModelsDB(str(PROJECT_ROOT / "agents" / "default" / "models.db"))
     _gm_path = PROJECT_ROOT / "models.json"
     _gm_models = []
     _gm_default = ""
-    if _gm_path.exists():
+    if _models_db.get_all_models():
+        # Primary: SQLite
+        _flat = _models_db.get_models_flat()
+        _gm_models = _flat["models"]
+        _gm_default = _flat.get("default_model", "")
+        logger.info(f"配置：从 models.db 加载了 {len(_gm_models)} 个模型，默认={_gm_default}")
+    elif _gm_path.exists():
+        # Fallback: models.json → auto-import to SQLite
         try:
-            _gm = json.loads(_gm_path.read_text(encoding="utf-8"))
-            if "providers" in _gm:
-                # v2 format: flatten providers to flat list
-                for prov_name, prov_cfg in _gm.get("providers", {}).items():
-                    prov_base_url = prov_cfg.get("base_url", "")
-                    prov_api_key = prov_cfg.get("api_key", "")
-                    for m in prov_cfg.get("models", []):
-                        # Per-model base_url/api_key fallback to provider level
-                        _gm_models.append({
-                            "id": m.get("id", m.get("name", "")),
-                            "name": m.get("id", m.get("name", "")),
-                            "alias": m.get("alias", ""),
-                            "provider": prov_name,
-                            "base_url": m.get("base_url", "") or prov_base_url,
-                            "api_key": m.get("api_key", "") or prov_api_key,
-                            "context_window": m.get("context_window", _CONTEXT_WINDOW_DEFAULT),
-                            "capabilities": m.get("capabilities", []),
-                        })
-                _gm_default = _gm.get("default_model", _gm_models[0]["name"] if _gm_models else "")
-            else:
-                # v1 flat format — auto-upgrade on next save
-                _gm_models = _gm.get("models", [])
-                _gm_default = _gm.get("default_model", "")
-            if _gm_models:
-                logger.info(f"配置：从 models.json 加载了 {len(_gm_models)} 个模型，默认={_gm_default}")
+            from ai_agent.models_migration import migrate as _migrate_json
+            _migrate_json(str(_gm_path), str(PROJECT_ROOT / "agents" / "default" / "models.db"))
+            _flat = _models_db.get_models_flat()
+            _gm_models = _flat["models"]
+            _gm_default = _flat.get("default_model", "")
+            logger.info(f"配置：从 models.json 自动迁移到 models.db，{len(_gm_models)} 个模型")
         except Exception as e:
             logger.warning(f"配置：读取 models.json 失败: {e}")
     # API key priority: env LONGCAT_API_KEY > models.json default model key > .env file
@@ -1557,33 +1547,9 @@ async def main():
     def api_get_config():
         metrics = agent.metrics.get_summary()
         llm_client = agent.llm_client
-        # Get models from global models.json
-        _gm_path = _global_models_path()
-        _all_models = []
-        _gm_default = ""
-        if _gm_path.exists():
-            try:
-                _gm_data = json.loads(_gm_path.read_text(encoding="utf-8"))
-                if "providers" in _gm_data:
-                    for _pn, _pc in _gm_data.get("providers", {}).items():
-                        for _m in _pc.get("models", []):
-                            _all_models.append({
-                                "id": _m.get("id", _m.get("name", "")),
-                                "name": _m.get("id", _m.get("name", "")),
-                                "alias": _m.get("alias", ""),
-                                "provider": _pn,
-                                "base_url": _m.get("base_url", "") or _pc.get("base_url", ""),
-                                "api_key": _m.get("api_key", "") or _pc.get("api_key", ""),
-                                "context_window": _m.get("context_window", _CONTEXT_WINDOW_DEFAULT),
-                                "capabilities": _m.get("capabilities", []),
-                                "is_default": _m.get("is_default", False),
-                            })
-                    _gm_default = _gm_data.get("default_model", "")
-                else:
-                    _all_models = _gm_data.get("models", [])
-                    _gm_default = _gm_data.get("default_model", "")
-            except Exception:
-                pass
+        # Get models from global models.db
+        _all_models = _models_db.get_models_flat()["models"]
+        _gm_default = _models_db.get_global_setting("default_model")
         # Determine effective default model
         _effective_default = agent.config.default_chat_model or _gm_default or (llm_client.model if llm_client else "")
         return {
@@ -1708,8 +1674,8 @@ async def main():
             if "default_tts_model" in body:
                 agent.config.default_tts_model = body["default_tts_model"]
             if "models" in body:
-                # Save models to models.json (NOT config.json)
-                _save_models_to_json(body["models"], body.get("default_model", ""))
+                # Save models to models.db (NOT config.json)
+                _models_db.save_models_flat({"models": body["models"], "default_model": body.get("default_model", "")})
             if "default_model" in body:
                 agent.config.default_chat_model = body["default_model"]
             # Persist non-model settings to config.json (models go to models.json only)
@@ -1817,32 +1783,7 @@ async def main():
             from agents import list_agents, get_agent_dir, load_agent_config_file
             available = list_agents()
             # Load global models for enriching agent available_models
-            _gm_path = _global_models_path()
-            _all_global_models = []
-            if _gm_path.exists():
-                try:
-                    _gm_data = json.loads(_gm_path.read_text(encoding="utf-8"))
-                    if "providers" in _gm_data:
-                        for prov_name, prov_cfg in _gm_data.get("providers", {}).items():
-                            for m in prov_cfg.get("models", []):
-                                _all_global_models.append({
-                                    "name": m.get("id", m.get("name", "")),
-                                    "alias": m.get("alias", ""),
-                                    "provider": prov_name,
-                                    "context_window": m.get("context_window", 8192),
-                                    "capabilities": m.get("capabilities", []),
-                                })
-                    else:
-                        for m in _gm_data.get("models", []):
-                            _all_global_models.append({
-                                "name": m.get("id", m.get("name", "")),
-                                "alias": m.get("alias", ""),
-                                "provider": m.get("provider", ""),
-                                "context_window": m.get("context_window", 8192),
-                                "capabilities": m.get("capabilities", []),
-                            })
-                except Exception:
-                    pass
+            _all_global_models = _models_db.get_models_flat()["models"]
             result = []
             for name in available:
                 agent_dir = get_agent_dir(name)
@@ -2392,21 +2333,21 @@ async def main():
         p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         return {"success": True}
 
-    def _sync_models_to_agent_configs(models_json_data):
-        """Sync models.json data to all agent config.json files.
-
-        - Sync providers/default_model
-        - Prune available_models: remove names no longer in global models
-        - Reset default_chat_model if its model was deleted
+    def _sync_models_to_agent_configs(models_data):
+        """Sync models data to all agent config.json files.
+        Accepts both flat format (from SQLite) and v2 provider format (legacy).
         """
         agents_dir = PROJECT_ROOT / "agents"
         if not agents_dir.exists():
             return
-        # Build set of valid global model names
+        # Build set of valid global model names (handle both formats)
         _global_names = set()
-        for _pn, _pv in models_json_data.get("providers", {}).items():
-            for _m in _pv.get("models", []):
-                _global_names.add(_m.get("name", "") or _m.get("id", ""))
+        if "providers" in models_data:
+            for _pn, _pv in models_data.get("providers", {}).items():
+                for _m in _pv.get("models", []):
+                    _global_names.add(_m.get("name", "") or _m.get("id", ""))
+        for _m in models_data.get("models", []):
+            _global_names.add(_m.get("name", "") or _m.get("id", ""))
         for agent_name_dir in agents_dir.iterdir():
             if not agent_name_dir.is_dir() or agent_name_dir.name.startswith("_") or agent_name_dir.name == "__pycache__":
                 continue
@@ -2417,16 +2358,14 @@ async def main():
                     cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
                 except Exception:
                     pass
-            cfg["providers"] = models_json_data.get("providers", {})
-            cfg["default_model"] = models_json_data.get("default_model", "")
-            # Prune available_models: keep only names that exist in global models
+            cfg["providers"] = models_data.get("providers", {})
+            cfg["default_model"] = models_data.get("default_model", "")
             _old_avail = cfg.get("available_models", [])
             if _old_avail:
                 _pruned = [n for n in _old_avail if n in _global_names]
                 if len(_pruned) != len(_old_avail):
                     logger.info(f"Agent {agent_name_dir.name}: 清理可用模型 {len(_old_avail)} → {len(_pruned)}")
                 cfg["available_models"] = _pruned
-            # Reset default_chat_model if its model was deleted
             _def = cfg.get("default_chat_model", "")
             if _def and _def not in _global_names and _global_names:
                 cfg["default_chat_model"] = ""
@@ -2471,184 +2410,23 @@ async def main():
         logger.info(f"模型配置已保存到 models.json：{len(models)} 个模型，默认={default_model}")
 
     def api_save_global_models(body):
-        p = _global_models_path()
-        # Load existing (supports both v1 flat and v2 provider-grouped formats)
-        data = {}
-        if p.exists():
-            try:
-                data = json.loads(p.read_text(encoding="utf-8"))
-            except Exception:
-                pass
-        # De-mask api_keys: build lookup of real keys from old data BEFORE overwrite,
-        # so we can restore masked keys that frontend sends after loading from GET API.
-        _old_data = json.loads(json.dumps(data)) if data else {}
-        _real_keys = {}  # key = model id/name or provider name → real api_key
-        for _pn, _pv in _old_data.get("providers", {}).items():
-            if _pv.get("api_key") and not _pv["api_key"].startswith("*"):
-                _real_keys[_pn] = _pv["api_key"]
-            for _m in _pv.get("models", []):
-                _mid = _m.get("id") or _m.get("name", "")
-                _mk = _m.get("api_key", "")
-                if _mk and not _mk.startswith("*"):
-                    _real_keys[_mid] = _mk
-        # Build lookup of verification data from old data so we can restore
-        # ttft/streaming/context_window_tested when frontend sends null values.
-        _real_verification = {}  # key = model id/name → {ttft, streaming, context_window_tested}
-        for _pn, _pv in _old_data.get("providers", {}).items():
-            for _m in _pv.get("models", []):
-                _mid = _m.get("id") or _m.get("name", "")
-                _has_ver = any(_m.get(k) for k in ("ttft", "streaming", "context_window_tested"))
-                if _has_ver:
-                    _real_verification[_mid] = {
-                        "ttft": _m.get("ttft"),
-                        "streaming": _m.get("streaming"),
-                        "context_window_tested": _m.get("context_window_tested"),
-                        "json_mode": _m.get("json_mode"),
-                    }
-
-        # Detect format version
-        is_v2 = "providers" in data
-        if is_v2:
-            # v2 format: { providers: { name: { models: [...] } }, default_provider, default_model }
-            if "providers" in body:
-                data["providers"] = body["providers"]
-            if "default_provider" in body:
-                data["default_provider"] = body["default_provider"]
-            if "default_model" in body:
-                data["default_model"] = body["default_model"]
-            # Also accept flat models list and convert
-            if "models" in body and "providers" not in body:
-                # Assume single-provider update using default_provider
-                dp = data.get("default_provider", "custom")
-                if dp not in data.get("providers", {}):
-                    data.setdefault("providers", {})[dp] = {"base_url": "", "api_key": "", "models": []}
-                data["providers"][dp]["models"] = body["models"]
-                if body.get("default_model"):
-                    data["default_model"] = body["default_model"]
-            # De-mask: restore real keys for any masked or empty keys in new data
-            for _pn, _pv in data.get("providers", {}).items():
-                for _m in _pv.get("models", []):
-                    _mid = _m.get("id") or _m.get("name", "")
-                    _mk = _m.get("api_key", "")
-                    if _mk.startswith("*") or (not _mk and _mid):
-                        _real = _real_keys.get(_mid) or _real_keys.get(_pn)
-                        if _real:
-                            _m["api_key"] = _real
-            # Restore verification data (ttft/streaming/context_window_tested/json_mode)
-            # from old data when the frontend sends null values. The frontend may not
-            # include previously-verified data in its save payload, causing verified
-            # fields to be overwritten with null.
-            for _pn, _pv in data.get("providers", {}).items():
-                for _m in _pv.get("models", []):
-                    _mid = _m.get("id") or _m.get("name", "")
-                    _ver = _real_verification.get(_mid)
-                    if _ver:
-                        if not _m.get("ttft") and _ver.get("ttft"):
-                            _m["ttft"] = _ver["ttft"]
-                        if _m.get("streaming") is None and _ver.get("streaming") is not None:
-                            _m["streaming"] = _ver["streaming"]
-                        if not _m.get("context_window_tested") and _ver.get("context_window_tested"):
-                            _m["context_window_tested"] = _ver["context_window_tested"]
-                        if _m.get("json_mode") is None and _ver.get("json_mode") is not None:
-                            _m["json_mode"] = _ver["json_mode"]
-        else:
-            # v1 format (flat): { models: [...], default_model: "..." }
-            # Auto-upgrade to v2 on save
-            old_models = data.get("models", [])
-            old_default = data.get("default_model", "")
-            if "models" in body:
-                new_models = body["models"]
-            else:
-                new_models = old_models
-            # Build v2 from v1 + new data
-            providers = {}
-            for m in new_models:
-                prov = m.get("provider", "custom")
-                if prov not in providers:
-                    providers[prov] = {
-                        "base_url": m.get("base_url", ""),
-                        "api_key": m.get("api_key", ""),
-                        "models": [],
-                    }
-                providers[prov]["models"].append({
-                    "id": m.get("name", m.get("id", "")),
-                    "name": m.get("name", m.get("id", "")),
-                    "alias": m.get("alias", ""),
-                    "base_url": m.get("base_url", ""),
-                    "api_key": m.get("api_key", ""),
-                    "context_window": m.get("context_window", _CONTEXT_WINDOW_DEFAULT),
-                    "capabilities": m.get("capabilities", []),
-                    "is_default": (m.get("name", m.get("id", "")) == body.get("default_model", old_default)),
-                    "ttft": m.get("ttft", None),
-                    "streaming": m.get("streaming", None),
-                    "context_window_tested": m.get("context_window_tested", None),
-                    "json_mode": m.get("json_mode", None),
-                })
-            data = {
-                "version": 2,
-                "providers": providers,
-                "default_provider": body.get("default_provider") or (new_models[0].get("provider", "custom") if new_models else "custom"),
-                "default_model": body.get("default_model", old_default),
-            }
-            # De-mask: restore real keys for any masked or empty keys
-            for _pn, _pv in data.get("providers", {}).items():
-                for _m in _pv.get("models", []):
-                    _mid = _m.get("id") or _m.get("name", "")
-                    _mk = _m.get("api_key", "")
-                    if _mk.startswith("*") or (not _mk and _mid):
-                        _real = _real_keys.get(_mid) or _real_keys.get(_pn)
-                        if _real:
-                            _m["api_key"] = _real
-        p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        logger.info(f"模型配置已保存到 models.json")
+        # 写入 SQLite（内部保留 de-mask 逻辑）
+        _models_db.save_models_flat(body)
+        logger.info(f"模型配置已保存到 models.db")
         # Sync to all agent config.json files so api/config GET returns updated data
         try:
-            _sync_models_to_agent_configs(data)
+            _flat = _models_db.get_models_flat()
+            _sync_models_to_agent_configs(_flat)
         except Exception as e:
             logger.warning(f"同步模型到 agent config 失败: {e}")
-        return {"success": True, "version": 2 if "providers" in data else 1}
+        return {"success": True, "version": 2}
 
     def api_get_global_models():
-        p = _global_models_path()
-        if p.exists():
-            try:
-                data = json.loads(p.read_text(encoding="utf-8"))
-                # Return in frontend-friendly flat format
-                is_v2 = "providers" in data
-                if is_v2:
-                    # Flatten v2 to flat list for frontend
-                    flat_models = []
-                    for prov_name, prov_cfg in data.get("providers", {}).items():
-                        prov_base_url = prov_cfg.get("base_url", "")
-                        prov_api_key = prov_cfg.get("api_key", "")
-                        for m in prov_cfg.get("models", []):
-                            flat_models.append({
-                                "id": m.get("id", m.get("name", "")),
-                                "name": m.get("id", m.get("name", "")),
-                                "alias": m.get("alias", ""),
-                                "provider": prov_name,
-                                "base_url": m.get("base_url", "") or prov_base_url,
-                                "api_key": _mask_key(m.get("api_key", "") or prov_api_key),
-                                "context_window": m.get("context_window", _CONTEXT_WINDOW_DEFAULT),
-                                "capabilities": m.get("capabilities", []),
-                                "is_default": m.get("is_default", False),
-                                "ttft": m.get("ttft", None),
-                                "streaming": m.get("streaming", None),
-                                "context_window_tested": m.get("context_window_tested", None),
-                                "json_mode": m.get("json_mode", None),
-                            })
-                    return {
-                        "version": 2,
-                        "models": flat_models,
-                        "default_model": data.get("default_model", ""),
-                        "default_provider": data.get("default_provider", ""),
-                    }
-                else:
-                    # v1 flat format — return as-is
-                    return data
-            except Exception:
-                pass
-        return {"version": 2, "models": [], "default_model": "", "default_provider": ""}
+        # 从 SQLite 返回，保留 _mask_key 逻辑
+        flat = _models_db.get_models_flat()
+        for m in flat["models"]:
+            m["api_key"] = _mask_key(m.get("api_key", ""))
+        return flat
 
     # ===== Model Discovery API =====
 
@@ -2891,24 +2669,16 @@ async def main():
         model = body.get("model", "")
         if not base_url or not model:
             return {"success": False, "error": "Base URL 和模型名称不能为空"}
-        # If api_key is masked (from frontend /api/models/global), look up real key from models.json
+        # If api_key is masked (from frontend /api/models/global), look up real key from models.db
         if api_key.startswith("*") or not api_key:
             try:
-                _gm_path = PROJECT_ROOT / "models.json"
-                _gm = json.loads(_gm_path.read_text(encoding="utf-8"))
-                _found_real = False
-                for _prov in _gm.get("providers", {}).values():
-                    for _m in _prov.get("models", []):
-                        if _m.get("id") == model or _m.get("name") == model:
-                            _new_key = _m.get("api_key", "") or _prov.get("api_key", "")
-                            if _new_key and not _new_key.startswith("*"):
-                                api_key = _new_key
-                                _found_real = True
-                            if not base_url:
-                                base_url = _m.get("base_url", "") or _prov.get("base_url", "")
-                            break
-                    if _found_real:
-                        break
+                _db_model = _models_db.get_model(model)
+                if _db_model:
+                    _new_key = _db_model.get("api_key", "")
+                    if _new_key and not _new_key.startswith("*"):
+                        api_key = _new_key
+                    if not base_url:
+                        base_url = _db_model.get("base_url", "")
             except Exception:
                 pass
         if not api_key or api_key.startswith("*"):
