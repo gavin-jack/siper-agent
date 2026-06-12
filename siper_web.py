@@ -3915,7 +3915,7 @@ async def main():
                     for p in image_paths
                 ]
             # Attach server_time for accurate session ordering
-            result["server_time"] = datetime.now().isoformat()
+            result["server_time"] = datetime.datetime.now().isoformat()
             resp = {
                 "type": "response",
                 "session_id": session_id,

@@ -130,11 +130,8 @@ export function chatClearMessages() {
   rows.forEach(r => r.remove());
 }
 
-function _renderMessageMeta(row, meta, messageId) {
-  const bubbleEl = row.querySelector('.siper-bubble');
-  if (!bubbleEl) return;
-  const metaEl = document.createElement('div');
-  metaEl.className = 'siper-bubble-meta';
+/** 构建 meta HTML 字符串（供流式路径和历史消息路径共享） */
+export function buildMetaHtml(meta) {
   const lines = [];
   if (meta.usage) {
     const u = meta.usage;
@@ -160,7 +157,15 @@ function _renderMessageMeta(row, meta, messageId) {
     if (notUsed.length) lines.push('<span style="opacity:0.5">💡 推荐：' + notUsed.join(', ') + '</span>');
   }
   if (meta.finish_reason && meta.finish_reason !== 'stop') lines.push('🏁 ' + meta.finish_reason);
-  metaEl.innerHTML = lines.map(l => '<div>' + chatEscapeHtml(l) + '</div>').join('');
+  return lines.map(l => l.startsWith('<span') ? '<div>' + l + '</div>' : '<div>' + chatEscapeHtml(l) + '</div>').join('');
+}
+
+function _renderMessageMeta(row, meta, messageId) {
+  const bubbleEl = row.querySelector('.siper-bubble');
+  if (!bubbleEl) return;
+  const metaEl = document.createElement('div');
+  metaEl.className = 'siper-bubble-meta';
+  metaEl.innerHTML = buildMetaHtml(meta);
   bubbleEl.appendChild(metaEl);
   if (meta.response_dict) _appendDictBtn(row, meta.response_dict);
 }
