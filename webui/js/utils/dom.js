@@ -972,8 +972,15 @@ export function selectChatLangAndSave(lang) {
 }
 
 // Legacy stubs — kept for backward compat (sessions.js / chat.js import these)
-export function addMsg() {}
-export function appendMeta() {}
+// Delegates to chatAddMessage from message.js
+export function addMsg(content, role, meta) {
+  if (typeof window.chatAddMessage === 'function') {
+    window.chatAddMessage(content, role || 'assistant', meta);
+  }
+}
+export function appendMeta(container, meta, messageId) {
+  // Legacy no-op — meta rendering is now handled by chatAddMessage
+}
 
 // ===== Sidebar =====
 export function toggleChatSidebar() {

@@ -17,7 +17,7 @@
 <div class="main" id="mainContent" tabindex="-1">
 
   <!-- Chat Page (Three Column Layout) — 常驻 DOM，用 display:none 隐藏 -->
-  <div id="page-chat" style="display:flex">
+  <div id="page-chat">
     <!-- Left: Collapsible Nav Sidebar (dark, icon-only / expanded) -->
     <div class="siper-sidebar" id="chatSidebar">
       <div class="siper-sidebar-header" onclick="toggleChatSidebar()" title="展开/折叠">
@@ -72,7 +72,7 @@
   <div id="page-dynamic" class="page-dynamic"></div>
 
   <!-- Standalone page templates (hidden, cloned into #page-dynamic by navigateToPage) -->
-  <div id="tpl-sessions" style="display:none">
+  <div id="tpl-sessions" class="hidden">
     <div class="page-header">
       <h2 data-i18n="sessions.title">会话管理</h2>
       <div class="actions">
@@ -88,7 +88,7 @@
     </div>
   </div>
 
-  <div id="tpl-memory" style="display:none">
+  <div id="tpl-memory" class="hidden">
     <div class="page-header">
       <h2 data-i18n="memory.title">记忆管理</h2>
       <div class="actions flex-align-8">
@@ -134,7 +134,7 @@
     </div>
   </div>
 
-  <div id="tpl-agent-config" style="display:none">
+  <div id="tpl-agent-config" class="hidden">
     <div class="page-header">
       <h2 data-i18n="agentConfig.title">智能体配置</h2>
       <div class="actions">
@@ -238,9 +238,9 @@
       <div class="agent-tab-content" id="tab-avatar">
         <div class="config-section">
           <div class="avatar-section">
-            <img id="cfgAgentAvatar" src="/static/default_avatar.webp" class="avatar-preview" alt="avatar" width="64" height="64" onclick="document.getElementById('avatarFileInput').click()" style="cursor:pointer">
+            <img id="cfgAgentAvatar" src="/static/default_avatar.webp" class="avatar-preview cursor-pointer" alt="avatar" width="64" height="64" onclick="document.getElementById('avatarFileInput').click()">
             <div class="avatar-controls">
-              <input type="file" id="avatarFileInput" accept="image/*" onchange="uploadAgentAvatar()" style="display:none">
+              <input type="file" id="avatarFileInput" accept="image/*" onchange="uploadAgentAvatar()" class="hidden">
               <span class="text-muted-small">点击头像选择图片上传</span>
             </div>
           </div>
@@ -256,7 +256,7 @@
     <div id="iconPickerPopup" class="icon-picker-popup hidden"></div>
   </div>
 
-  <div id="tpl-theme-settings" style="display:none">
+  <div id="tpl-theme-settings" class="hidden">
     <div class="page-header">
       <h2 data-i18n="theme.title">外观设置</h2>
       <div class="actions">
