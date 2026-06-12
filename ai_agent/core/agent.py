@@ -503,6 +503,13 @@ class AIAgent:
                 self.conversation_history.setdefault(session_id, []).append(assistant_message)
                 # Persist assistant message to database (with meta for dict modal)
                 processing_time = (datetime.now() - start_time).total_seconds()
+                # Build used_skills list before msg_meta so it's available for meta
+                used_skills = []
+                for tr in tool_results:
+                    if tr.get('tool_name') == 'skill_view':
+                        skill_name = tr.get('parameters', {}).get('name', '')
+                        if skill_name:
+                            used_skills.append(skill_name)
                 msg_meta = {
                     'usage': usage,
                     'model': llm_response.get('model', ''),
@@ -520,14 +527,6 @@ class AIAgent:
                 self.logger.warning("LLM 返回错误，不写入对话历史以防止级联失败")
                 processing_time = (datetime.now() - start_time).total_seconds()
             self.metrics.record_message_processing(processing_time, len(tool_results))
-
-            # Build used_skills list before msg_meta so it's available for meta
-            used_skills = []
-            for tr in tool_results:
-                if tr.get('tool_name') == 'skill_view':
-                    skill_name = tr.get('parameters', {}).get('name', '')
-                    if skill_name:
-                        used_skills.append(skill_name)
 
             # Track which skills were actually used (via skill_view tool call)
             for tr in tool_results:

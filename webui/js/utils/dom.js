@@ -589,15 +589,28 @@ export function connectWS() {
           const _data = d.data || {};
           const _content = _data.response || _data.content || '';
           const _success = _data.success !== false;
+          const _agentName = (typeof chatCurrentAgent !== 'undefined' && chatCurrentAgent && chatCurrentAgent.name) ? chatCurrentAgent.name : null;
           if (!_success) {
-            chatAddMessage(_content || '服务暂时没有响应，请重试', true, null, null, null, null, null);
+            chatAddMessage(_content || '服务暂时没有响应，请重试', true, null, null, null, _agentName, null);
           } else if (!_content.trim() && !_data.attachments && !_data.tool_call_steps?.length) {
             // Empty response with no tool calls — skip
           } else if (!_content.trim() && _data.tool_call_steps?.length) {
             // Tool-calls-only response with no text — show tool summary
-            chatAddMessage('', true, _data, null, null, null, null);
+            chatAddMessage('', true, _data, null, null, _agentName, null);
           } else {
-            chatAddMessage(_content, true, _data.attachments ? {attachments: _data.attachments} : null, null, null, null, null);
+            const meta = {
+              usage: _data.usage,
+              model: _data.model,
+              tools_used: _data.tool_calls_executed,
+              tool_call_steps: _data.tool_call_steps || [],
+              skills_active: _data.skills_active,
+              skills_used: _data.skills_used || [],
+              skills_recommended: _data.skills_recommended || [],
+              processing_time_ms: _data.processing_time_ms,
+              _raw: _data,
+            };
+            if (_data.attachments) meta.attachments = _data.attachments;
+            chatAddMessage(_content, true, meta, null, null, _agentName, _data.message_id || null);
           }
           // Play notification sound
           if (typeof playReplySound === 'function') playReplySound();

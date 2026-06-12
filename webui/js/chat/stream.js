@@ -7,9 +7,9 @@ import {
   _getStreamState, _syncStreamFromCurrent, _syncStreamToCurrent,
   chatAgents, setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, updateStreamingBadge,
   setIsThinking, updateSessionPreview,
-  fmtTokens, resetSendState
+  resetSendState
 } from './state.js';
-import { chatEscapeHtml, chatRenderMarkdown, updateCtxInfoDisplay } from './message.js';
+import { chatEscapeHtml, chatRenderMarkdown, updateCtxInfoDisplay, buildMetaHtml } from './message.js';
 import { chatThinkingHide } from './state.js';
 import { renderMiddleList } from './sidebar.js';
 
@@ -131,39 +131,25 @@ export function chatHandleStreamEnd(data, streamSessionId) {
         }
       }
     }
-    // 追加 meta 信息
+    // 追加 meta 信息（复用 message.js 的 buildMetaHtml）
     if (data && (data.usage || data.model || data.processing_time_ms || data.tool_call_steps || data.skills_used || data.finish_reason)) {
       const bubbleEl = _chatStreamRow.querySelector('.siper-bubble');
       if (bubbleEl) {
         const metaEl = document.createElement('div');
         metaEl.className = 'siper-bubble-meta';
-        const lines = [];
-        if (data.usage) {
-          const u = data.usage;
-          const fmt = fmtTokens;
-          const parts = [];
-          if (u.prompt_tokens != null) parts.push('⬆️ 输入token：~ ' + fmt(u.prompt_tokens));
-          if (u.completion_tokens != null) parts.push('⬇️ 输出token：~ ' + fmt(u.completion_tokens));
-          if (data.model) parts.push('🤖 ' + data.model);
-          if (data.processing_time_ms) {
-            const ms = data.processing_time_ms;
-            const t = ms < 1000 ? ms + 'ms' : ms < 60000 ? (ms/1000).toFixed(1) + 's' : Math.floor(ms/60000) + 'm ' + Math.floor((ms%60000)/1000) + 's';
-            parts.push('⏱ ' + t);
-          }
-          if (parts.length) lines.push(parts.join('；'));
-        }
-        if (data.tool_call_steps && data.tool_call_steps.length) {
-          const toolNames = data.tool_call_steps.map(s => s.tool_name).filter(Boolean);
-          lines.push('🔧 工具：' + (toolNames.length ? toolNames.join(', ') : data.tool_call_steps.length + ' calls'));
-        }
-        if (data.skills_used && data.skills_used.length) lines.push('🧩 技能：' + data.skills_used.join(', '));
-        if (data.skills_recommended && data.skills_recommended.length) {
-          const notUsed = data.skills_recommended.filter(s => !data.skills_used || !data.skills_used.includes(s));
-          if (notUsed.length) lines.push('<span style="opacity:0.5">💡 推荐：' + notUsed.join(', ') + '</span>');
-        }
-        if (data.finish_reason && data.finish_reason !== 'stop') lines.push('🏁 ' + data.finish_reason);
-        metaEl.innerHTML = lines.map(l => l.startsWith('<span') ? '<div>' + l + '</div>' : '<div>' + chatEscapeHtml(l) + '</div>').join('');
+        metaEl.innerHTML = buildMetaHtml(data);
         bubbleEl.appendChild(metaEl);
+      }
+    }
+    // 渲染附件（与 chatAddMessage 保持一致）
+    if (data && data.attachments) {
+      const bubble = _chatStreamRow.querySelector('.siper-bubble');
+      if (bubble) {
+        let attHtml = '';
+        for (const att of data.attachments) {
+          if (att.category === 'image' || att.type === 'image') attHtml += '<img src="' + (att.url || att.data || '') + '" class="siper-img" alt="' + chatEscapeHtml(att.name || 'image') + '" onclick="window.open(this.src)">';
+        }
+        if (attHtml) { const w = document.createElement('div'); w.className = 'siper-attachments'; w.innerHTML = attHtml; bubble.appendChild(w); }
       }
     }
     // 追加复制/嵌入按钮（流式结束后才创建）
