@@ -90,6 +90,7 @@ class ModelsDB:
                     cap_document INTEGER NOT NULL DEFAULT 0,
                     is_default INTEGER NOT NULL DEFAULT 0,
                     ttft INTEGER,
+                    latency INTEGER,
                     streaming INTEGER,
                     context_window_tested INTEGER,
                     json_mode INTEGER,
@@ -131,6 +132,12 @@ class ModelsDB:
                 CREATE INDEX IF NOT EXISTS idx_model_capabilities_cap ON model_capabilities(capability);
             """)
 
+            # Migration: add latency column if not exists (for existing DBs)
+            try:
+                conn.execute("ALTER TABLE models ADD COLUMN latency INTEGER")
+            except Exception:
+                pass  # column already exists
+
     # ===== Provider =====
 
     def upsert_provider(self, id: str, base_url: str = "", api_key: str = ""):
@@ -154,6 +161,7 @@ class ModelsDB:
                      alias: str = "", base_url: str = "", api_key: str = "",
                      context_window: int = 8192, capabilities: list = None,
                      is_default: int = 0, ttft: int = None,
+                     latency: int = None,
                      streaming: int = None, context_window_tested: int = None,
                      json_mode: int = None) -> int:
         now = time.time()
@@ -164,7 +172,7 @@ class ModelsDB:
                     context_window, cap_chat, cap_reasoning, cap_code, cap_function_calling,
                     cap_vision, cap_long_context, cap_translation, cap_ocr,
                     cap_summarization, cap_sentiment, cap_ner, cap_math, cap_chart,
-                    cap_document, is_default, ttft, streaming, context_window_tested,
+                    cap_document, is_default, ttft, latency, streaming, context_window_tested,
                     json_mode, created_at, updated_at)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(provider_id, model_id) DO UPDATE SET
@@ -179,6 +187,7 @@ class ModelsDB:
                     cap_ner=excluded.cap_ner, cap_math=excluded.cap_math,
                     cap_chart=excluded.cap_chart, cap_document=excluded.cap_document,
                     is_default=excluded.is_default, ttft=excluded.ttft,
+                    latency=excluded.latency,
                     streaming=excluded.streaming,
                     context_window_tested=excluded.context_window_tested,
                     json_mode=excluded.json_mode,
@@ -189,7 +198,7 @@ class ModelsDB:
                   caps["cap_translation"], caps["cap_ocr"], caps["cap_summarization"],
                   caps["cap_sentiment"], caps["cap_ner"], caps["cap_math"],
                   caps["cap_chart"], caps["cap_document"],
-                  is_default, ttft, streaming, context_window_tested, json_mode, now, now))
+                  is_default, ttft, latency, streaming, context_window_tested, json_mode, now, now))
             return cursor.lastrowid
 
     def get_model(self, model_id: str, provider_id: str = None) -> Optional[Dict]:
@@ -339,6 +348,7 @@ class ModelsDB:
                 "capabilities": m["capabilities"],
                 "is_default": bool(m["is_default"]),
                 "ttft": m.get("ttft"),
+                "latency": m.get("latency"),
                 "streaming": m.get("streaming"),
                 "context_window_tested": m.get("context_window_tested"),
                 "json_mode": m.get("json_mode"),
@@ -398,6 +408,7 @@ class ModelsDB:
                 capabilities=m.get("capabilities", []),
                 is_default=is_default,
                 ttft=m.get("ttft"),
+                latency=m.get("latency"),
                 streaming=m.get("streaming"),
                 context_window_tested=m.get("context_window_tested"),
                 json_mode=m.get("json_mode"),

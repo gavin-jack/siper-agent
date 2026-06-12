@@ -166,7 +166,7 @@ export async function verifyChatModel(idx, _toast) {
       }
       if (toast) toast.success((d.model || modelName) + ' 验证通过 (' + infoParts.join(' · ') + ') — ' + capStr, 4000);
       if (card) {
-        const capsHtml = caps.map(function(c){ return '<span class="siper-cap-badge" title="' + c + '">' + (CAP_ICONS[c] || c) + '</span>'; }).join('');
+        const capsHtml = caps.map(function(c){ return '<span class="cap-badge cap-badge-' + c + '" title="' + c + '">' + (CAP_ICONS[c] || c) + '</span>'; }).join('');
         const capsEl = card.querySelector('.siper-model-caps');
         if (capsEl) capsEl.innerHTML = capsHtml;
         else {

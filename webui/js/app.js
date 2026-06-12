@@ -26,6 +26,7 @@ import * as Sessions from './pages/sessions.js';
 import * as Theme from './pages/theme.js';
 import * as AgentConfig from './pages/agent-config.js';
 import * as Settings from './pages/settings.js';
+import * as ModelSettings from './pages/model-settings.js';
 // tasks.js removed — task/cron feature deleted
 
 // Pages (Phase 4)
@@ -129,30 +130,28 @@ window.switchChatAgentFile = AgentConfig.switchChatAgentFile;
 window.saveChatAgentFile = AgentConfig.saveChatAgentFile;
 window.loadChatAgentFilesForAgent = AgentConfig.loadChatAgentFilesForAgent;
 window.saveAllChatAgentConfig = AgentConfig.saveAllChatAgentConfig;
-window.loadSettingsModels = Settings.loadSettingsModels;
-window.renderSettingsModelsList = Settings.renderSettingsModelsList;
-window.removeSettingsModel = Settings.removeSettingsModel;
-window.autoSaveModels = Settings.autoSaveModels;
 window.refreshGlobalSettings = Settings.refreshGlobalSettings;
 window.autoSaveRuntimeSettings = Settings.autoSaveRuntimeSettings;
-window.resetSettingsModels = Settings.resetSettingsModels;
 window.saveMetaConfig = Settings.saveMetaConfig;
 window.loadMetaConfig = Settings.loadMetaConfig;
-window.copyModelName = Settings.copyModelName;
 window.resetSystemParams = Settings.resetSystemParams;
 window.switchSettingsTab = Settings.switchSettingsTab;
 window.renderGlobalAgents = Settings.renderGlobalAgents;
 window.onGlobalAgentSelect = Settings.onGlobalAgentSelect;
 window.confirmDeleteGlobalAgent = Settings.confirmDeleteGlobalAgent;
-// Chat-mode model management (rendered in chat subpage's #chatGlobalModels tab)
-window.renderChatGlobalModels = Settings.renderChatGlobalModels;
-window.chatRemoveModel = Settings.chatRemoveModel;
-window.chatSaveGlobalModels = Settings.chatSaveGlobalModels;
-window.chatDiscoverModels = Settings.chatDiscoverModels;
-window.chatAddDiscoveredModel = Settings.chatAddDiscoveredModel;
-window.chatApplyProviderPreset = Settings.chatApplyProviderPreset;
-window.applyProviderPreset = Settings.applyProviderPreset;
-window.discoverModels = Settings.discoverModels;
+// Model settings (independent page)
+window.loadSettingsModels = ModelSettings.loadSettingsModels;
+window.renderSettingsModelsList = ModelSettings.renderSettingsModelsList;
+window.removeSettingsModel = ModelSettings.removeSettingsModel;
+window.autoSaveModels = ModelSettings.autoSaveModels;
+window.resetSettingsModels = ModelSettings.resetSettingsModels;
+window.copyModelName = ModelSettings.copyModelName;
+window.discoverModels = ModelSettings.discoverModels;
+window.applyProviderPreset = ModelSettings.applyProviderPreset;
+window.addDiscoveredModel = ModelSettings.addDiscoveredModel;
+window.addAllDiscoveredModels = ModelSettings.addAllDiscoveredModels;
+window.filterModelsList = ModelSettings.filterModelsList;
+window.verifyAllModels = ModelSettings.verifyAllModels;
 
 // Chat input
 import { toggleChatModelDropdown } from './chat/input.js';

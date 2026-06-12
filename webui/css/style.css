@@ -1602,19 +1602,26 @@ html { touch-action: manipulation; }
 
 /* ===== Model Card ===== */
 .model-card {
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-bg);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
+  min-height: 80px;
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out, border-color 180ms ease-out;
+}
+.model-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px var(--shadow-sm);
+  border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
 }
 .model-card-header {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 .model-card-verifying {
@@ -1629,27 +1636,25 @@ html { touch-action: manipulation; }
 }
 .model-name-text {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   white-space: nowrap;
   display: inline-block;
+  letter-spacing: 0.01em;
 }
 .model-default-badge {
-  font-size: 12px;
-  padding: 1px 4px;
+  font-size: 11px;
+  padding: 1px 5px;
   border-radius: 3px;
   background: var(--color-primary);
   color: var(--white);
   flex-shrink: 0;
+  font-weight: 500;
 }
 .model-card-provider {
-  font-size: 12px;
-  color: var(--color-text-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: none;
 }
 .model-card-pending {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--color-primary);
   padding: 2px 0;
   display: flex;
@@ -1659,36 +1664,137 @@ html { touch-action: manipulation; }
 .model-card-caps {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
+  gap: 3px;
   overflow: hidden;
   height: 18px;
 }
 .cap-badge {
-  font-size: 12px;
+  font-size: 11px;
   padding: 1px 5px;
   border-radius: 3px;
-  background: color-mix(in srgb, var(--color-text-dim) 22%, transparent);
+  background: color-mix(in srgb, var(--color-text-dim) 18%, transparent);
   color: var(--color-text-dim);
-  border: 1px solid color-mix(in srgb, var(--color-text-dim) 44%, transparent);
-  margin-right: 3px;
+  border: 1px solid color-mix(in srgb, var(--color-text-dim) 35%, transparent);
+  margin-right: 2px;
   cursor: default;
+  line-height: 1.4;
 }
-.model-card-actions {
+.model-card-header .model-card-actions {
   display: flex;
   gap: 3px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.model-card-actions-bottom {
+  display: flex;
+  gap: 4px;
   justify-content: flex-end;
   margin-top: 2px;
 }
-.model-card-actions .btn-sm {
-  padding: 2px 6px;
+.model-card-actions .btn-sm,
+.model-card-actions-bottom .btn-sm {
+  padding: 0;
   font-size: 12px;
   border-radius: 4px;
+  width: 28px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex-shrink: 0;
+}
+.model-card-actions .btn-sm.danger:hover,
+.model-card-actions-bottom .btn-sm.danger:hover {
+  background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/* ===== Caps marquee scroll in actions-bottom ===== */
+.model-card-actions-bottom {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.model-caps-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+  height: 20px;
+  display: flex;
+  align-items: center;
+}
+.model-caps-inner {
+  display: flex;
+  gap: 3px;
+  flex-wrap: nowrap;
+  position: absolute;
+  white-space: nowrap;
+  transition: transform 0ms linear;
+}
+.model-caps-scroll:hover .model-caps-inner {
+  /* JS will set transition + transform for marquee */
+}
+
+/* ===== Verify button: outline style (not green) ===== */
+.btn-verify {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
+  background: transparent;
+  color: var(--color-primary);
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.btn-verify:hover {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  border-color: var(--color-primary);
+}
+.btn-verify-pending {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-dim);
+  cursor: not-allowed;
+  opacity: 0.5;
+  line-height: 1.4;
+}
+
+/* ===== Copy model name button (SVG icon) ===== */
+.btn-copy-model {
+  padding: 2px 5px;
+  flex-shrink: 0;
+  line-height: 1;
+  border-radius: 4px;
+  transition: background-color 150ms ease;
+  min-width: 24px;
+  text-align: center;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-copy-model:hover {
+  background-color: color-mix(in srgb, var(--color-text-dim) 12%, transparent);
 }
 .model-verify-icon {
   font-size: 12px;
 }
 .model-verify-pass {
-  color: var(--color-primary);
+  color: var(--color-success);
 }
 .model-verify-fail {
   color: var(--color-danger);
@@ -1706,6 +1812,111 @@ html { touch-action: manipulation; }
   padding: 2px 5px;
   flex-shrink: 0;
   line-height: 1;
+  border-radius: 4px;
+  transition: background-color 150ms ease;
+  min-width: 24px;
+  text-align: center;
+  font-size: 11px;
+}
+.btn-copy-model:hover {
+  background-color: color-mix(in srgb, var(--color-text-dim) 12%, transparent);
+}
+
+/* ===== Model group header ===== */
+.model-group-header {
+  transition: opacity 150ms ease;
+}
+.model-group-header:hover {
+  opacity: 0.8;
+}
+.model-group-label {
+  transition: color 150ms ease;
+}
+.model-group-label:hover {
+  color: var(--color-primary) !important;
+}
+
+/* ===== Capability badge semantic colors ===== */
+.cap-badge-vision { background: color-mix(in srgb, #8b5cf6 15%, transparent); color: #8b5cf6; border-color: color-mix(in srgb, #8b5cf6 35%, transparent); }
+.cap-badge-reasoning { background: color-mix(in srgb, #f59e0b 15%, transparent); color: #d97706; border-color: color-mix(in srgb, #f59e0b 35%, transparent); }
+.cap-badge-code { background: color-mix(in srgb, #10b981 15%, transparent); color: #059669; border-color: color-mix(in srgb, #10b981 35%, transparent); }
+.cap-badge-chat { background: color-mix(in srgb, #3b82f6 15%, transparent); color: #2563eb; border-color: color-mix(in srgb, #3b82f6 35%, transparent); }
+.cap-badge-function_calling { background: color-mix(in srgb, #ec4899 15%, transparent); color: #db2777; border-color: color-mix(in srgb, #ec4899 35%, transparent); }
+.cap-badge-tts { background: color-mix(in srgb, #06b6d4 15%, transparent); color: #0891b2; border-color: color-mix(in srgb, #06b6d4 35%, transparent); }
+.cap-badge-embedding { background: color-mix(in srgb, #6b7280 15%, transparent); color: #4b5563; border-color: color-mix(in srgb, #6b7280 35%, transparent); }
+.cap-badge-image_gen { background: color-mix(in srgb, #f43f5e 15%, transparent); color: #e11d48; border-color: color-mix(in srgb, #f43f5e 35%, transparent); }
+.cap-badge-long_context { background: color-mix(in srgb, #14b8a6 15%, transparent); color: #0d9488; border-color: color-mix(in srgb, #14b8a6 35%, transparent); }
+
+/* ===== Model card entrance animation (JS-triggered, page-load only) ===== */
+@keyframes modelCardFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.model-card-animate {
+  animation: modelCardFadeIn 250ms ease-out both;
+}
+
+/* ===== Filter dropdown animation ===== */
+#capFilterMenu {
+  transition: opacity 150ms ease-out, transform 150ms ease-out;
+  transform-origin: top left;
+  z-index: 200;
+}
+#capFilterMenu[style*="block"] {
+  animation: dropIn 150ms ease-out;
+}
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.cap-filter-option {
+  transition: background-color 120ms ease;
+}
+.cap-filter-option:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+/* ===== Sort direction button ===== */
+#sortDirBtn {
+  transition: background-color 150ms ease, color 150ms ease;
+  font-weight: 600;
+  min-width: 28px;
+}
+#sortDirBtn:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+}
+
+/* ===== Search clear button ===== */
+#modelSearchClear {
+  transition: color 150ms ease, transform 150ms ease;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+#modelSearchClear:hover {
+  color: var(--color-danger);
+  transform: translateY(-50%) scale(1.15);
+}
+
+/* ===== Cap filter checkbox ===== */
+#capFilterMenu input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+/* ===== Cap filter action buttons ===== */
+#capFilterMenu .siper-btn {
+  transition: background-color 150ms ease, color 150ms ease;
+}
+#capFilterMenu .siper-btn:hover {
+  opacity: 0.85;
 }
 
 
@@ -2408,6 +2619,10 @@ html { touch-action: manipulation; }
 .card-left-accent-warning { border-left-color: var(--color-warning); }
 .card-left-accent-danger  { border-left-color: var(--color-danger); }
 .card-left-accent-info    { border-left-color: var(--color-info); }
+/* Sync left accent with verify state */
+.model-card-verifying.card-left-accent { border-left-color: var(--color-warning); }
+.model-card.card-left-accent.model-verify-pass { border-left-color: var(--color-success); }
+.model-card.card-left-accent.model-verify-fail { border-left-color: var(--color-danger); }
 
 
 
@@ -2656,7 +2871,17 @@ html { touch-action: manipulation; }
 .siper-chat-header-btn:hover {
   background: var(--color-hover);
 }
-
+.siper-chat-header-btn-text {
+  font-size: 13px;
+  padding: 4px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.siper-chat-header-btn-text:hover {
+  background: var(--color-hover);
+}
 /* Messages area */
 .siper-messages {
   flex: 1;
@@ -3746,7 +3971,9 @@ html { touch-action: manipulation; }
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 6px;
-  padding: 2px 0;
+  padding: 2px 5px 2px 0;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
 }
 .siper-model-card {
   background: var(--color-input-bg);
@@ -3813,7 +4040,7 @@ html { touch-action: manipulation; }
   gap: 4px;
   flex-wrap: wrap;
 }
-.siper-cap-badge {
+.cap-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4886,6 +5113,7 @@ html { touch-action: manipulation; }
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
+  padding-right: 5px;
 }
 
 
@@ -4946,8 +5174,8 @@ html { touch-action: manipulation; }
 .siper-stream-text { white-space: pre-wrap; word-break: break-word; }
 .siper-rename-cancel { background: none; border: 1px solid var(--color-border); color: var(--color-text-dim); cursor: pointer; padding: 4px 10px; border-radius: 6px; font-size: 13px; margin-left: 8px; }
 .siper-rename-cancel:hover { border-color: var(--color-danger); color: var(--color-danger); }
-.btn-verify { padding: 2px 8px; font-size: 12px; background: var(--color-primary); color: var(--color-surface); border: none; border-radius: 4px; cursor: pointer; }
-.btn-verify:hover { opacity: 0.85; }
+.btn-verify { flex-shrink: 0; padding: 2px 10px; font-size: 12px; border-radius: 4px; cursor: pointer; border: 1px solid color-mix(in srgb, var(--color-primary) 50%, var(--color-border)); background: transparent; color: var(--color-primary); transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease; font-weight: 500; line-height: 1.4; }
+.btn-verify:hover { background: color-mix(in srgb, var(--color-primary) 10%, transparent); border-color: var(--color-primary); }
 .model-card-error { font-size: 12px; color: var(--color-danger); margin-top: 4px; }
 .agent-avail-mcb { margin-right: 6px; vertical-align: middle; }
 .wcfg-model-cb { margin-right: 6px; vertical-align: middle; }

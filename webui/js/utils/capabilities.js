@@ -29,6 +29,6 @@ export function renderCapBadges(capabilities, iconMap = CAP_ICONS, plainLabels =
   return caps.map(c => {
     const label = labels[c] || c;
     const icon = iconMap[c] || c;
-    return `<span class="siper-cap-badge" title="${label}">${icon}</span>`;
+    return `<span class="cap-badge cap-badge-${c}" title="${label}">${icon}</span>`;
   }).join('');
 }

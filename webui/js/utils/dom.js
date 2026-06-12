@@ -8,7 +8,7 @@ import { setWs, setIsSending, setChatSessionId, chatSessionId, chatCurrentAgent,
 import { chatHandleStreamDelta, chatHandleStreamEnd, chatHandleToolProgress, chatThinkingHide, chatThinkingClear } from '../chat/stream.js';
 
 // Pages rendered inside #page-chat three-column layout (migrated from core.js)
-const _CHAT_RENDERED_PAGES = new Set(['chat','skills','token','global-settings','logs']);
+const _CHAT_RENDERED_PAGES = new Set(['chat','skills','token','global-settings','model-settings','logs']);
 let currentPage = 'chat';
 let currentSession = null;  // null until first WS connection or session load
 let ws = null;  // WebSocket connection — set by connectWS(), used by _sendClarifyResponse
