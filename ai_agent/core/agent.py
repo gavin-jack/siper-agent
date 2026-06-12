@@ -163,7 +163,7 @@ class AIAgent:
         # Skill system v2: registry, pre-filter, feedback
         self.skill_registry = SkillRegistry(skills_dir=config.skills_dir, agent=self)
         self.skill_feedback = SkillFeedback(
-            db_path=str(Path(config.data_dir) / "skill_call_log.db")
+            db_path=str(Path(__file__).parent.parent.parent / "skills" / "skill_call_log.db")
         )
         self.skill_pre_filter = SkillPreFilter(
             registry=self.skill_registry,
