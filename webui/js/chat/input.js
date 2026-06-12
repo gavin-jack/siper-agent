@@ -289,7 +289,7 @@ export function updateChatHeader() {
 
 export async function chatSendMessage() {
   const input = document.getElementById('chatInput');
-  const text = input.value.trim();
+  const text = (input.value || input.textContent || input.innerText || '').trim();
   if (!text && !chatPendingFiles.length) return;
   if (getIsSending()) return;
   // Show thinking panel immediately — does not depend on WS

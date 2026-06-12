@@ -146,6 +146,7 @@ export function connectWS() {
   let _streamBubbleWrap = null;
   let _streamRow = null;
   let _streamRawData = null;
+  let _tool_call_steps = [];
 
   ws.onmessage = (e) => {
     try {
@@ -183,55 +184,35 @@ export function connectWS() {
       } else if (d.type === 'stream_end') {
         const _endData = d.data || {};
         const _replySid = _endData.session_id || null;
-        // Route to chat page — chatHandleStreamEnd will handle per-session state
+        // Route to chat page — chatHandleStreamEnd handles all rendering
         if (currentPage === 'chat' && typeof chatHandleStreamEnd === 'function') {
           chatHandleStreamEnd(_endData, _replySid);
-          // Play notification sound
           if (typeof playReplySound === 'function') playReplySound();
-          // Mark unread if reply belongs to a different session
           if (_replySid && _replySid !== chatSessionId) {
             if (typeof markSessionUnread === 'function') markSessionUnread(_replySid);
           }
-          // Update session preview (stream_end non-chat page)
           if (chatSessionId && chatCurrentAgent) {
-            const _resp = _endData.response || _chatStreamAcc || '';
-            updateSessionPreview(chatSessionId, _resp, _endData.server_time);
+            updateSessionPreview(chatSessionId, _chatStreamAcc || '', _endData.server_time);
           }
-          fetch('/api/save-response-dict', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ message_id: _data.message_id, response_dict: _data })
-          }).catch(() => {});
+          if (_endData.message_id) {
+            fetch('/api/save-response-dict', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ message_id: _endData.message_id, response_dict: _endData })
+            }).catch(() => {});
+          }
         }
         if (chatSessionId) updateStreamingBadge(chatSessionId, false);
-        // 移除流式 DOM，统一用 chatAddMessage 渲染（与历史消息一致）
+        // Clean up stream DOM state (chatHandleStreamEnd already updated content)
         if (_streamRow) {
           _streamRow.remove();
           _streamRow = null;
           _streamBubble = null;
           _streamBubbleWrap = null;
         }
-        // 统一渲染
-        if (_streamAcc.trim() || _tool_call_steps.length || _attachments.length) {
-          const agentName = (typeof chatCurrentAgent !== 'undefined' && chatCurrentAgent && chatCurrentAgent.name) ? chatCurrentAgent.name : null;
-          const meta = {
-            usage: _data.usage,
-            model: _data.model,
-            processing_time_ms: _data.processing_time_ms,
-            tool_call_steps: _tool_call_steps,
-            skills_used: _data.skills_used || [],
-            skills_recommended: _data.skills_recommended || [],
-            finish_reason: _data.finish_reason,
-            attachments: _attachments,
-            _raw: _data
-          };
-          if (typeof chatAddMessage === 'function') {
-            chatAddMessage(_streamAcc || '', true, meta, null, true, agentName, _data.message_id || null);
-          }
-        }
         _streamAcc = '';
+        _tool_call_steps = [];
         resetSendState();
-        playReplySound();
         // Render attachments on the last streamed message
         if (_attachments.length > 0) {
           try {
