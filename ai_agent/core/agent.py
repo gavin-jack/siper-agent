@@ -505,9 +505,13 @@ class AIAgent:
                 processing_time = (datetime.now() - start_time).total_seconds()
                 msg_meta = {
                     'usage': usage,
+                    'model': llm_response.get('model', ''),
+                    'finish_reason': llm_response.get('finish_reason', ''),
                     'tool_calls_executed': len(tool_results),
                     'tool_call_steps': tool_results,
                     'skills_active': skills_active,
+                    'skills_used': used_skills,
+                    'skills_recommended': [s for s in (skills_active or []) if s not in (used_skills or [])],
                     'processing_time_ms': processing_time * 1000,
                     'success': not is_llm_error,
                 }
@@ -517,14 +521,19 @@ class AIAgent:
                 processing_time = (datetime.now() - start_time).total_seconds()
             self.metrics.record_message_processing(processing_time, len(tool_results))
 
-            # Track which skills were actually used (via skill_view tool call)
+            # Build used_skills list before msg_meta so it's available for meta
             used_skills = []
             for tr in tool_results:
                 if tr.get('tool_name') == 'skill_view':
-                    # Extract skill name from parameters
                     skill_name = tr.get('parameters', {}).get('name', '')
                     if skill_name:
                         used_skills.append(skill_name)
+
+            # Track which skills were actually used (via skill_view tool call)
+            for tr in tool_results:
+                if tr.get('tool_name') == 'skill_view':
+                    skill_name = tr.get('parameters', {}).get('name', '')
+                    if skill_name:
                         # Record LLM actually selected this skill
                         if hasattr(self, 'skill_feedback') and self.skill_feedback:
                             self.skill_feedback.record_selection(skill_name, selected=True)

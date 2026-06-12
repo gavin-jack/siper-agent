@@ -212,9 +212,11 @@ export function chatAddMessage(text, isAgent, meta, timestamp, scroll, agentName
       // 渲染 meta 信息
       if (parsedMeta && (parsedMeta.usage || parsedMeta.model || parsedMeta.processing_time_ms || parsedMeta.tool_call_steps || parsedMeta.skills_used || parsedMeta.skills_recommended || parsedMeta.finish_reason)) {
         _renderMessageMeta(row, parsedMeta, messageId);
-      } else if (messageId && parsedMeta) {
-        // 无详细 meta 但有 messageId 和 meta，用 meta 数据作 dict
-        _appendDictBtn(row, { message_id: messageId, ...parsedMeta });
+      }
+      // 只要有 message_id 就追加 dict 按钮（历史消息可能 meta 不完整）
+      if (messageId) {
+        const _metaForDict = parsedMeta && typeof parsedMeta === 'object' ? parsedMeta : {};
+        _appendDictBtn(row, { message_id: messageId, ..._metaForDict });
       }
     } else {
       row.innerHTML = `<div class="siper-bubble-col"><div class="siper-msg-time">${time}</div><div class="siper-bubble user-bubble"><div class="siper-msg-body"></div></div><div class="siper-msg-actions"><button class="siper-msg-action-btn" onclick="copyChatMsg(this)" title="复制">📋</button><button class="siper-msg-action-btn" onclick="insertChatMsg(this)" title="嵌入">↩</button></div></div>`;
