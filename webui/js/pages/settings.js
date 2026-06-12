@@ -188,7 +188,7 @@ if (toast) toast.warning(t('toast.modelExists') + ': ' + m.name);
   doAddDiscoveredModel(idx);
 }
 
-export function doAddDiscoveredModel(idx) {
+export async function doAddDiscoveredModel(idx) {
   const m = discoveredModelsCache[idx];
   if (!m) return;
   settingsModelsCache.push({
@@ -207,10 +207,11 @@ export function doAddDiscoveredModel(idx) {
     if (settingsCache) settingsCache.default_model = settingsModelsCache[0].name;
   }
   renderSettingsModelsList();
-  autoSaveModels();
+  // 立即保存（不等 debounce），确保刷新后不丢失
+  await saveModelsImmediate();
 }
 
-export function addAllDiscoveredModels() {
+export async function addAllDiscoveredModels() {
   let added = 0;
   discoveredModelsCache.forEach(m => {
     if (settingsModelsCache.find(x => x.name === m.name && x.provider === m.provider)) return;
@@ -232,7 +233,8 @@ export function addAllDiscoveredModels() {
     if (settingsCache) settingsCache.default_model = settingsModelsCache[0].name;
   }
   renderSettingsModelsList();
-  autoSaveModels();
+  // 立即保存（不等 debounce），确保刷新后不丢失
+  await saveModelsImmediate();
   if (toast) toast.success('已添加 ' + added + ' 个模型');
 }
 
@@ -242,48 +244,52 @@ export function addAllDiscoveredModels() {
 
 export let _autoSaveTimer = null;
 
+// 立即保存（绕过 debounce），用于添加模型后确保数据不丢失
+async function saveModelsImmediate() {
+  try {
+    const modelsToSave = settingsModelsCache.map(m => ({
+      id: m.id || m.name,
+      name: m.name,
+      alias: m.alias || '',
+      provider: m.provider,
+      base_url: m.base_url,
+      api_key: m.api_key && m.api_key.startsWith('*') ? '' : m.api_key,
+      context_window: m.context_window,
+      capabilities: m.capabilities || [],
+      is_default: m._isDefault || false,
+      ttft: m.ttft || null,
+      streaming: m.streaming || null,
+      context_window_tested: m.context_window_tested || null,
+      json_mode: m.json_mode || null,
+    }));
+    const defaultModel = settingsModelsCache.find(m => m._isDefault || m.is_default);
+    const r = await fetch('/api/models/global', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        models: modelsToSave,
+        default_model: defaultModel ? defaultModel.name : '',
+      }),
+    });
+    const d = await r.json();
+    if (!d.success) toast.error(t('settings.saveFailed') + ': ' + (d.error || 'unknown'));
+    else {
+      if (typeof loadChatAgents === 'function') {
+        loadChatAgents().then(() => {
+          if (typeof loadChatModels === 'function') loadChatModels();
+        });
+      }
+    }
+  } catch(e) { toast.error(t('settings.saveFailed') + ': ' + e.message); }
+}
+
+// Debounce 保存，用于后续编辑（删除、修改默认值等）
 export function autoSaveModels() {
   if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
   _autoSaveTimer = setTimeout(async () => {
-    try {
-      const modelsToSave = settingsModelsCache.map(m => ({
-        id: m.id || m.name,
-        name: m.name,
-        alias: m.alias || '',
-        provider: m.provider,
-        base_url: m.base_url,
-        api_key: m.api_key && m.api_key.startsWith('*') ? '' : m.api_key,
-        context_window: m.context_window,
-        capabilities: m.capabilities || [],
-        is_default: m._isDefault || false,
-        ttft: m.ttft || null,
-        streaming: m.streaming || null,
-        context_window_tested: m.context_window_tested || null,
-        json_mode: m.json_mode || null,
-      }));
-      const defaultModel = settingsModelsCache.find(m => m._isDefault || m.is_default);
-      const r = await fetch('/api/models/global', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          models: modelsToSave,
-          default_model: defaultModel ? defaultModel.name : '',
-        }),
-      });
-      const d = await r.json();
-      if (!d.success) toast.error(t('settings.saveFailed') + ': ' + (d.error || 'unknown'));
-      else {
-        // Refresh agent cache and model dropdown before showing success
-        if (typeof loadChatAgents === 'function') {
-          loadChatAgents().then(() => {
-            if (typeof loadChatModels === 'function') loadChatModels();
-            if (toast) toast.success(t('settings.modelSaved'), 1500);
-          });
-        } else {
-          if (toast) toast.success(t('settings.modelSaved'), 1500);
-        }
-      }
-    } catch(e) { toast.error(t('settings.saveFailed') + ': ' + e.message); }
+    await saveModelsImmediate();
+    // 保存成功后显示 toast
+    if (toast) toast.success(t('settings.modelSaved'), 1500);
   }, 300);
 }
 
@@ -1090,7 +1096,7 @@ export function chatVerifyDiscoveredModel(idx) {
   });
 }
 
-export function chatAddDiscoveredModel(idx) {
+export async function chatAddDiscoveredModel(idx) {
   const m = discoveredModelsCache[idx];
   if (!m) return;
   if (settingsModelsCache.find(x => x.name === m.name)) {
@@ -1152,13 +1158,14 @@ export function chatAddDiscoveredModel(idx) {
       '</div>';
     grid.appendChild(card);
   }
-  autoSaveModels();
+  // 立即保存（不等 debounce），确保刷新后不丢失
+  await saveModelsImmediate();
   if (toast) toast.success('已添加: ' + m.name, 1200);
   // Refresh discover panel: this model disappears, filter still works
   renderChatDiscoverList();
 }
 
-export function chatAddAllDiscoveredModels() {
+export async function chatAddAllDiscoveredModels() {
   let added = 0;
   const newCards = [];
   discoveredModelsCache.forEach(m => {
@@ -1202,7 +1209,8 @@ export function chatAddAllDiscoveredModels() {
         grid.appendChild(card);
       });
     }
-    autoSaveModels();
+    // 立即保存（不等 debounce），确保刷新后不丢失
+    await saveModelsImmediate();
     if (toast) toast.success('已添加 ' + added + ' 个模型');
     // Re-render discover panel to hide added models
     renderChatDiscoverList();
