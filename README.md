@@ -82,6 +82,36 @@ siper-agent/
 
 ## 更新日志
 
+### v0.1.4 (2026-07-30)
+
+**新功能**：
+- **模型管理独立页面**：从全局设置页拆分为独立页面，更专注的模型管理体验
+- **模型卡片 UI 优化**：统一按钮尺寸 28×24px、删除按钮 hover 浅红色、验证按钮 outline 样式 + 🔍 图标
+- **验证状态整合**：点击验证后清空功能图标，在 model-caps-inner 中显示橙色"正在更新模型能力..."提示
+- **搜索/筛选/排序增强**：多能力筛选（8 种能力多选）、5 种排序方式（名称/TTFT/延迟/上下文/能力数）、分组/平铺切换
+- **"恢复分组"按钮**：搜索/筛选/排序后一键恢复分组视图
+- **Provider 预设**：12 个预设（OpenAI/Anthropic/DeepSeek/MoonCat/Qwen/智谱/MiniMax/Groq/OpenRouter/Ollama 等）
+- **模型发现**：从 Provider API 批量获取模型列表，支持筛选和批量添加
+- **latency 持久化**：DB 新增 latency 列，前端→后端→DB 全链路打通
+- **TTFT 颜色编码**：<500ms 蓝色、500-1500ms 橙色、>1500ms 红色
+- **复制按钮**：SVG 图标 + 事件委托 + 三级 fallback（Clipboard API → execCommand → modal）
+- **复选框穿透修复**：pointer-events:none 防止 double-toggle
+- **入场动画**：模型卡片交错动画，仅首次加载触发
+- **名称走马灯**：模型名超长时 hover 自动滚动
+
+**Bug 修复**：
+- 复选框 onclick + onchange 双触发导致状态翻转
+- 复制按钮 JSON.stringify 双引号截断 onclick
+- 验证按钮绿色背景被旧 CSS 规则覆盖
+- 智能体配置标签页不显示（.hidden !important 覆盖）
+- 排序后分组标题仍显示
+- toggleSortDir 不重建 HTML 导致排序不分组
+
+**重构**：
+- 模型管理从 settings.js 拆出为独立 model-settings.js（929 行）
+- settings.js 精简为系统参数 + Agent 管理（960 行删除）
+- CSS 颜色全部通过 var() 引用，去掉硬编码
+
 ### v0.1.3 (2026-06-12)
 
 **新功能**：
