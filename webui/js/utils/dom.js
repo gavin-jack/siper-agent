@@ -203,6 +203,7 @@ export function connectWS() {
             body: JSON.stringify({ message_id: _data.message_id, response_dict: _data })
           }).catch(() => {});
         }
+        if (chatSessionId) updateStreamingBadge(chatSessionId, false);
         // 移除流式 DOM，统一用 chatAddMessage 渲染（与历史消息一致）
         if (_streamRow) {
           _streamRow.remove();
@@ -547,6 +548,7 @@ export function connectWS() {
         }
         // Fallback if chatHandleStopped not available yet
         resetSendState();
+        if (chatSessionId) updateStreamingBadge(chatSessionId, false);
         const _te = document.getElementById('typing');
         if (_te) _te.className = 'typing';
         const _tt = document.getElementById('typingTools');
@@ -631,6 +633,7 @@ export function connectWS() {
         resetSendState();
         chatThinkingClear();
         setIsThinking(false);
+        if (chatSessionId) updateStreamingBadge(chatSessionId, false);
         if (d.session_id) currentSession = d.session_id;
         const _data = d.data || {};
         const _content = _data.response || _data.content || '';
