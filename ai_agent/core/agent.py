@@ -320,7 +320,7 @@ class AIAgent:
 
         # Switch LLM client model if requested
         if model and self.llm_client and model != self.llm_client.model:
-            # Find model config from global models.json
+            # Find model config from global models.db
             model_cfg = _find_model_in_global(model)
             if model_cfg:
                 api_key = model_cfg.get("api_key") or os.environ.get("LONGCAT_API_KEY", "")

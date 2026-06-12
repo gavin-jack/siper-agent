@@ -470,34 +470,21 @@ async def main():
             return sm
 
     # Load per-agent config (icon, avatar, display_name, session_timeout, etc.) from config.json
-    # NOTE: models are NOT stored in config.json — they live in models.json only
+    # NOTE: models are NOT stored in config.json — they live in models.db (SQLite)
     from agents import load_agent_config_file
     agent_cfg = load_agent_config_file("default") or {}
     _cfg_key_default = ""
-    # Load models from SQLite (agents/default/models.db), fallback to models.json
+    # Load models from SQLite (agents/default/models.db)
     from ai_agent.models_db import ModelsDB as _ModelsDB
     _models_db = _ModelsDB(str(PROJECT_ROOT / "agents" / "default" / "models.db"))
-    _gm_path = PROJECT_ROOT / "models.json"
     _gm_models = []
     _gm_default = ""
     if _models_db.get_all_models():
-        # Primary: SQLite
         _flat = _models_db.get_models_flat()
         _gm_models = _flat["models"]
         _gm_default = _flat.get("default_model", "")
         logger.info(f"配置：从 models.db 加载了 {len(_gm_models)} 个模型，默认={_gm_default}")
-    elif _gm_path.exists():
-        # Fallback: models.json → auto-import to SQLite
-        try:
-            from ai_agent.models_migration import migrate as _migrate_json
-            _migrate_json(str(_gm_path), str(PROJECT_ROOT / "agents" / "default" / "models.db"))
-            _flat = _models_db.get_models_flat()
-            _gm_models = _flat["models"]
-            _gm_default = _flat.get("default_model", "")
-            logger.info(f"配置：从 models.json 自动迁移到 models.db，{len(_gm_models)} 个模型")
-        except Exception as e:
-            logger.warning(f"配置：读取 models.json 失败: {e}")
-    # API key priority: env LONGCAT_API_KEY > models.json default model key > .env file
+    # API key priority: env LONGCAT_API_KEY > default model key > .env file
     if _gm_models:
         _first = _gm_models[0]
         for _m in _gm_models:
@@ -619,7 +606,7 @@ async def main():
                 vision_base_url="",
                 vision_model="",
             )
-            logger.info(f"配置：LLM 来自 models.json — 模型={llm_cfg.get('name')}, 地址={llm_cfg.get('base_url')}")
+            logger.info(f"配置：LLM 来自 models.db — 模型={llm_cfg.get('name')}, 地址={llm_cfg.get('base_url')}")
         else:
             logger.warning("配置：无有效 API Key，LLM 未初始化 — 请在 Web UI 配置页面设置模型")
     else:
@@ -1678,7 +1665,7 @@ async def main():
                 _models_db.save_models_flat({"models": body["models"], "default_model": body.get("default_model", "")})
             if "default_model" in body:
                 agent.config.default_chat_model = body["default_model"]
-            # Persist non-model settings to config.json (models go to models.json only)
+            # Persist non-model settings to config.json (models go to models.db)
             try:
                 from agents import save_agent_config_file
                 persist_data = {}
@@ -1888,7 +1875,7 @@ async def main():
                     agent.config.max_history_messages = int(body["max_history_messages"])
                 # Legacy fields (backward compat)
                 if "models" in body:
-                    pass  # models are saved to models.json only
+                    pass  # models are saved to models.db (SQLite)
                 if "default_model" in body:
                     agent.config.default_chat_model = body["default_model"]
                 # Rebuild LLMClient if model/base_url/api_key changed
@@ -2376,39 +2363,6 @@ async def main():
 
     # ===== Global Models API =====
 
-    def _global_models_path():
-        return PROJECT_ROOT / "models.json"
-
-    def _save_models_to_json(models, default_model):
-        """Save models list to models.json (v2 format)."""
-        p = _global_models_path()
-        providers = {}
-        for m in models:
-            prov = m.get("provider", "custom")
-            if prov not in providers:
-                providers[prov] = {"base_url": m.get("base_url", ""), "api_key": m.get("api_key", ""), "models": []}
-            entry = {
-                "id": m.get("name", m.get("id", "")),
-                "name": m.get("name", m.get("id", "")),
-                "alias": m.get("alias", ""),
-                "base_url": m.get("base_url", ""),
-                "api_key": m.get("api_key", ""),
-                "context_window": m.get("context_window", _CONTEXT_WINDOW_DEFAULT),
-                "capabilities": m.get("capabilities", []),
-                "is_default": (m.get("name", m.get("id", "")) == default_model),
-                "ttft": m.get("ttft", None),
-                "streaming": m.get("streaming", None),
-                "context_window_tested": m.get("context_window_tested", None),
-                "json_mode": m.get("json_mode", None),
-            }
-            providers[prov]["models"].append(entry)
-            logger.info(f"SAVE model={m.get('name')} ttft={m.get('ttft')} streaming={m.get('streaming')} jm={m.get('json_mode')} caps={m.get('capabilities')}")
-        data = {"version": 2, "providers": providers,
-                "default_provider": models[0].get("provider", "custom") if models else "",
-                "default_model": default_model}
-        p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        logger.info(f"模型配置已保存到 models.json：{len(models)} 个模型，默认={default_model}")
-
     def api_save_global_models(body):
         # 写入 SQLite（内部保留 de-mask 逻辑）
         _models_db.save_models_flat(body)
@@ -2682,7 +2636,7 @@ async def main():
             except Exception:
                 pass
         if not api_key or api_key.startswith("*"):
-            return {"success": False, "error": "无法获取模型 API key，请在 models.json 中配置"}
+            return {"success": False, "error": "无法获取模型 API key，请在 Web UI 配置页面设置"}
         if base_url.endswith("/v1"):
             chat_url = base_url + "/chat/completions"
         else:
