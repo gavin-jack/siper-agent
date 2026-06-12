@@ -203,6 +203,7 @@ export function chatHandleStreamEnd(data, streamSessionId) {
     const _resp = (data && data.response) || text || '';
     updateSessionPreview(chatSessionId, _resp, data && data.server_time);
   }
+  chatThinkingHide();
 }
 
 // ===== Stop Handler =====
@@ -233,6 +234,7 @@ export function chatHandleStopped() {
   setIsThinking(false);
   resetSendState();
   _hideNewMsgIndicator();
+  chatThinkingHide();
   // Stop wave badge for this session
   if (chatSessionId && typeof updateStreamingBadge === 'function') updateStreamingBadge(chatSessionId, false);
   // 用户停止后用前端时间更新会话预览
@@ -336,6 +338,7 @@ function _hideNewMsgIndicator() {
 }
 
 export function chatHandleToolProgress(d) {
+  if (!isSending) return;
   const toolName = d.tool_name || 'unknown';
   const status = d.status || 'running';
   const callId = d.call_id || toolName;

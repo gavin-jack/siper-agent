@@ -76,8 +76,16 @@ export function chatLoadAllSessions() {
         const agent = chatAgents.find(a => a.name === agentName);
         const target = agent || (chatAgents.length > 0 ? chatAgents[0] : null);
         if (!target) continue;
-        const exists = target.sessions.some(es => es.session_id === s.session_id);
-        if (!exists) target.sessions.push(s);
+        const existing = target.sessions.find(es => es.session_id === s.session_id);
+        if (existing) {
+          existing.updated_at = s.updated_at;
+          existing.last_message = s.last_message;
+          existing.messages = s.messages;
+          existing.active = s.active;
+          if (s.title) existing.title = s.title;
+        } else {
+          target.sessions.push(s);
+        }
       }
       renderMiddleList();
     })
