@@ -4,6 +4,28 @@
 
 ---
 
+## v0.1.3 (2026-06-12)
+
+### 新功能 (feat)
+
+- **模型存储 SQLite 化**：模型配置从 models.json 迁移到 SQLite（models.db），WAL 模式，并发安全，数据完整性保障
+- **模型能力 15 种**：chat/reasoning/code/function_calling/vision/long_context/translation/ocr/summarization/sentiment/ner/math/chart/document
+- **模型配置 API 简化**：api_get_global_models 从 40 行 JSON 解析简化为 3 行 SQLite 查询，api_save_global_models 从 140 行简化为 SQLite 写入
+
+### Bug 修复 (fix)
+
+- **添加模型后数据丢失**：settings.js 中 doAddDiscoveredModel/addAllDiscoveredModels 改为 async，添加后立即保存（不等 debounce），防止刷新页面丢失数据
+- **api_test_model 错误消息过时**："请在 models.json 中配置" → "请在 Web UI 配置页面设置"
+
+### 重构 (refactor)
+
+- **删除 models.json**：模型存储完全 SQLite 化，删除 models.json 文件和 models_migration.py 迁移脚本
+- **删除遗留函数**：`_global_models_path()` 和 `_save_models_to_json()` 从 siper_web.py 移除
+- **更新部署脚本**：create_deploy.py 删除 models.json 引用和 TEMPLATE_MODELS 常量
+- **统一注释/日志**：所有 models.json 引用更新为 models.db
+
+---
+
 ## v0.1.1 (2026-06-11)
 
 ### 新功能 (feat) — 16 项
