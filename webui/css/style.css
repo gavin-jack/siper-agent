@@ -1176,11 +1176,12 @@ html { touch-action: manipulation; }
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 14px 8px 44px; /* indented */
+  padding: 8px 35px 8px 35px; /* 35px left for dot, 35px right for delete btn */
   cursor: pointer;
-  transition: background-color, color
+  transition: background-color, color;
   border-bottom: 1px solid var(--color-border);
   background: transparent;
+  position: relative;
 }
 .siper-session-item:hover {
   background: var(--color-hover);
@@ -1188,7 +1189,7 @@ html { touch-action: manipulation; }
 .siper-session-item.active {
   background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
   border-left: 5px solid var(--color-primary);
-  padding-left: 39px;
+  padding-left: 30px; /* 35 - 5 border = 30, keep content aligned */
 }
 .siper-session-item.active .siper-session-name {
   font-weight: 700;
@@ -1229,9 +1230,16 @@ html { touch-action: manipulation; }
 .siper-session-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 8px;
 }
 .siper-session-delete-btn {
-  flex-shrink: 0;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   opacity: 0;
   background: none;
   border: none;
@@ -1242,6 +1250,7 @@ html { touch-action: manipulation; }
   border-radius: 4px;
   transition: opacity 0.15s, background 0.15s;
   color: var(--color-text-dim);
+  z-index: 1;
 }
 .siper-session-delete-btn:hover {
   background: color-mix(in srgb, var(--color-danger) 15%, transparent);
@@ -1257,6 +1266,14 @@ html { touch-action: manipulation; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.siper-session-time {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .siper-session-preview {
   font-size: 12px;
@@ -1265,17 +1282,23 @@ html { touch-action: manipulation; }
   overflow: hidden;
   text-overflow: ellipsis;
   margin-top: 1px;
+  width: 100%;
+  order: 3;
 }
 
-/* Unread badge (red dot) on session item */
+/* Unread badge (red dot) on session item — absolute in left 35px area */
 .siper-session-unread-dot {
-  flex-shrink: 0;
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 10px;
   height: 10px;
   border-radius: 50%;
   background: var(--color-danger);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-danger) 25%, transparent);
   animation: siper-unread-pulse 2s ease-in-out infinite;
+  z-index: 1;
 }
 @keyframes siper-unread-pulse {
   0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-danger) 25%, transparent); }

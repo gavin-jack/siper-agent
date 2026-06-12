@@ -205,17 +205,23 @@ function _doRenderMiddle() {
           item.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); chatShowSessionMenu(e, session, agent); };
           item.ondblclick = (e) => { e.stopPropagation(); renameChatSession(session, agent); };
           const preview = (session.last_message || '').replace(/\n/g, ' ').substring(0, 60);
-          const displayName = session.title || session.session_id.substring(0, 20);
+          const displayName = session.title || session.session_id.substring(0, 12);
+          const _timeStr = session.updated_at || session.created_at || '';
+          const _timeDisplay = _timeStr ? new Date(_timeStr).toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
           item.innerHTML = `
             <div class="siper-session-info">
               <div class="siper-session-name">${chatEscapeHtml(displayName)}</div>
+              <div class="siper-session-time">${chatEscapeHtml(_timeDisplay)}</div>
               <div class="siper-session-preview">${chatEscapeHtml(preview)}</div>
             </div>
             ${_unread ? '<span class="siper-session-unread-dot"></span>' : ''}
-            ${isActiveSession ? '<button class="siper-session-delete-btn" title="删除会话">×</button>' : ''}
+            <button class="siper-session-delete-btn" title="删除会话">×</button>
           `;
           const delBtn = item.querySelector('.siper-session-delete-btn');
-          if (delBtn) delBtn.onclick = (e) => { e.stopPropagation(); deleteChatSessionConfirm(session, agent); };
+          if (delBtn) {
+            if (!isActiveSession) delBtn.style.display = 'none';
+            delBtn.onclick = (e) => { e.stopPropagation(); deleteChatSessionConfirm(session, agent); };
+          }
           sessionsWrap.appendChild(item);
         });
         if (agent.sessions.length > SHOW_MAX && !sessionsExpanded) {

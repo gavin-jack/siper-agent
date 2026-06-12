@@ -232,7 +232,7 @@ class SessionManager:
         Returns:
             Session ID
         """
-        session_id = uuid.uuid4().hex[:20]
+        session_id = uuid.uuid4().hex[:12]
         session = ConversationSession(
             session_id=session_id,
             user_id=user_id,
