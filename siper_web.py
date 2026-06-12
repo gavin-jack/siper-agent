@@ -18,6 +18,8 @@ if not _is_win:
 import socket
 import sys
 import time
+import base64
+import traceback
 import threading
 import subprocess
 import datetime
@@ -2832,7 +2834,6 @@ async def main():
 
             # ===== Step 4: probe vision =====
             try:
-                import base64 as _b64
                 red_png_b64 = (
                     "iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAAMklEQVQ4T2N88ODhfwY0wMjIyIBOY2BgYGBkZGRgZGRkYKCgYGBgYGBgYGBgYGBgAAB"
                     "ZSwX/2QnKwAAAAABJRU5ErkJggg=="
@@ -3378,7 +3379,6 @@ async def main():
 
         Returns: { success, path, name, size, mime, category, error }
         """
-        import base64 as _b64
 
         file_data = body.get("data", "")
         file_name = body.get("name", "uploaded_file")
@@ -3394,7 +3394,7 @@ async def main():
             else:
                 b64_data = file_data
 
-            raw_bytes = _b64.b64decode(b64_data)
+            raw_bytes = base64.b64decode(b64_data)
 
             if len(raw_bytes) > MAX_FILE_SIZE:
                 return {"success": False, "error": f"文件过大（{len(raw_bytes) // 1024}KB），最大允许 {MAX_FILE_SIZE // 1024}KB"}
@@ -3711,8 +3711,7 @@ async def main():
                 else:
                     b64 = img_data
                     mime = img.get("mime", "image/png")
-                import base64 as _b64
-                raw_bytes = _b64.b64decode(b64)
+                raw_bytes = base64.b64decode(b64)
                 ext_map = {"image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp", "image/bmp": ".bmp"}
                 ext = ext_map.get(mime, ".png")
                 upload_dir = PROJECT_ROOT / "uploads"
@@ -3851,8 +3850,7 @@ async def main():
                 # 即使 LLM 返回错误，也要持久化会话（保留用户消息和错误响应）
                 await agent.session_manager.persist_session(session_id)
         except Exception as e:
-            import traceback as _tb
-            logger.error(f"处理消息异常：{e}\n{_tb.format_exc()}")
+            logger.error(f"处理消息异常：{e}\n{traceback.format_exc()}")
             result = {
                 "success": False,
                 "response": f"处理消息出错：{type(e).__name__}: {e}",
@@ -3902,6 +3900,8 @@ async def main():
                         {"url": "/uploads/" + os.path.basename(p), "name": os.path.basename(p), "category": "image", "type": "image"}
                         for p in image_paths
                     ]
+                # Attach server_time for accurate session ordering
+                result["server_time"] = datetime.now().isoformat()
                 await ws.send(json.dumps({
                     "type": "stream_end",
                     "session_id": session_id,
@@ -3915,6 +3915,8 @@ async def main():
                     {"url": "/uploads/" + os.path.basename(p), "name": os.path.basename(p), "category": "image", "type": "image"}
                     for p in image_paths
                 ]
+            # Attach server_time for accurate session ordering
+            result["server_time"] = datetime.now().isoformat()
             resp = {
                 "type": "response",
                 "session_id": session_id,

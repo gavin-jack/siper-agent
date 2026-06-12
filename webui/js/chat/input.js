@@ -7,9 +7,11 @@ import {
   getWs,
   getIsSending,
   ensureSessionReady,
-  setIsThinking
+  setIsThinking,
+  updateSessionPreview
 } from './state.js';
-import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay, fmtTokens } from './message.js';
+import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js';
+import { fmtTokens } from './state.js';
 import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow } from './stream.js';
 import { toast } from '../components/toast.js';
 
@@ -306,6 +308,10 @@ export async function chatSendMessage() {
   const stopBtn = document.getElementById('chatStopBtn');
   if (stopBtn) stopBtn.classList.remove('hidden');
   chatAppendUserMsg(text || '[文件]');
+  // 用户发消息后用前端时间更新会话预览
+  if (chatSessionId && chatCurrentAgent) {
+    updateSessionPreview(chatSessionId, undefined, new Date().toISOString());
+  }
   // Start streaming wave badge on session immediately (before LLM responds)
   if (chatSessionId) updateStreamingBadge(chatSessionId, true);
   setIsThinking(true);
