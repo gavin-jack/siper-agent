@@ -1,5 +1,6 @@
 // components/toast.js — 统一通知系统（toast / confirm / input / dictModal / imageLightbox）
 // 所有弹窗在 #siperNotifRoot 顶层渲染，统一样式 token，toast 带倒计时进度条
+import { escapeHtml } from '../utils/escape.js';
 
 // ===== 统一通知容器 =====
 const NOTIF_ROOT_ID = 'siperNotifRoot';
@@ -56,7 +57,7 @@ export const toast = {
 
     el.innerHTML = `
       <span class="siper-notif-icon">${icons[type] || 'ℹ'}</span>
-      <span class="siper-notif-msg">${message}</span>
+      <span class="siper-notif-msg">${escapeHtml(message)}</span>
       <span class="siper-notif-close" aria-label="关闭">✕</span>
       <span class="siper-notif-progress"><span class="siper-notif-progress-bar"></span></span>
     `;
@@ -133,17 +134,17 @@ export function showConfirm(opts) {
   box.className = 'siper-notif-dialog siper-notif-confirm';
   box.innerHTML = `
     <div class="siper-notif-dialog-header">
-      <span class="siper-notif-dialog-title"><span class="siper-notif-warn-icon">⚠️</span>${title}</span>
+      <span class="siper-notif-dialog-title"><span class="siper-notif-warn-icon">⚠️</span>${escapeHtml(title)}</span>
       <button class="siper-notif-dialog-close" aria-label="关闭">×</button>
     </div>
     <div class="siper-notif-dialog-body">
-      <div class="siper-notif-dialog-msg">${msg}</div>
-      ${scope ? `<div class="siper-notif-dialog-scope">${scope}</div>` : ''}
-      ${impact ? `<div class="siper-notif-dialog-impact">${impact}</div>` : ''}
+      <div class="siper-notif-dialog-msg">${escapeHtml(msg)}</div>
+      ${scope ? `<div class="siper-notif-dialog-scope">${escapeHtml(scope)}</div>` : ''}
+      ${impact ? `<div class="siper-notif-dialog-impact">${escapeHtml(impact)}</div>` : ''}
     </div>
     <div class="siper-notif-dialog-footer">
-      <button class="siper-notif-btn siper-notif-btn-cancel">${cancelText}</button>
-      <button class="siper-notif-btn ${danger ? 'siper-notif-btn-danger' : 'siper-notif-btn-primary'}">${okText}</button>
+      <button class="siper-notif-btn siper-notif-btn-cancel">${escapeHtml(cancelText)}</button>
+      <button class="siper-notif-btn ${danger ? 'siper-notif-btn-danger' : 'siper-notif-btn-primary'}">${escapeHtml(okText)}</button>
     </div>
   `;
 
@@ -191,13 +192,13 @@ export function showInput(opts) {
   box.className = 'siper-notif-dialog siper-notif-input';
   box.innerHTML = `
     <div class="siper-notif-dialog-header">
-      <span class="siper-notif-dialog-title">${title}</span>
+      <span class="siper-notif-dialog-title">${escapeHtml(title)}</span>
       <button class="siper-notif-dialog-close" aria-label="关闭">×</button>
     </div>
     <div class="siper-notif-dialog-body">
       ${multiline
-        ? `<textarea class="siper-notif-input-field" rows="6" placeholder="${placeholder}"></textarea>`
-        : `<input type="text" class="siper-notif-input-field" placeholder="${placeholder}">`
+        ? `<textarea class="siper-notif-input-field" rows="6" placeholder="${escapeHtml(placeholder)}"></textarea>`
+        : `<input type="text" class="siper-notif-input-field" placeholder="${escapeHtml(placeholder)}">`
       }
     </div>
     <div class="siper-notif-dialog-footer">
@@ -247,17 +248,17 @@ export function showForm(opts) {
     const id = f.id || ('formField_' + Math.random().toString(36).slice(2, 8));
     f._id = id;
     return `<div style="margin-bottom:10px">`
-      + `<label style="font-size:12px;color:var(--text-dim)">${f.label}</label>`
-      + `<input type="text" id="${id}" class="siper-notif-input-field" placeholder="${f.placeholder || ''}" `
-      + (f.value ? `value="${String(f.value).replace(/"/g, '&quot;')}" ` : '')
+      + `<label style="font-size:12px;color:var(--text-dim)">${escapeHtml(f.label)}</label>`
+      + `<input type="text" id="${id}" class="siper-notif-input-field" placeholder="${escapeHtml(f.placeholder || '')}" `
+      + (f.value ? `value="${escapeHtml(String(f.value))}" ` : '')
       + (f.maxlength ? `maxlength="${f.maxlength}" ` : '')
-      + `style="width:100%" aria-label="${f.label}">`
+      + `style="width:100%" aria-label="${escapeHtml(f.label)}">`
       + `</div>`;
   }).join('');
 
   box.innerHTML = `
     <div class="siper-notif-dialog-header">
-      <span class="siper-notif-dialog-title">${title}</span>
+      <span class="siper-notif-dialog-title">${escapeHtml(title)}</span>
       <button class="siper-notif-dialog-close" aria-label="关闭">×</button>
     </div>
     <div class="siper-notif-dialog-body">${fieldHtml}</div>
@@ -527,7 +528,7 @@ function _getThemeColors() {
   };
 }
 
-function _esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// _esc removed — use escapeHtml() from utils/escape.js (handles quotes too)
 
 function _buildDictSection(icon, label, items, C) {
   const sec = document.createElement('div');
@@ -564,8 +565,8 @@ function _buildDictSection(icon, label, items, C) {
     body.innerHTML = items.map(item => {
       if (item.type === 'row') {
         return `<div class="siper-notif-dict-info-row">`
-          + `<span class="siper-notif-dict-info-label">${_esc(item.label)}</span>`
-          + `<span class="siper-notif-dict-info-value">${_esc(item.value)}</span>`
+          + `<span class="siper-notif-dict-info-label">${escapeHtml(item.label)}</span>`
+          + `<span class="siper-notif-dict-info-value">${escapeHtml(item.value)}</span>`
           + `</div>`;
       }
       if (item.type === 'tool_step') {
@@ -573,12 +574,12 @@ function _buildDictSection(icon, label, items, C) {
           + `<button class="siper-notif-dict-tool-head" type="button" aria-expanded="${item.open}">`
           + `<span class="siper-notif-dict-arrow" style="${item.open ? 'transform:rotate(90deg)' : ''}" aria-hidden="true">▶</span>`
           + item.statusIcon
-          + `<span class="siper-notif-dict-tool-name">${_esc(item.name)}</span>`
-          + (item.duration ? `<span class="siper-notif-dict-tool-dur">${_esc(item.duration)}</span>` : '')
+          + `<span class="siper-notif-dict-tool-name">${escapeHtml(item.name)}</span>`
+          + (item.duration ? `<span class="siper-notif-dict-tool-dur">${escapeHtml(item.duration)}</span>` : '')
           + `</button>`
           + `<div class="siper-notif-dict-tool-body" style="${item.open ? '' : 'display:none'}">`
-          + (item.params ? `<div class="siper-notif-dict-tool-params">${_esc(item.params)}</div>` : '')
-          + (item.result ? `<div class="siper-notif-dict-tool-result">${_esc(item.result)}</div>` : '')
+          + (item.params ? `<div class="siper-notif-dict-tool-params">${escapeHtml(item.params)}</div>` : '')
+          + (item.result ? `<div class="siper-notif-dict-tool-result">${escapeHtml(item.result)}</div>` : '')
           + `</div></div>`;
       }
       return '';
@@ -604,12 +605,12 @@ function _renderValue(val, indent, C) {
   if (val === undefined) return `<span style="color:${C.textDim};font-style:italic">undefined</span>`;
   const t = typeof val;
   if (t === 'string') {
-    const s = _esc(val);
+    const s = escapeHtml(val);
     if (/^https?:\/\//.test(val)) return `<span class="siper-notif-dict-link" data-url="${s}">${s}</span>`;
     return `<span style="color:${C.primary}">"${s}"</span>`;
   }
-  if (t === 'number') return `<span style="color:${C.text};font-weight:500">${_esc(val)}</span>`;
-  if (t === 'boolean') return `<span style="color:${C.danger};font-weight:600">${_esc(val)}</span>`;
+  if (t === 'number') return `<span style="color:${C.text};font-weight:500">${escapeHtml(val)}</span>`;
+  if (t === 'boolean') return `<span style="color:${C.danger};font-weight:600">${escapeHtml(val)}</span>`;
   if (t === 'object') {
     if (Array.isArray(val)) {
       if (val.length === 0) return `<span style="color:${C.textDim}">[]</span>`;
@@ -621,13 +622,13 @@ function _renderValue(val, indent, C) {
     const keys = Object.keys(val);
     if (keys.length === 0) return `<span style="color:${C.textDim}">{}</span>`;
     const items = keys.map(k => {
-      const keyHtml = `<span style="color:${C.primary}">"${_esc(k)}"</span>`;
+      const keyHtml = `<span style="color:${C.primary}">"${escapeHtml(k)}"</span>`;
       const valHtml = _renderValue(val[k], indent + 1, C);
       return `${nextPad}${keyHtml}<span style="color:${C.textDim}">: </span>${valHtml}`;
     });
     return `<span style="color:${C.textDim}">{</span>\n${items.join(',\n')}\n${pad}<span style="color:${C.textDim}">}</span>`;
   }
-  return _esc(val);
+  return escapeHtml(val);
 }
 
 function _renderCodeView(obj, C) {
