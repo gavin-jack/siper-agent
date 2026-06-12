@@ -162,9 +162,12 @@ class AIAgent:
 
         # Skill system v2: registry, pre-filter, feedback
         self.skill_registry = SkillRegistry(skills_dir=config.skills_dir, agent=self)
-        self.skill_pre_filter = SkillPreFilter(registry=self.skill_registry)
         self.skill_feedback = SkillFeedback(
-            stats_file=str(Path(config.data_dir) / "skill_stats.json")
+            db_path=str(Path(config.data_dir) / "skill_call_log.db")
+        )
+        self.skill_pre_filter = SkillPreFilter(
+            registry=self.skill_registry,
+            call_log=self.skill_feedback.call_log
         )
         self._skill_pre_filter_enabled = True
         self._skill_pre_filter_top_k = config.skill_pre_filter_top_k

@@ -2,20 +2,15 @@
 Skill Feedback - 技能使用反馈系统
 
 记录 skill 触发、选中、执行结果等数据，用于持续优化预筛选。
-存储结构：
-  - agents/<name>/skill_call_log.db  (SQLite, 详细调用日志)
-  - agents/<name>/skill_stats.json   (聚合统计, 向后兼容)
+存储：agents/<name>/skill_call_log.db  (SQLite, 详细调用日志)
 """
 
 import hashlib
-import json
 import logging
 import sqlite3
 import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-
-from .skill_registry import SkillStats
 
 logger = logging.getLogger("skill_feedback")
 
@@ -60,7 +55,6 @@ class SkillCallLog:
 
     def _hash_input(self, user_input: str) -> str:
         """生成用户输入的语义哈希（用于聚类相似输入）"""
-        # 取前100字符的 MD5 前8位作为粗粒度聚类
         normalized = user_input.strip().lower()[:100]
         return hashlib.md5(normalized.encode("utf-8")).hexdigest()[:8]
 
@@ -88,7 +82,7 @@ class SkillCallLog:
                     (
                         time.time(),
                         session_id,
-                        user_input[:500],  # 截断
+                        user_input[:500],
                         skill_name,
                         trigger_score,
                         trigger_method,
@@ -108,13 +102,10 @@ class SkillCallLog:
         计算技能有效性分数
         = 选中率 × 成功率
         范围 0.0 ~ 1.0
-
-        如果提供 context_hash，则只计算相似上下文中的有效性
         """
         try:
             with sqlite3.connect(str(self.db_path)) as conn:
                 if context_hash:
-                    # 相似上下文中的有效性
                     row = conn.execute(
                         """SELECT
                             COUNT(*) as total,
@@ -149,8 +140,8 @@ class SkillCallLog:
 
     def get_context_boost(self, skill_name: str, user_input: str) -> float:
         """
-        根据相似输入的历史调用情况，返回一个 boost 分数
-        范围 0.0 ~ 0.3，用于调整预筛选器的基础分
+        根据相似输入的历史调用情况，返回 boost 分数
+        范围 0.0 ~ 0.3
         """
         context_hash = self._hash_input(user_input)
         try:
@@ -165,9 +156,8 @@ class SkillCallLog:
                 ).fetchone()
                 total, called = row
                 if not total or total < 2:
-                    return 0.0  # 数据不足，不调整
+                    return 0.0
                 call_rate = (called or 0) / total
-                # 最高 boost 0.3
                 return min(call_rate * 0.3, 0.3)
         except Exception:
             return 0.0
@@ -190,12 +180,9 @@ class SkillCallLog:
                 ).fetchone()
                 if not row or row[0] == 0:
                     return {
-                        "total_triggers": 0,
-                        "total_calls": 0,
-                        "total_success": 0,
-                        "avg_score": 0,
-                        "avg_call_time": 0,
-                        "last_trigger": 0,
+                        "total_triggers": 0, "total_calls": 0,
+                        "total_success": 0, "avg_score": 0,
+                        "avg_call_time": 0, "last_trigger": 0,
                         "effectiveness": 0.5,
                     }
                 total, calls, success, avg_score, avg_time, last = row
@@ -214,12 +201,9 @@ class SkillCallLog:
         except Exception as e:
             logger.error(f"获取技能统计失败: {e}")
             return {
-                "total_triggers": 0,
-                "total_calls": 0,
-                "total_success": 0,
-                "avg_score": 0,
-                "avg_call_time": 0,
-                "last_trigger": 0,
+                "total_triggers": 0, "total_calls": 0,
+                "total_success": 0, "avg_score": 0,
+                "avg_call_time": 0, "last_trigger": 0,
                 "effectiveness": 0.5,
             }
 
@@ -252,85 +236,18 @@ class SkillCallLog:
 
 class SkillFeedback:
     """
-    Skill 使用反馈收集器（向后兼容层）
+    Skill 使用反馈收集器
 
-    同时维护 JSON 统计文件（向后兼容）和 SQLite 日志数据库（新功能）
+    通过 SQLite 记录技能触发、选中、执行结果，
+    提供有效性评估和上下文 boost 功能。
     """
 
-    def __init__(self, stats_file: str):
-        self.stats_file = Path(stats_file)
-        self.stats: Dict[str, SkillStats] = {}
-        self.call_log = SkillCallLog(str(self.stats_file.parent / "skill_call_log.db"))
-        self._load()
-
-    def _load(self):
-        """从文件加载统计数据"""
-        try:
-            if self.stats_file.exists():
-                data = json.loads(self.stats_file.read_text(encoding="utf-8"))
-                for name, info in data.items():
-                    s = SkillStats()
-                    s.triggered = info.get("triggered", 0)
-                    s.selected = info.get("selected", 0)
-                    s.success_count = info.get("success_count", 0)
-                    s.fail_count = info.get("fail_count", 0)
-                    s.last_triggered = info.get("last_triggered", 0)
-                    s.last_selected = info.get("last_selected", 0)
-                    s.trigger_keywords = info.get("trigger_keywords", [])
-                    self.stats[name] = s
-        except Exception as e:
-            logger.warning(f"加载 skill 统计数据失败: {e}")
-            self.stats = {}
-
-    def _save(self):
-        """保存统计数据到文件"""
-        try:
-            self.stats_file.parent.mkdir(parents=True, exist_ok=True)
-            data = {}
-            for name, s in self.stats.items():
-                data[name] = {
-                    "triggered": s.triggered,
-                    "selected": s.selected,
-                    "success_count": s.success_count,
-                    "fail_count": s.fail_count,
-                    "last_triggered": s.last_triggered,
-                    "last_selected": s.last_selected,
-                    "trigger_keywords": s.trigger_keywords[-50:],
-                }
-            self.stats_file.write_text(json.dumps(data, ensure_ascii=False, indent=2))
-        except Exception as e:
-            logger.error(f"保存 skill 统计数据失败: {e}")
-
-    def _get_or_create(self, skill_name: str) -> SkillStats:
-        if skill_name not in self.stats:
-            self.stats[skill_name] = SkillStats()
-        return self.stats[skill_name]
-
-    def record_trigger(self, skill_name: str, user_input: str = ""):
-        """记录 skill 被预筛选选中"""
-        s = self._get_or_create(skill_name)
-        s.triggered += 1
-        s.last_triggered = time.time()
-        if user_input:
-            s.trigger_keywords.append(user_input[:100])
-        self._save()
-
-    def record_selection(self, skill_name: str, selected: bool = True):
-        """记录 LLM 是否调用了此 skill"""
-        s = self._get_or_create(skill_name)
-        if selected:
-            s.selected += 1
-            s.last_selected = time.time()
-        self._save()
-
-    def record_result(self, skill_name: str, success: bool = True):
-        """记录 skill 执行结果"""
-        s = self._get_or_create(skill_name)
-        if success:
-            s.success_count += 1
-        else:
-            s.fail_count += 1
-        self._save()
+    def __init__(self, db_path: str):
+        """
+        Args:
+            db_path: skill_call_log.db 的完整路径
+        """
+        self.call_log = SkillCallLog(db_path)
 
     def log_call(
         self,
@@ -357,6 +274,36 @@ class SkillFeedback:
             execution_time_ms=execution_time_ms,
         )
 
+    def record_trigger(self, skill_name: str, session_id: str = "", user_input: str = ""):
+        """记录 skill 被预筛选选中（写入 SQLite）"""
+        self.call_log.log_call(
+            session_id=session_id or "prefilter",
+            user_input=user_input,
+            skill_name=skill_name,
+            trigger_method="keyword",
+        )
+
+    def record_selection(self, skill_name: str, selected: bool = True):
+        """记录 LLM 是否调用了此 skill（写入 SQLite）"""
+        if selected:
+            self.call_log.log_call(
+                session_id="selection",
+                user_input="",
+                skill_name=skill_name,
+                llm_called=True,
+            )
+
+    def record_result(self, skill_name: str, success: bool = True, execution_time_ms: float = 0):
+        """记录 skill 执行结果（写入 SQLite）"""
+        self.call_log.log_call(
+            session_id="result",
+            user_input="",
+            skill_name=skill_name,
+            llm_called=True,
+            execution_success=success,
+            execution_time_ms=execution_time_ms,
+        )
+
     def get_effectiveness(self, skill_name: str) -> float:
         """计算 skill 有效性分数"""
         return self.call_log.get_effectiveness(skill_name)
@@ -365,16 +312,8 @@ class SkillFeedback:
         """获取上下文 boost 分数"""
         return self.call_log.get_context_boost(skill_name, user_input)
 
-    def get_stats(self, skill_name: str) -> Optional[SkillStats]:
-        """获取 skill 统计（向后兼容）"""
-        return self.stats.get(skill_name)
-
-    def get_all_stats(self) -> Dict[str, SkillStats]:
-        """获取所有统计（向后兼容）"""
-        return dict(self.stats)
-
     def get_detailed_stats(self, skill_name: str) -> Dict:
-        """获取详细统计（包含 SQLite 数据）"""
+        """获取详细统计"""
         return self.call_log.get_stats(skill_name)
 
     def get_all_detailed_stats(self) -> Dict[str, Dict]:

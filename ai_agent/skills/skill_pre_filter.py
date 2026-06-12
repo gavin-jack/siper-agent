@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
-from .skill_registry import SkillEntry, SkillRegistry, SkillStats
+from .skill_registry import SkillEntry, SkillRegistry
 
 logger = logging.getLogger("skill_pre_filter")
 
@@ -62,9 +62,10 @@ class SkillPreFilter:
     执行时间 <10ms。
     """
 
-    def __init__(self, registry: SkillRegistry, stats: Optional[Dict[str, SkillStats]] = None):
+    def __init__(self, registry: SkillRegistry, stats=None, call_log=None):
         self.registry = registry
         self.stats = stats or {}
+        self.call_log = call_log  # SkillCallLog 实例，用于查询历史调用频率
         # 倒排索引：keyword → set(skill_names)
         self._inverted_index: Dict[str, Set[str]] = {}
         # 预编译的正则模式
@@ -230,22 +231,27 @@ class SkillPreFilter:
         return matched / len(patterns)
 
     def _usage_score(self, skill_name: str) -> float:
-        """历史使用频率得分（选中率）"""
-        stats = self.stats.get(skill_name)
-        if not stats or stats.triggered == 0:
+        """历史使用频率得分（选中率），从 SQLite 查询"""
+        if not self.call_log:
+            return 0.5
+        detailed = self.call_log.get_stats(skill_name)
+        total = detailed.get("total_triggers", 0)
+        called = detailed.get("total_calls", 0)
+        if total == 0:
             return 0.5  # 冷启动默认分
-        return stats.selected / stats.triggered
+        return called / total
 
     def _get_fallback(self, count: int, exclude: Optional[Set[str]] = None) -> List[SkillEntry]:
-        """获取高频使用的 skill 作为保底"""
+        """获取高频使用的 skill 作为保底，从 SQLite 查询"""
         exclude = exclude or set()
-        # 按使用频率排序
         ranked = []
-        for name, stats in self.stats.items():
-            if name in exclude:
-                continue
-            score = stats.selected / max(stats.triggered, 1)
-            ranked.append((name, score))
+        if self.call_log:
+            all_stats = self.call_log.get_all_stats()
+            for name, st in all_stats.items():
+                if name in exclude:
+                    continue
+                score = st.get("total_calls", 0) / max(st.get("total_triggers", 1), 1)
+                ranked.append((name, score))
         ranked.sort(key=lambda x: x[1], reverse=True)
 
         result = []
