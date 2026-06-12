@@ -3744,7 +3744,7 @@ html { touch-action: manipulation; }
 /* ===== Model Cards (default mode style adapted for chat) ===== */
 .siper-models-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 6px;
   padding: 2px 0;
 }
@@ -3756,18 +3756,20 @@ html { touch-action: manipulation; }
   display: flex;
   flex-direction: column;
   gap: 4px;
-  transition: background-color, color
+  transition: background-color, color;
+  height: 96px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 .siper-model-card:hover {
   border-color: var(--color-primary);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
-.siper-model-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+/* Discover model cards: fixed height 110px (taller for verify button + result) */
+.siper-model-card.discover-card {
+  height: 110px;
 }
+/* Marquee: model name scrolls left when text overflows — driven by JS */
 .siper-model-name {
   font-size: 12px;
   font-weight: 600;
@@ -3777,6 +3779,12 @@ html { touch-action: manipulation; }
   white-space: nowrap;
   flex: 1;
   min-width: 0;
+}
+.siper-model-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
 }
 .siper-model-provider {
   font-size: 12px;

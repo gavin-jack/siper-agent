@@ -52,7 +52,7 @@ export const toast = {
     el.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
 
     const icons = { success: '✓', error: '✗', warning: '⚠', info: 'ℹ' };
-    const progressMs = duration || (type === 'error' ? 5000 : type === 'warning' ? 4000 : 3000);
+    const progressMs = duration || (type === 'error' ? 4000 : type === 'warning' ? 3000 : 2000);
 
     el.innerHTML = `
       <span class="siper-notif-icon">${icons[type] || 'ℹ'}</span>

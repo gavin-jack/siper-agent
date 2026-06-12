@@ -6,6 +6,7 @@ import { escapeHtml } from '../utils/escape.js';
 import { confirmDeleteModel, showConfirm, showInput } from '../components/toast.js';
 import { toast } from '../components/toast.js';
 import { CAP_ICONS, CAP_LABELS, CAP_ORDER, renderCapBadges } from '../utils/capabilities.js';
+import { testModel } from '../components/model-test.js';
 
 // ===== Global Settings =====
 export let settingsCache = null;
@@ -840,50 +841,63 @@ export function renderChatGlobalModels() {
     }).join('');
 
     el.innerHTML = `
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;">
-        <div class="siper-form-card">
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div class="siper-form-card" style="flex:1;min-width:0;">
           <div class="siper-form-title">模型管理</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
             <div>
               <div class="text-dim" style="font-size:12px;margin-bottom:4px">默认对话模型</div>
               <select id="chatDefaultChatModel" class="siper-input" style="width:100%;" aria-label="默认对话模型">
-                <option value="">— 使用全局默认 —</option>${modelOptions}
+                <option value="">--（空）--</option>${modelOptions}
               </select>
             </div>
             <div>
               <div class="text-dim" style="font-size:12px;margin-bottom:4px">默认视觉模型</div>
               <select id="chatDefaultVisionModel" class="siper-input" style="width:100%;" aria-label="默认视觉模型">
-                <option value="">— 使用全局默认 —</option>${modelOptions}
+                <option value="">--（空）--</option>${modelOptions}
               </select>
             </div>
           </div>
           <div class="siper-models-grid">${modelCards}</div>
         </div>
-        <div class="siper-form-card">
+        <div class="siper-form-card" style="width:380px;flex-shrink:0;display:flex;flex-direction:column;">
           <div class="siper-form-title">🔍 自动发现模型</div>
-          <div class="siper-form-row"><label>Provider</label>
-            <select id="wcfgProviderPreset" class="siper-input" style="width:auto;" onchange="window.chatApplyProviderPreset()" aria-label="Provider 预设">
-              <option value="">— 选择 Provider —</option>
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Anthropic</option>
-              <option value="deepseek">DeepSeek</option>
-              <option value="moonshot">Moonshot</option>
-              <option value="qwen">Qwen</option>
-              <option value="longcat">LongCat</option>
-              <option value="zhipuai">ZhipuAI</option>
-              <option value="minimax">MiniMax</option>
-              <option value="groq">Groq</option>
-              <option value="openrouter">OpenRouter</option>
-              <option value="ollama">Ollama</option>
-              <option value="custom">自定义</option>
-            </select>
+          <div style="display:flex;gap:6px;align-items:end;margin-bottom:6px;">
+            <div style="flex:1;">
+              <div class="text-dim" style="font-size:11px;margin-bottom:2px;height:16px;line-height:16px;">Provider</div>
+              <select id="wcfgProviderPreset" class="siper-input" style="width:100%;height:32px;padding:0 8px;box-sizing:border-box;" onchange="window.chatApplyProviderPreset()" aria-label="Provider 预设">
+                <option value="">— 选择 —</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="deepseek">DeepSeek</option>
+                <option value="moonshot">Moonshot</option>
+                <option value="qwen">Qwen</option>
+                <option value="longcat">LongCat</option>
+                <option value="zhipuai">ZhipuAI</option>
+                <option value="minimax">MiniMax</option>
+                <option value="groq">Groq</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="ollama">Ollama</option>
+                <option value="custom">自定义</option>
+              </select>
+            </div>
+            <div style="flex:1.5;">
+              <div class="text-dim" style="font-size:11px;margin-bottom:2px;height:16px;line-height:16px;">Base URL</div>
+              <input type="text" class="siper-input" id="wcfgDiscoverBaseUrl" placeholder="https://api.openai.com/v1" aria-label="发现 Base URL" style="width:100%;height:32px;padding:0 8px;box-sizing:border-box;">
+            </div>
           </div>
-          <div class="siper-form-row"><label>Base URL</label><input type="text" class="siper-input" id="wcfgDiscoverBaseUrl" placeholder="https://api.openai.com/v1" aria-label="发现 Base URL"></div>
-          <div class="siper-form-row"><label>API Key</label><input type="password" class="siper-input" id="wcfgDiscoverApiKey" placeholder="sk-..." aria-label="发现 API Key"></div>
-          <div style="display:flex;gap:6px;margin-top:6px;">
+          <div style="margin-bottom:6px;">
+            <div class="text-dim" style="font-size:11px;margin-bottom:2px;height:16px;line-height:16px;">API Key</div>
+            <input type="password" class="siper-input" id="wcfgDiscoverApiKey" placeholder="sk-..." aria-label="发现 API Key" style="width:100%;height:32px;padding:0 8px;box-sizing:border-box;">
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
             <button class="siper-btn primary" onclick="window.chatDiscoverModels()">获取模型列表</button>
+            <div id="wcfgDiscoverFilterWrap" style="flex:1;display:none;position:relative;">
+              <input type="text" class="siper-input" id="wcfgDiscoverFilter" placeholder="筛选模型..." aria-label="筛选发现的模型" style="width:100%;height:32px;padding:0 28px 0 8px;box-sizing:border-box;" oninput="window.chatFilterDiscovered()">
+              <button id="wcfgDiscoverFilterClear" onclick="window.chatClearDiscoverFilter()" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--color-text-dim);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px;display:none;" title="清空筛选">×</button>
+            </div>
           </div>
-          <div id="wcfgDiscoverResult" style="margin-top:6px;"></div>
+          <div id="wcfgDiscoverResult" style="overflow-y:auto;flex:1;min-height:0;"></div>
         </div>
       </div>
     `;
@@ -950,52 +964,296 @@ export function chatDiscoverModels() {
     body: JSON.stringify({ base_url: baseUrl, api_key: apiKey }),
   }).then(r => r.json()).then(data => {
     if (data && data.models && data.models.length) {
-      let html = '<div class="text-primary" style="font-size:12px;margin-bottom:4px;">发现 ' + data.models.length + ' 个模型</div>';
-      html += '<div style="max-height:180px;overflow-y:auto;">';
-      data.models.forEach(m => {
-        const name = typeof m === 'string' ? m : (m.name || m.id || JSON.stringify(m));
-        const caps = (m.capabilities || []).map(c => CAP_ICONS[c] || c).join('');
-        html += '<div class="siper-model-card" style="margin-bottom:4px;cursor:pointer;" onclick="window.chatAddDiscoveredModel(\'' + escapeHtml(name) + '\')">';
-        html += '<div class="siper-model-name">' + escapeHtml(name) + '</div>';
-        if (caps) html += '<div class="siper-model-caps" style="margin-top:2px;">' + caps + '</div>';
-        html += '</div>';
-      });
-      html += '</div>';
-      if (resultEl) resultEl.innerHTML = html;
+      // Store discovered models for + button access
+      discoveredModelsCache = data.models.map(m => ({
+        name: typeof m === 'string' ? m : (m.name || m.id || ''),
+        capabilities: m.capabilities || [],
+        context_window: m.context_window || null,
+        provider: data.provider || '',
+        base_url: baseUrl,
+        api_key: apiKey,
+        _verified: null,
+        _verifyError: null,
+      }));
+      window._discoverCount = data.models.length;
+      window._discoverProvider = data.provider || '';
+      // Show filter only when 6+ models discovered
+      const filterWrap = document.getElementById('wcfgDiscoverFilterWrap');
+      if (filterWrap) filterWrap.style.display = data.models.length >= 6 ? 'block' : 'none';
+      renderChatDiscoverList();
     } else {
       if (resultEl) resultEl.innerHTML = '<div class="text-danger">未发现模型或接口错误</div>';
     }
   }).catch(() => { if (resultEl) resultEl.innerHTML = '<div class="text-danger">请求失败</div>'; });
 }
 
-export function chatAddDiscoveredModel(name) {
-  if (settingsModelsCache.find(m => m.name === name)) {
-    if (toast) toast.error('模型已存在');
+function renderChatDiscoverList() {
+  const resultEl = document.getElementById('wcfgDiscoverResult');
+  if (!resultEl || !discoveredModelsCache.length) return;
+  const filterText = (document.getElementById('wcfgDiscoverFilter')?.value || '').trim().toLowerCase();
+  const capIcons = { vision: '👁', reasoning: '🧠', code: '💻', chat: '💬', tts: '🔊', embedding: '📎', image_gen: '🎨', long_context: '📏', function_calling: '🔧' };
+  // Filter out already-added models and apply text filter
+  const shown = discoveredModelsCache.map((m, i) => ({ ...m, _idx: i })).filter(m => {
+    if (settingsModelsCache.find(x => x.name === m.name)) return false;
+    if (filterText && !m.name.toLowerCase().includes(filterText)) return false;
+    return true;
+  });
+  if (shown.length === 0) {
+    const total = discoveredModelsCache.length;
+    const added = discoveredModelsCache.filter(m => settingsModelsCache.find(x => x.name === m.name)).length;
+    if (added === total) {
+      resultEl.innerHTML = '<div class="text-dim" style="font-size:12px;padding:8px;">所有模型已全部添加 ✓</div>';
+    } else {
+      resultEl.innerHTML = '<div class="text-dim" style="font-size:12px;padding:8px;">没有匹配的模型</div>';
+    }
     return;
   }
-  const baseUrl = document.getElementById('wcfgDiscoverBaseUrl')?.value.trim() || '';
-  const apiKey = document.getElementById('wcfgDiscoverApiKey')?.value.trim() || '';
-  settingsModelsCache.push({ id: name, name: name, base_url: baseUrl, api_key: apiKey, capabilities: ['chat'], is_default: false });
-  // Save to backend
-  const modelsToSave = settingsModelsCache.map(m => ({
-    id: m.id || m.name, name: m.name, alias: m.alias || '', provider: m.provider,
-    base_url: m.base_url, api_key: m.api_key, context_window: m.context_window,
-    capabilities: m.capabilities || [], is_default: m._isDefault || false,
-  }));
-  if (toast) toast.info('正在添加模型...');
-  fetch('/api/models/global', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ models: modelsToSave }),
-  }).then(r => r.json()).then(d => {
+  const totalAdded = discoveredModelsCache.length - shown.length;
+  let html = '<div style="font-size:12px;margin-bottom:4px;">';
+  html += '<span class="text-primary">发现 ' + discoveredModelsCache.length + ' 个模型' + (totalAdded > 0 ? ' · <span class="text-dim">' + totalAdded + ' 个已添加</span>' : '') + '</span>';
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">';
+  shown.forEach(m => {
+    const name = m.name;
+    const caps = (m.capabilities || []).map(c => capIcons[c] || c).join('');
+    const verifyBtn = '<button class="siper-btn small btn-verify-discover" data-idx="' + m._idx + '" title="验证" style="font-size:11px;padding:2px 6px;">🔍</button>';
+    const verifyResult = m._verified === true ? '<div style="font-size:10px;color:var(--color-success);margin-top:2px;">✅ 验证通过</div>' :
+                      m._verified === false ? '<div style="font-size:10px;color:var(--color-danger);margin-top:2px;">❌ ' + escapeHtml(m._verifyError || '失败') + '</div>' :
+                      m._verified === 'pending' ? '<div style="font-size:10px;color:var(--text-dim);margin-top:2px;">⏳ 验证中...</div>' : '';
+    html += '<div class="siper-model-card discover-card" style="margin-bottom:0;padding:8px;">';
+    html += '<div class="siper-model-name" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px;" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</div>';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;">';
+    html += caps ? '<div class="siper-model-caps" style="font-size:10px;">' + caps + '</div>' : '<div></div>';
+    html += '<button class="siper-btn small primary" onclick="window.chatAddDiscoveredModel(' + m._idx + ')" style="font-size:11px;padding:2px 6px;">+</button>';
+    html += '</div>';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:2px;">';
+    html += verifyBtn;
+    html += '</div>';
+    html += verifyResult;
+    html += '</div>';
+  });
+  html += '</div>';
+  resultEl.innerHTML = html;
+}
+
+export function chatFilterDiscovered() {
+  renderChatDiscoverList();
+  const clearBtn = document.getElementById('wcfgDiscoverFilterClear');
+  const filterInput = document.getElementById('wcfgDiscoverFilter');
+  if (clearBtn && filterInput) {
+    clearBtn.style.display = filterInput.value ? 'block' : 'none';
+  }
+}
+
+export function chatClearDiscoverFilter() {
+  const filterInput = document.getElementById('wcfgDiscoverFilter');
+  if (filterInput) {
+    filterInput.value = '';
+    filterInput.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+}
+
+export function chatVerifyDiscoveredModel(idx) {
+  const m = discoveredModelsCache[idx];
+  if (!m) return;
+  if (!m.base_url || !m.api_key) {
+    if (toast) toast.warning(m.name + ' 未配置 base_url 或 api_key');
+    return;
+  }
+  m._verified = 'pending';
+  renderChatDiscoverList();
+  if (toast) toast.info('正在验证 ' + m.name + '...');
+  testModel(m.base_url, m.api_key, m.name).then(d => {
+    m._verified = d.success;
+    m._verifyError = d.error || null;
     if (d.success) {
-      if (toast) toast.success('模型已添加: ' + name);
-      renderChatGlobalModels();
-    } else {
-      if (toast) toast.error('添加失败');
+      // Save verified capability fields to discover cache for later use when adding to optional models
+      if (d.capabilities) m.capabilities = d.capabilities;
+      if (d.streaming !== undefined) m.streaming = d.streaming;
+      if (d.json_mode !== undefined) m.json_mode = d.json_mode;
+      if (d.ttft_ms !== undefined) m.ttft = d.ttft_ms;
+      if (d.context_window_tested !== undefined) m.context_window_tested = d.context_window_tested;
+      if (d.latency_ms !== undefined) m._latency = d.latency_ms;
+      if (d.context_window_tested && d.context_window_tested > (m.context_window || 0)) {
+        m.context_window = d.context_window_tested;
+      }
     }
-  }).catch(() => { if (toast) toast.error('添加失败'); });
+    renderChatDiscoverList();
+    if (toast) {
+      if (d.success) toast.success(m.name + ' 验证通过', 1200);
+      else toast.error(m.name + ' 验证失败: ' + (d.error || 'unknown'), 1500);
+    }
+  }).catch(e => {
+    m._verified = false;
+    m._verifyError = e.message || '请求失败';
+    renderChatDiscoverList();
+  });
+}
+
+export function chatAddDiscoveredModel(idx) {
+  const m = discoveredModelsCache[idx];
+  if (!m) return;
+  if (settingsModelsCache.find(x => x.name === m.name)) {
+    if (toast) toast.warning('模型已存在: ' + m.name);
+    return;
+  }
+  const pendingVerify = (m._verified === 'pending');
+  settingsModelsCache.push({
+    id: m.name, name: m.name,
+    base_url: m.base_url || '', api_key: m.api_key || '',
+    capabilities: m.capabilities || [],
+    context_window: m.context_window || null,
+    streaming: m.streaming || null,
+    json_mode: m.json_mode || null,
+    ttft: m.ttft || null,
+    context_window_tested: m.context_window_tested || null,
+  });
+  // If verification still pending, register callback to auto-complete fields when done
+  if (pendingVerify) {
+    const checkDone = setInterval(() => {
+      const dm = discoveredModelsCache.find(x => x.name === m.name);
+      if (!dm || dm._verified !== 'pending') {
+        clearInterval(checkDone);
+        const sm = settingsModelsCache.find(x => x.name === m.name);
+        if (sm && dm && dm._verified === true) {
+          if (dm.capabilities) sm.capabilities = dm.capabilities;
+          if (dm.streaming !== undefined) sm.streaming = dm.streaming;
+          if (dm.json_mode !== undefined) sm.json_mode = dm.json_mode;
+          if (dm.ttft !== undefined) sm.ttft = dm.ttft;
+          if (dm.context_window_tested !== undefined) sm.context_window_tested = dm.context_window_tested;
+          if (dm.context_window && dm.context_window > (sm.context_window || 0)) sm.context_window = dm.context_window;
+          autoSaveModels();
+        }
+      }
+    }, 200);
+    // Safety: stop checking after 120s (max verify timeout)
+    setTimeout(() => clearInterval(checkDone), 120000);
+  }
+  // Append new model card to chat page model grid
+  const grid = document.querySelector('#chatGlobalModels .siper-models-grid');
+  if (grid) {
+    const capBadges = renderCapBadges(m.capabilities);
+    const ctx = m.context_window ? (m.context_window >= 1000000 ? (m.context_window / 1000000).toFixed(1) + 'M' : (m.context_window / 1000).toFixed(0) + 'K') : '-';
+    const card = document.createElement('div');
+    card.className = 'siper-model-card card-hover';
+    card.dataset.modelName = m.name;
+    card.innerHTML =
+      '<div class="siper-model-card-header">' +
+        '<span class="siper-model-name" title="' + escapeHtml(m.name) + '">' + escapeHtml(m.name) + '</span>' +
+        '<button class="siper-btn small danger btn-model-delete" onclick="window.chatRemoveModel(' + (settingsModelsCache.length - 1) + ')" title="删除">✕</button>' +
+      '</div>' +
+      '<div class="siper-model-provider">' + escapeHtml(m.provider || '') + '</div>' +
+      '<div class="siper-model-meta">' +
+        (ctx !== '-' ? '<span class="siper-meta-tag">' + ctx + '</span>' : '') +
+      '</div>' +
+      '<div class="siper-model-caps-wrap">' +
+        (capBadges ? '<div class="siper-model-caps">' + capBadges + '</div>' : '') +
+        '<button class="siper-btn small btn-verify" data-idx="' + (settingsModelsCache.length - 1) + '" title="验证">🔍</button>' +
+      '</div>';
+    grid.appendChild(card);
+  }
+  autoSaveModels();
+  if (toast) toast.success('已添加: ' + m.name, 1200);
+  // Refresh discover panel: this model disappears, filter still works
+  renderChatDiscoverList();
+}
+
+export function chatAddAllDiscoveredModels() {
+  let added = 0;
+  const newCards = [];
+  discoveredModelsCache.forEach(m => {
+    if (settingsModelsCache.find(x => x.name === m.name)) return;
+    settingsModelsCache.push({
+      id: m.name, name: m.name,
+      base_url: m.base_url || '', api_key: m.api_key || '',
+      capabilities: m.capabilities || [],
+      context_window: m.context_window || null,
+      streaming: m.streaming || null,
+      json_mode: m.json_mode || null,
+      ttft: m.ttft || null,
+      context_window_tested: m.context_window_tested || null,
+    });
+    newCards.push(m);
+    added++;
+  });
+  if (added > 0) {
+    // Append new cards to grid
+    const grid = document.querySelector('#chatGlobalModels .siper-models-grid');
+    if (grid) {
+      newCards.forEach(m => {
+        const capBadges = renderCapBadges(m.capabilities);
+        const ctx = m.context_window ? (m.context_window >= 1000000 ? (m.context_window / 1000000).toFixed(1) + 'M' : (m.context_window / 1000).toFixed(0) + 'K') : '-';
+        const card = document.createElement('div');
+        card.className = 'siper-model-card card-hover';
+        card.dataset.modelName = m.name;
+        card.innerHTML =
+          '<div class="siper-model-card-header">' +
+            '<span class="siper-model-name" title="' + escapeHtml(m.name) + '">' + escapeHtml(m.name) + '</span>' +
+            '<button class="siper-btn small danger btn-model-delete" onclick="window.chatRemoveModel(' + (settingsModelsCache.length - 1) + ')" title="删除">✕</button>' +
+          '</div>' +
+          '<div class="siper-model-provider">' + escapeHtml(m.provider || '') + '</div>' +
+          '<div class="siper-model-meta">' +
+            (ctx !== '-' ? '<span class="siper-meta-tag">' + ctx + '</span>' : '') +
+          '</div>' +
+          '<div class="siper-model-caps-wrap">' +
+            (capBadges ? '<div class="siper-model-caps">' + capBadges + '</div>' : '') +
+            '<button class="siper-btn small btn-verify" data-idx="' + (settingsModelsCache.length - 1) + '" title="验证">🔍</button>' +
+          '</div>';
+        grid.appendChild(card);
+      });
+    }
+    autoSaveModels();
+    if (toast) toast.success('已添加 ' + added + ' 个模型');
+    // Re-render discover panel to hide added models
+    renderChatDiscoverList();
+  } else {
+    if (toast) toast.info('没有新模型可添加');
+  }
 }
 
 // ===== Window Mount (动态 HTML onclick 需要) =====
 window.addDiscoveredModel = addDiscoveredModel;
 window.addAllDiscoveredModels = addAllDiscoveredModels;
+window.chatRemoveModel = chatRemoveModel;
+window.chatAddAllDiscoveredModels = chatAddAllDiscoveredModels;
+window.chatVerifyDiscoveredModel = chatVerifyDiscoveredModel;
+window.chatFilterDiscovered = chatFilterDiscovered;
+window.chatClearDiscoverFilter = chatClearDiscoverFilter;
+
+// Event delegation for discover panel verify buttons
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('#wcfgDiscoverResult .btn-verify-discover');
+  if (!btn) return;
+  e.stopPropagation();
+  const idx = parseInt(btn.dataset.idx, 10);
+  if (!isNaN(idx) && typeof window.chatVerifyDiscoveredModel === 'function') {
+    window.chatVerifyDiscoveredModel(idx);
+  }
+});
+
+// Event delegation for model name marquee (siper-models-grid + discover panel)
+document.addEventListener('mouseenter', (e) => {
+  const nameEl = e.target.closest('.siper-models-grid .siper-model-name, #wcfgDiscoverResult .siper-model-name');
+  if (!nameEl || nameEl._marqueeTimer) return;
+  if (nameEl.scrollWidth <= nameEl.clientWidth + 1) return; // no overflow, skip
+  const overflow = nameEl.scrollWidth - nameEl.clientWidth;
+  const duration = Math.max(1500, overflow * 20); // ~20px/s, min 1.5s
+  nameEl.style.transition = `transform ${duration}ms linear`;
+  nameEl.style.transform = `translateX(-${overflow}px)`;
+  nameEl._marqueeTimer = setTimeout(() => {
+    // Stop at the end — text fully revealed
+    nameEl.style.transition = 'none';
+    nameEl._marqueeTimer = null;
+  }, duration);
+}, true);
+
+document.addEventListener('mouseleave', (e) => {
+  const nameEl = e.target.closest('.siper-models-grid .siper-model-name, #wcfgDiscoverResult .siper-model-name');
+  if (!nameEl) return;
+  if (nameEl._marqueeTimer) {
+    clearTimeout(nameEl._marqueeTimer);
+    nameEl._marqueeTimer = null;
+  }
+  nameEl.style.transition = 'transform 300ms ease-out';
+  nameEl.style.transform = 'translateX(0)';
+}, true);
