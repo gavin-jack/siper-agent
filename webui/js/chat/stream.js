@@ -6,9 +6,11 @@ import {
   chatModelContextWindow, isSending,
   _getStreamState, _syncStreamFromCurrent, _syncStreamToCurrent,
   chatAgents, setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, updateStreamingBadge,
-  setIsThinking
+  setIsThinking, updateSessionPreview,
+  fmtTokens, resetSendState
 } from './state.js';
 import { chatEscapeHtml, chatRenderMarkdown, updateCtxInfoDisplay } from './message.js';
+import { chatThinkingHide } from './state.js';
 import { renderMiddleList } from './sidebar.js';
 
 // ===== Stream Handlers =====
@@ -85,77 +87,63 @@ export function chatHandleStreamDelta(delta, streamSessionId) {
 }
 
 export function chatHandleStreamEnd(data, streamSessionId) {
+  // Cross-session stream end — just clear state, don't render
   if (streamSessionId && chatSessionId && streamSessionId !== chatSessionId) {
     const s = _getStreamState(streamSessionId);
-    // Always clear thinking state for the completed session (even if s.row was already cleaned)
     s.thinking = false;
     s.thinkingSteps = [];
     setIsThinking(false);
     chatThinkingHide();
-    if (s.row) {
-      s.row.classList.remove('siper-stream-row');
-      const streamTextEl = s.row.querySelector('.siper-stream-text');
-      if (streamTextEl) {
-        const parent = streamTextEl.parentElement;
-        if (parent) { parent.innerHTML = ''; if (typeof renderMarkdown === 'function') parent.appendChild(renderMarkdown(s.acc)); }
-      }
-      s.row = null; s.bubble = null; s.acc = '';
-    }
-    // Stop wave badge for cross-session stream end
+    s.row = null; s.bubble = null; s.acc = '';
     updateStreamingBadge(streamSessionId, false);
     return;
   }
+
   _syncStreamFromCurrent();
   const text = _chatStreamAcc;
-  const streamRow = _chatStreamRow;
 
   if (data && data.usage) updateCtxFromStreamEnd(data.usage);
 
-  // Add dict button — show for any agent message that has a message_id
-  if (streamRow && data && data.message_id) {
-    try {
-      const actions = streamRow.querySelector('.siper-msg-actions');
-      if (actions) {
-        const existing = actions.querySelector('.siper-dict-btn');
-        if (existing) existing.remove();
-        const dictBtn = document.createElement('button');
-        dictBtn.className = 'siper-msg-action-btn siper-dict-btn';
-        dictBtn.innerHTML = '{}';
-        dictBtn.title = '查看完整响应数据';
-        dictBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          showDictModal(data);
-          // Save response dict to sessions.db via API
-          if (data.message_id) {
-            fetch('/api/save-response-dict', {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({
-                message_id: data.message_id,
-                response_dict: data
-              })
-            }).catch(() => {});
-          }
-        });
-        actions.appendChild(dictBtn);
-      }
-    } catch(e) {}
+  // Save response dict to sessions.db via API
+  if (data && data.message_id) {
+    fetch('/api/save-response-dict', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ message_id: data.message_id, response_dict: data })
+    }).catch(() => {});
   }
 
-  if (streamRow) {
-    const timeEl = streamRow.querySelector('.siper-msg-time');
-    if (timeEl) timeEl.textContent = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-
-    // Render meta info inside bubble
-    if (data && (data.usage || data.model || data.processing_time_ms || data.tool_call_steps || data.skills_used || data.skills_active)) {
-      const bubbleEl = streamRow.querySelector('.siper-bubble');
+  // 复用流式 DOM，直接更新内容（避免移除重建导致的闪烁）
+  if (_chatStreamRow) {
+    _chatStreamRow.classList.remove('siper-stream-row');
+    // 替换流式文本为渲染后的 markdown
+    const streamTextEl = _chatStreamRow.querySelector('.siper-stream-text');
+    if (streamTextEl) {
+      const parent = streamTextEl.parentElement;
+      if (parent) {
+        parent.innerHTML = '';
+        if (text) {
+          if (typeof renderMarkdown === 'function') parent.appendChild(renderMarkdown(text));
+          else parent.innerHTML = chatRenderMarkdown(text);
+        } else if (data && data.tool_call_steps && data.tool_call_steps.length) {
+          const toolNames = data.tool_call_steps.map(s => s.tool_name).filter(Boolean);
+          const summary = document.createElement('div');
+          summary.className = 'siper-tool-summary';
+          summary.textContent = '🔧 执行工具：' + (toolNames.length ? toolNames.join(', ') : data.tool_call_steps.length + ' calls');
+          parent.appendChild(summary);
+        }
+      }
+    }
+    // 追加 meta 信息
+    if (data && (data.usage || data.model || data.processing_time_ms || data.tool_call_steps || data.skills_used || data.finish_reason)) {
+      const bubbleEl = _chatStreamRow.querySelector('.siper-bubble');
       if (bubbleEl) {
         const metaEl = document.createElement('div');
         metaEl.className = 'siper-bubble-meta';
         const lines = [];
         if (data.usage) {
           const u = data.usage;
-          const fmt = n => n == null ? '' : n >= 1000000 ? (n/1000000).toFixed(1).replace(/\.0$/,'') + 'M' : n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/,'') + 'K' : String(n);
+          const fmt = fmtTokens;
           const parts = [];
           if (u.prompt_tokens != null) parts.push('⬆️ 输入token：~ ' + fmt(u.prompt_tokens));
           if (u.completion_tokens != null) parts.push('⬇️ 输出token：~ ' + fmt(u.completion_tokens));
@@ -181,28 +169,24 @@ export function chatHandleStreamEnd(data, streamSessionId) {
         bubbleEl.appendChild(metaEl);
       }
     }
-  }
-
-  // Finalize stream row — convert to normal message
-  if (_chatStreamRow) {
-    _chatStreamRow.classList.remove('siper-stream-row');
-    const streamTextEl2 = _chatStreamRow.querySelector('.siper-stream-text');
-    if (streamTextEl2) {
-      const parent = streamTextEl2.parentElement;
-      if (parent) {
-        parent.innerHTML = '';
-        if (text) {
-          if (typeof renderMarkdown === 'function') parent.appendChild(renderMarkdown(text));
-          else parent.innerHTML = chatRenderMarkdown(text);
-        } else if (data && data.tool_call_steps && data.tool_call_steps.length) {
-          const toolNames = data.tool_call_steps.map(s => s.tool_name).filter(Boolean);
-          const summary = document.createElement('div');
-          summary.className = 'siper-tool-summary';
-          summary.textContent = '🔧 执行工具：' + (toolNames.length ? toolNames.join(', ') : data.tool_call_steps.length + ' calls');
-          parent.appendChild(summary);
-        }
+    // 追加 dict 按钮
+    if (data && data.message_id) {
+      const actions = _chatStreamRow.querySelector('.siper-msg-actions');
+      if (actions && !actions.querySelector('.siper-dict-btn')) {
+        const dictBtn = document.createElement('button');
+        dictBtn.className = 'siper-msg-action-btn siper-dict-btn';
+        dictBtn.innerHTML = '{}';
+        dictBtn.title = '查看完整响应数据';
+        dictBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showDictModal(data);
+        });
+        actions.appendChild(dictBtn);
       }
     }
+    // 更新时间戳
+    const timeEl = _chatStreamRow.querySelector('.siper-msg-time');
+    if (timeEl) timeEl.textContent = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
   }
 
   setChatStreamAcc('');
@@ -212,34 +196,12 @@ export function chatHandleStreamEnd(data, streamSessionId) {
   setIsThinking(false);
   if (chatSessionId) updateStreamingBadge(chatSessionId, false);
   _syncStreamToCurrent();
-  setIsSending(false);
-  const _csb = document.getElementById('chatSendBtn');
-  if (_csb) _csb.disabled = false;
-  const _cstb = document.getElementById('chatStopBtn');
-  if (_cstb) _cstb.classList.add('hidden');
-  chatThinkingHide();
+  resetSendState();
   _hideNewMsgIndicator();
+  // 使用后端 server_time 更新会话预览
   if (chatSessionId && chatCurrentAgent) {
-    const _agent = chatAgents.find(a => a.name === chatCurrentAgent.name);
-    if (_agent) {
-      const _sess = _agent.sessions.find(s => s.session_id === chatSessionId);
-      if (_sess) {
-        _sess.last_message = (text || '').replace(/\n/g, ' ').substring(0, 60);
-        _sess.updated_at = new Date().toISOString();
-        // 只更新对应 session item 的 DOM，不重新渲染整个中栏
-        const container = document.getElementById('chatMiddleList');
-        if (container) {
-          const items = container.querySelectorAll('.siper-session-item');
-          for (const item of items) {
-            if (item.dataset.sessionId === chatSessionId) {
-              const preview = item.querySelector('.siper-session-preview');
-              if (preview) preview.textContent = _sess.last_message;
-              break;
-            }
-          }
-        }
-      }
-    }
+    const _resp = (data && data.response) || text || '';
+    updateSessionPreview(chatSessionId, _resp, data && data.server_time);
   }
 }
 
@@ -269,15 +231,14 @@ export function chatHandleStopped() {
   setChatStreamBubble(null);
   _thinkingSteps.length = 0;
   setIsThinking(false);
-  setIsSending(false);
-  const _csb = document.getElementById('chatSendBtn');
-  if (_csb) _csb.disabled = false;
-  const _cstb = document.getElementById('chatStopBtn');
-  if (_cstb) _cstb.classList.add('hidden');
-  chatThinkingHide();
+  resetSendState();
   _hideNewMsgIndicator();
   // Stop wave badge for this session
   if (chatSessionId && typeof updateStreamingBadge === 'function') updateStreamingBadge(chatSessionId, false);
+  // 用户停止后用前端时间更新会话预览
+  if (chatSessionId && chatCurrentAgent) {
+    updateSessionPreview(chatSessionId, undefined, new Date().toISOString());
+  }
 }
 
 // ===== Thinking Panel =====
@@ -287,10 +248,6 @@ export function chatThinkingShow() {
   if (panel) panel.classList.add('open');
 }
 
-export function chatThinkingHide() {
-  const panel = document.getElementById('chatThinkingPanel');
-  if (panel) panel.classList.remove('open');
-}
 
 export function chatThinkingClear() {
   const body = document.getElementById('chatThinkingBody');

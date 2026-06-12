@@ -9,6 +9,8 @@ import logging
 import os
 import re
 import time
+import traceback
+import base64
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -276,7 +278,6 @@ class AIAgent:
             )
 
             # Load default skills
-            await self._load_default_skills()
 
             self.is_running = True
             self.logger.debug(f"AI Agent '{self.config.name}' 初始化成功")
@@ -561,8 +562,7 @@ class AIAgent:
             return result
 
         except Exception as e:
-            import traceback as _tb
-            tb_str = _tb.format_exc()
+            tb_str = traceback.format_exc()
             self.logger.error(f"消息处理错误：{e}\n{tb_str}")
             self.metrics.record_error(e)
 
@@ -852,7 +852,6 @@ class AIAgent:
         Sends each image to the vision API and appends descriptions to the
         original message text so the main LLM can understand image content.
         """
-        import base64 as _b64
         
         descriptions = []
         for match in matches:
@@ -865,7 +864,7 @@ class AIAgent:
             try:
                 raw = p.read_bytes()
                 mime = self._detect_image_mime(raw, p.suffix)
-                b64 = _b64.b64encode(raw).decode('ascii')
+                b64 = base64.b64encode(raw).decode('ascii')
                 
                 # Call vision API
                 vision_messages = [
@@ -1846,15 +1845,6 @@ Always aim to be helpful, honest, and harmless in your responses.
                     self.skill_feedback.record_selection(name, selected=True)
                 return skill.description
         return f"Skill '{name}' not found"
-
-    async def _load_default_skills(self):
-        """Load essential skills for the agent."""
-        # Python-format skills (legacy) — all migrated to SKILL.md
-        # core_tools.py, web_search.py, file_operations.py no longer exist as .py files
-        # Their SKILL.md versions are loaded by skill_registry._scan()
-
-        # SKILL.md format skills are NOT auto-registered as active.
-        # They are only activated when the LLM actually calls skill_view().
 
     async def shutdown(self) -> bool:
         """Gracefully shutdown the agent."""

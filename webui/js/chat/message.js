@@ -5,7 +5,8 @@ import {
   _chatStreamAcc, _chatStreamRow, _chatStreamBubble,
   _syncStreamFromCurrent, _syncStreamToCurrent,
   _unreadSessions, chatAgents, setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending,
-  getWs
+  getWs,
+  fmtTokens, resetSendState
 } from './state.js';
 import { toast } from '../components/toast.js';
 
@@ -129,7 +130,57 @@ export function chatClearMessages() {
   rows.forEach(r => r.remove());
 }
 
-export function chatAddMessage(text, isAgent, meta, timestamp, scroll) {
+function _renderMessageMeta(row, meta, messageId) {
+  const bubbleEl = row.querySelector('.siper-bubble');
+  if (!bubbleEl) return;
+  const metaEl = document.createElement('div');
+  metaEl.className = 'siper-bubble-meta';
+  const lines = [];
+  if (meta.usage) {
+    const u = meta.usage;
+    const fmt = fmtTokens;
+    const parts = [];
+    if (u.prompt_tokens != null) parts.push('⬆️ 输入token：~ ' + fmt(u.prompt_tokens));
+    if (u.completion_tokens != null) parts.push('⬇️ 输出token：~ ' + fmt(u.completion_tokens));
+    if (meta.model) parts.push('🤖 ' + meta.model);
+    if (meta.processing_time_ms) {
+      const ms = meta.processing_time_ms;
+      const t = ms < 1000 ? ms + 'ms' : ms < 60000 ? (ms/1000).toFixed(1) + 's' : Math.floor(ms/60000) + 'm ' + Math.floor((ms%60000)/1000) + 's';
+      parts.push('⏱ ' + t);
+    }
+    if (parts.length) lines.push(parts.join('；'));
+  }
+  if (meta.tool_call_steps && meta.tool_call_steps.length) {
+    const toolNames = meta.tool_call_steps.map(s => s.tool_name).filter(Boolean);
+    lines.push('🔧 工具：' + (toolNames.length ? toolNames.join(', ') : meta.tool_call_steps.length + ' calls'));
+  }
+  if (meta.skills_used && meta.skills_used.length) lines.push('🧩 技能：' + meta.skills_used.join(', '));
+  if (meta.skills_recommended && meta.skills_recommended.length) {
+    const notUsed = meta.skills_recommended.filter(s => !meta.skills_used || !meta.skills_used.includes(s));
+    if (notUsed.length) lines.push('<span style="opacity:0.5">💡 推荐：' + notUsed.join(', ') + '</span>');
+  }
+  if (meta.finish_reason && meta.finish_reason !== 'stop') lines.push('🏁 ' + meta.finish_reason);
+  metaEl.innerHTML = lines.map(l => '<div>' + chatEscapeHtml(l) + '</div>').join('');
+  bubbleEl.appendChild(metaEl);
+  if (meta.response_dict) _appendDictBtn(row, meta.response_dict);
+}
+
+function _appendDictBtn(row, responseDict) {
+  const actions = row.querySelector('.siper-msg-actions');
+  if (!actions) return;
+  if (actions.querySelector('.siper-dict-btn')) return;
+  const dictBtn = document.createElement('button');
+  dictBtn.className = 'siper-msg-action-btn siper-dict-btn';
+  dictBtn.innerHTML = '{}';
+  dictBtn.title = '查看完整响应数据';
+  dictBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showDictModal(responseDict);
+  });
+  actions.appendChild(dictBtn);
+}
+
+export function chatAddMessage(text, isAgent, meta, timestamp, scroll, agentName, messageId) {
   try {
     const container = document.getElementById('chatMessages');
     if (!container) return null;
@@ -138,9 +189,11 @@ export function chatAddMessage(text, isAgent, meta, timestamp, scroll) {
     const time = timestamp
       ? new Date(timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})
       : new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-    const avatar = isAgent ? '/static/default_avatar.webp' : '/static/user_avatar.png';
+    const avatarSrc = isAgent
+      ? (agentName ? '/api/avatar?agent=' + encodeURIComponent(agentName) : '/static/default_avatar.webp')
+      : '/static/user_avatar.png';
     if (isAgent) {
-      row.innerHTML = `<img src="${avatar}" class="siper-msg-avatar" alt="agent" onerror="this.src='/static/default_avatar_256.png'"><div class="siper-bubble-col"><div class="siper-msg-time">${time}</div><div class="siper-bubble agent-bubble"><div class="siper-msg-body"></div></div><div class="siper-msg-actions"><button class="siper-msg-action-btn" onclick="copyChatMsg(this)" title="复制">📋</button><button class="siper-msg-action-btn" onclick="insertChatMsg(this)" title="嵌入">↩</button></div></div>`;
+      row.innerHTML = `<img src="${avatarSrc}" class="siper-msg-avatar" alt="agent" onerror="this.src='/static/default_avatar_256.png'"><div class="siper-bubble-col"><div class="siper-msg-time">${time}</div><div class="siper-bubble agent-bubble"><div class="siper-msg-body"></div></div><div class="siper-msg-actions"><button class="siper-msg-action-btn" onclick="copyChatMsg(this)" title="复制">📋</button><button class="siper-msg-action-btn" onclick="insertChatMsg(this)" title="嵌入">↩</button></div></div>`;
       const body = row.querySelector('.siper-msg-body');
       if (text) {
         body.appendChild(renderMarkdown(text));
@@ -152,6 +205,17 @@ export function chatAddMessage(text, isAgent, meta, timestamp, scroll) {
         body.appendChild(summary);
       }
       row.dataset.rawText = text || '';
+      // 解析 meta（处理双重 JSON 编码）
+      let parsedMeta = meta;
+      if (typeof meta === 'string') { try { parsedMeta = JSON.parse(meta); } catch(e) { parsedMeta = {}; } }
+      if (typeof parsedMeta === 'string') { try { parsedMeta = JSON.parse(parsedMeta); } catch(e) { parsedMeta = {}; } }
+      // 渲染 meta 信息
+      if (parsedMeta && (parsedMeta.usage || parsedMeta.model || parsedMeta.processing_time_ms || parsedMeta.tool_call_steps || parsedMeta.skills_used || parsedMeta.skills_recommended || parsedMeta.finish_reason)) {
+        _renderMessageMeta(row, parsedMeta, messageId);
+      } else if (messageId && parsedMeta) {
+        // 无详细 meta 但有 messageId 和 meta，用 meta 数据作 dict
+        _appendDictBtn(row, { message_id: messageId, ...parsedMeta });
+      }
     } else {
       row.innerHTML = `<div class="siper-bubble-col"><div class="siper-msg-time">${time}</div><div class="siper-bubble user-bubble"><div class="siper-msg-body"></div></div><div class="siper-msg-actions"><button class="siper-msg-action-btn" onclick="copyChatMsg(this)" title="复制">📋</button><button class="siper-msg-action-btn" onclick="insertChatMsg(this)" title="嵌入">↩</button></div></div>`;
       const body = row.querySelector('.siper-msg-body');
@@ -186,13 +250,14 @@ export function chatLoadSessionMessages(sessionId) {
       if (!d.messages) return;
       var lastUsage = null;
       for (const msg of d.messages) {
-        if (msg.role === 'user') chatAddMessage(msg.content || '', false, null, msg.timestamp, false);
+        if (msg.role === 'user') chatAddMessage(msg.content || '', false, null, msg.timestamp, false, null, null);
         else if (msg.role === 'tool') continue;
         else if (msg.role === 'assistant') {
           const hasContent = msg.content && msg.content.trim();
           const hasToolSteps = msg.meta && msg.meta.tool_call_steps && msg.meta.tool_call_steps.length;
           if (!hasContent && !hasToolSteps) continue;
-          chatAddMessage(msg.content || '', true, msg.meta, msg.timestamp, false);
+          const agentName = (typeof chatCurrentAgent !== 'undefined' && chatCurrentAgent && chatCurrentAgent.name) ? chatCurrentAgent.name : null;
+          chatAddMessage(msg.content || '', true, msg.meta, msg.timestamp, false, agentName, msg.message_id);
           if (msg.meta && msg.meta.usage) lastUsage = msg.meta.usage;
         }
       }
@@ -258,24 +323,13 @@ export function chatLoadSessionMessages(sessionId) {
 export function chatStopGeneration() {
   const ws = getWs();
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'stop' }));
-  setIsSending(false);
-  const sendBtn = document.getElementById('chatSendBtn');
-  if (sendBtn) sendBtn.disabled = false;
-  const stopBtn = document.getElementById('chatStopBtn');
-  if (stopBtn) stopBtn.classList.add('hidden');
+  resetSendState();
   setChatStreamAcc('');
   setChatStreamRow(null);
   setChatStreamBubble(null);
 }
 
 // ===== Context Info Display =====
-
-export function fmtTokens(n) {
-  if (n == null) return '--';
-  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-  return String(n);
-}
 
 export function updateCtxInfoDisplay() {
   const valEl = document.getElementById('chatCtxValue');
@@ -294,11 +348,4 @@ export function updateCtxInfoDisplay() {
 
 // ===== ECharts =====
 
-export function chatFmt(n) {
-  if (n == null) return '0';
-  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-  return String(n);
-}
-
-export { _chatStreamAcc, _chatStreamRow, _chatStreamBubble };
+export { _chatStreamAcc, _chatStreamRow, _chatStreamBubble, fmtTokens };

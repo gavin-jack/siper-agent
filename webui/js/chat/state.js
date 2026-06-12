@@ -149,3 +149,63 @@ export function reapplyAllStreamingBadges() {
   }
 }
 export function setLogsData(data) { _logsData = data; }
+
+/**
+ * 统一更新会话列表中指定 session 的 last_message / updated_at 和 DOM preview
+ * @param {string} sessionId - 会话 ID
+ * @param {string} [text] - 最后消息文本（用于 last_message 预览）
+ * @param {string} [updatedAt] - ISO 时间戳（优先使用，fallback 到 new Date()）
+ */
+export function updateSessionPreview(sessionId, text, updatedAt) {
+  if (!sessionId || !chatCurrentAgent) return;
+  const _agent = chatAgents.find(a => a.name === chatCurrentAgent.name);
+  if (!_agent) return;
+  const _sess = _agent.sessions.find(s => s.session_id === sessionId);
+  if (!_sess) return;
+  if (text !== undefined) {
+    _sess.last_message = text.replace(/\n/g, ' ').substring(0, 60);
+  }
+  if (updatedAt !== undefined) {
+    _sess.updated_at = updatedAt;
+  } else if (text !== undefined) {
+    _sess.updated_at = new Date().toISOString();
+  }
+  // 只更新对应 session item 的 DOM，不重新渲染整个中栏
+  const container = document.getElementById('chatMiddleList');
+  if (container) {
+    const items = container.querySelectorAll('.siper-session-item');
+    for (const item of items) {
+      if (item.dataset.sessionId === sessionId) {
+        if (text !== undefined) {
+          const preview = item.querySelector('.siper-session-preview');
+          if (preview) preview.textContent = _sess.last_message;
+        }
+        break;
+      }
+    }
+  }
+}
+
+// ===== Token Formatting =====
+export function fmtTokens(n) {
+  if (n == null) return '--';
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+  return String(n);
+}
+
+// ===== Thinking Panel =====
+export function chatThinkingHide() {
+  const panel = document.getElementById('chatThinkingPanel');
+  if (panel) panel.classList.remove('open');
+}
+
+// ===== Send State Reset =====
+export function resetSendState() {
+  setIsSending(false);
+  const sb = document.getElementById('chatSendBtn');
+  if (sb) sb.disabled = false;
+  const stb = document.getElementById('chatStopBtn');
+  if (stb) stb.classList.add('hidden');
+  chatThinkingHide();
+}

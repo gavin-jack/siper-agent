@@ -4,8 +4,9 @@
 import { escapeHtml } from './escape.js';
 import { toast } from '../components/toast.js';
 import { t, currentLang } from './i18n.js';
-import { setWs, setIsSending, setChatSessionId, chatSessionId, chatCurrentAgent, chatAgents, chatExpandedAgents, chatModelContextWindow, markSessionReady, setIsThinking, updateStreamingBadge } from '../chat/state.js';
-import { chatHandleStreamDelta, chatHandleStreamEnd, chatHandleToolProgress, chatThinkingHide, chatThinkingClear } from '../chat/stream.js';
+import { setWs, setIsSending, setChatSessionId, chatSessionId, chatCurrentAgent, chatAgents, chatExpandedAgents, chatModelContextWindow, markSessionReady, setIsThinking, updateStreamingBadge, updateSessionPreview, resetSendState } from '../chat/state.js';
+import { chatHandleStreamDelta, chatHandleStreamEnd, chatHandleToolProgress, chatThinkingClear } from '../chat/stream.js';
+import { chatThinkingHide } from '../chat/state.js';
 
 // Pages rendered inside #page-chat three-column layout (migrated from core.js)
 const _CHAT_RENDERED_PAGES = new Set(['chat','skills','token','global-settings','model-settings','logs']);
@@ -134,11 +135,7 @@ export function connectWS() {
     const _te = document.getElementById('typing');
     if (_te) _te.className = 'typing';
     // Reset send state on disconnect
-    setIsSending(false);
-    const _sb = document.getElementById('sendBtn');
-    const _stb = document.getElementById('stopBtn');
-    if (_sb) _sb.disabled = false;
-    if (_stb) _stb.classList.add('hidden');
+    resetSendState();
     addLog('warn', t('chat.disconnected'), currentLang);
     setTimeout(connectWS, 3000);
   };
@@ -164,17 +161,17 @@ export function connectWS() {
         if (!chatEl) return;
         if (!_streamBubble) {
           _streamRow = document.createElement('div');
-          _streamRow.className = 'msg-row agent msg-row-horizontal';
+          _streamRow.className = 'siper-msg-row agent siper-stream-row';
           const avatarWrap = document.createElement('div');
-          avatarWrap.className = 'msg-avatar-wrap';
+          avatarWrap.className = 'siper-msg-avatar-wrap';
           const agentName = (typeof chatCurrentAgent !== 'undefined' && chatCurrentAgent && chatCurrentAgent.name) ? chatCurrentAgent.name : '';
           avatarWrap.innerHTML = agentName
             ? `<img class="msg-avatar-img" src="/api/avatar?agent=${encodeURIComponent(agentName)}" alt="Agent" onerror="this.src='/static/default_avatar_256.png'">`
             : getAvatarHtml('agent');
           _streamBubbleWrap = document.createElement('div');
-          _streamBubbleWrap.className = 'msg agent-bubble';
+          _streamBubbleWrap.className = 'siper-bubble agent-bubble';
           _streamBubble = document.createElement('div');
-          _streamBubble.className = 'msg-body';
+          _streamBubble.className = 'siper-msg-body';
           _streamBubbleWrap.appendChild(_streamBubble);
           _streamRow.appendChild(avatarWrap);
           _streamRow.appendChild(_streamBubbleWrap);
@@ -189,178 +186,50 @@ export function connectWS() {
         // Route to chat page — chatHandleStreamEnd will handle per-session state
         if (currentPage === 'chat' && typeof chatHandleStreamEnd === 'function') {
           chatHandleStreamEnd(_endData, _replySid);
-          setIsSending(false);
-          const _sb = document.getElementById('chatSendBtn');
-          if (_sb) _sb.disabled = false;
           // Play notification sound
           if (typeof playReplySound === 'function') playReplySound();
           // Mark unread if reply belongs to a different session
           if (_replySid && _replySid !== chatSessionId) {
             if (typeof markSessionUnread === 'function') markSessionUnread(_replySid);
           }
-          // Update last_message in middle column session list
+          // Update session preview (stream_end non-chat page)
           if (chatSessionId && chatCurrentAgent) {
-            const _agent = chatAgents.find(a => a.name === chatCurrentAgent.name);
-            if (_agent) {
-              const _sess = _agent.sessions.find(s => s.session_id === chatSessionId);
-              if (_sess) {
-                const _resp = _endData.response || _chatStreamAcc || '';
-                _sess.last_message = _resp.replace(/\n/g, ' ').substring(0, 60);
-                _sess.updated_at = new Date().toISOString();
-                // 只更新对应 session item 的 DOM，不重新渲染整个中栏
-                const container = document.getElementById('chatMiddleList');
-                if (container) {
-                  const items = container.querySelectorAll('.siper-session-item');
-                  for (const item of items) {
-                    if (item.dataset.sessionId === chatSessionId) {
-                      const preview = item.querySelector('.siper-session-preview');
-                      if (preview) preview.textContent = _sess.last_message;
-                      break;
-                    }
-                  }
-                }
-              }
-            }
+            const _resp = _endData.response || _chatStreamAcc || '';
+            updateSessionPreview(chatSessionId, _resp, _endData.server_time);
           }
-          return;
+          fetch('/api/save-response-dict', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ message_id: _data.message_id, response_dict: _data })
+          }).catch(() => {});
         }
-        const _data = _endData;
-        const _usage = _data.usage;
-        const _tools_used = _data.tool_calls_executed;
-        const _tool_call_steps = _data.tool_call_steps || [];
-        const _skills_active = _data.skills_active;
-        const _skills_used = _data.skills_used || [];
-        const _skills_recommended = _data.skills_recommended || [];
-        const _processing_time_ms = _data.processing_time_ms;
-        const _model = _data.model;
-        const _attachments = _data.attachments || [];
-        const _success = _data.success !== false;
-        // Save raw data for debug display
-        _streamRawData = _data;
-        // If response is empty and no attachments and no tool calls, skip rendering (air bubble fix)
-        if (!_streamAcc.trim() && _attachments.length === 0 && !_tool_call_steps.length) {
-          // Reset streaming state without rendering
-          _streamAcc = '';
+        // 移除流式 DOM，统一用 chatAddMessage 渲染（与历史消息一致）
+        if (_streamRow) {
+          _streamRow.remove();
+          _streamRow = null;
           _streamBubble = null;
           _streamBubbleWrap = null;
-          _streamRow = null;
-          setIsSending(false);
-          const _sb = document.getElementById('sendBtn');
-          const _stb = document.getElementById('stopBtn');
-          if (_sb) _sb.disabled = false;
-          if (_stb) _stb.classList.add('hidden');
-          chatThinkingHide();
-          return;
         }
-        // If success=false and there is stream text, show error styling on the bubble
-        if (!_success && _streamBubbleWrap) {
-          _streamBubbleWrap.classList.add('msg-error');
-        }
-        // Replace stream bubble content with rendered Markdown
-        if (_streamBubble) {
-          try {
-            _streamBubble.textContent = '';
-            _streamBubble.appendChild(renderMarkdown(_streamAcc));
-          } catch(e) {
-            console.error('[stream_end] renderMarkdown error:', e);
-            _streamBubble.textContent = _streamAcc;
-            toast.error('消息渲染失败');
+        // 统一渲染
+        if (_streamAcc.trim() || _tool_call_steps.length || _attachments.length) {
+          const agentName = (typeof chatCurrentAgent !== 'undefined' && chatCurrentAgent && chatCurrentAgent.name) ? chatCurrentAgent.name : null;
+          const meta = {
+            usage: _data.usage,
+            model: _data.model,
+            processing_time_ms: _data.processing_time_ms,
+            tool_call_steps: _tool_call_steps,
+            skills_used: _data.skills_used || [],
+            skills_recommended: _data.skills_recommended || [],
+            finish_reason: _data.finish_reason,
+            attachments: _attachments,
+            _raw: _data
+          };
+          if (typeof chatAddMessage === 'function') {
+            chatAddMessage(_streamAcc || '', true, meta, null, true, agentName, _data.message_id || null);
           }
         }
-        // Add actions-below to the streamed message
-        if (_streamRow && _streamBubbleWrap) {
-          try {
-            const actions = document.createElement('div');
-            actions.className = 'msg-actions-below';
-            // Copy button
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'msg-action-btn';
-            copyBtn.innerHTML = '📋';
-            copyBtn.title = '复制内容';
-            copyBtn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              navigator.clipboard.writeText(_streamAcc).then(() => {
-                copyBtn.innerHTML = '✓';
-                setTimeout(() => copyBtn.innerHTML = '📋', 1500);
-              });
-            });
-            actions.appendChild(copyBtn);
-            // Insert button
-            const insertBtn = document.createElement('button');
-            insertBtn.className = 'msg-action-btn';
-            insertBtn.innerHTML = '↩';
-            insertBtn.title = '填入输入框';
-            insertBtn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              const input = document.getElementById('chatInput');
-              if (input) {
-                input.value = _streamAcc;
-                input.style.height = 'auto';
-                input.style.height = Math.min(input.scrollHeight, 262) + 'px';
-                input.focus();
-              }
-            });
-            actions.appendChild(insertBtn);
-            // Dict button — show full response dict (only for successful responses)
-            if (_success) {
-              const dictBtn = document.createElement('button');
-              dictBtn.className = 'msg-action-btn';
-              dictBtn.innerHTML = '{}';
-              dictBtn.title = 'dict';
-              dictBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                showDictModal(_data);
-                // Save response dict to sessions.db via API
-                if (_data.message_id) {
-                  fetch('/api/save-response-dict', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                      message_id: _data.message_id,
-                      response_dict: _data
-                    })
-                  }).catch(() => {});
-                }
-              });
-              actions.appendChild(dictBtn);
-            }
-            _streamRow.appendChild(actions);
-          } catch(e) {}
-        }
-        // Render meta (tokens, tools, etc.) on the streamed message
-        if (_streamBubbleWrap) {
-          try {
-            const _metaCfg = getMetaConfig();
-            const _meta = {
-              usage: _usage,
-              tools_used: _tools_used,
-              tool_call_steps: _tool_call_steps,
-              skills_active: _skills_active,
-              skills_used: _skills_used,
-              skills_recommended: _skills_recommended,
-              processing_time_ms: _processing_time_ms,
-            };
-            // Only attach raw data for successful responses
-            if (_success) _meta._raw = _data;
-            if (_data.attachments) _meta.attachments = _data.attachments;
-            appendMeta(_streamBubbleWrap, _meta);
-          } catch(e) {}
-        }
-        // Reset streaming state
         _streamAcc = '';
-        _streamBubble = null;
-        _streamBubbleWrap = null;
-        _streamRow = null;
-        setIsSending(false);
-        chatThinkingHide();
-        // Post-render enhancements (code highlight, mermaid, katex)
-        if (_streamBubbleWrap && _streamBubble) {
-          try { postRenderEnhance(_streamBubble); } catch(e) {}
-        }
-        const _sb = document.getElementById('sendBtn');
-        const _stb = document.getElementById('stopBtn');
-        if (_sb) _sb.disabled = false;
-        if (_stb) _stb.classList.add('hidden');
+        resetSendState();
         playReplySound();
         // Render attachments on the last streamed message
         if (_attachments.length > 0) {
@@ -672,29 +541,16 @@ export function connectWS() {
           if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
         }
       } else if (d.type === 'stopped') {
-        setIsSending(false);
         if (typeof chatHandleStopped === 'function') {
           chatHandleStopped();
           return;
         }
         // Fallback if chatHandleStopped not available yet
-        if (currentPage === 'chat') {
-          const _sb = document.getElementById('chatSendBtn');
-          if (_sb) _sb.disabled = false;
-          const _cstb = document.getElementById('chatStopBtn');
-          if (_cstb) _cstb.classList.add('hidden');
-          chatThinkingHide();
-          return;
-        }
-        const _sb = document.getElementById('sendBtn');
-        const _stb = document.getElementById('stopBtn');
-        if (_sb) _sb.disabled = false;
-        if (_stb) _stb.classList.add('hidden');
+        resetSendState();
         const _te = document.getElementById('typing');
         if (_te) _te.className = 'typing';
         const _tt = document.getElementById('typingTools');
         if (_tt) _tt.innerHTML = '';
-        chatThinkingHide();
         if (_streamBubble && _streamRow && _streamBubbleWrap) {
           // Ensure final MD render of accumulated text
           _streamBubble.textContent = '';
@@ -743,11 +599,7 @@ export function connectWS() {
         const _replySid = d.session_id || null;
         // Route to chat page if active
         if (currentPage === 'chat') {
-          const _sb2 = document.getElementById('chatSendBtn');
-          if (_sb2) _sb2.disabled = false;
-          const _cstb = document.getElementById('chatStopBtn');
-          if (_cstb) _cstb.classList.add('hidden');
-          chatThinkingHide();
+          resetSendState();
           chatThinkingClear();
           setIsThinking(false);
           if (chatSessionId) updateStreamingBadge(chatSessionId, false);
@@ -755,14 +607,14 @@ export function connectWS() {
           const _content = _data.response || _data.content || '';
           const _success = _data.success !== false;
           if (!_success) {
-            chatAddMessage(_content || '服务暂时没有响应，请重试', true, null);
+            chatAddMessage(_content || '服务暂时没有响应，请重试', true, null, null, null, null, null);
           } else if (!_content.trim() && !_data.attachments && !_data.tool_call_steps?.length) {
             // Empty response with no tool calls — skip
           } else if (!_content.trim() && _data.tool_call_steps?.length) {
             // Tool-calls-only response with no text — show tool summary
-            chatAddMessage('', true, _data);
+            chatAddMessage('', true, _data, null, null, null, null);
           } else {
-            chatAddMessage(_content, true, _data.attachments ? {attachments: _data.attachments} : null);
+            chatAddMessage(_content, true, _data.attachments ? {attachments: _data.attachments} : null, null, null, null, null);
           }
           // Play notification sound
           if (typeof playReplySound === 'function') playReplySound();
@@ -770,36 +622,13 @@ export function connectWS() {
           if (_replySid && _replySid !== chatSessionId) {
             if (typeof markSessionUnread === 'function') markSessionUnread(_replySid);
           }
-          // Update last_message in middle column session list
+          // Update session preview
           if (chatSessionId && chatCurrentAgent) {
-            const _agent = chatAgents.find(a => a.name === chatCurrentAgent.name);
-            if (_agent) {
-              const _sess = _agent.sessions.find(s => s.session_id === chatSessionId);
-              if (_sess) {
-                _sess.last_message = (_content || '').replace(/\n/g, ' ').substring(0, 60);
-                _sess.updated_at = new Date().toISOString();
-                // 只更新对应 session item 的 DOM，不重新渲染整个中栏
-                const container = document.getElementById('chatMiddleList');
-                if (container) {
-                  const items = container.querySelectorAll('.siper-session-item');
-                  for (const item of items) {
-                    if (item.dataset.sessionId === chatSessionId) {
-                      const preview = item.querySelector('.siper-session-preview');
-                      if (preview) preview.textContent = _sess.last_message;
-                      break;
-                    }
-                  }
-                }
-              }
-            }
+            updateSessionPreview(chatSessionId, _content, _data.server_time);
           }
           return;
         }
-        const _sb2 = document.getElementById('sendBtn');
-        const _stb2 = document.getElementById('stopBtn');
-        if (_sb2) _sb2.disabled = false;
-        if (_stb2) _stb2.classList.add('hidden');
-        chatThinkingHide();
+        resetSendState();
         chatThinkingClear();
         setIsThinking(false);
         if (d.session_id) currentSession = d.session_id;
@@ -816,20 +645,27 @@ export function connectWS() {
         const _model = _data.model;
         const _prompt_context = _data.prompt_context;
         if (!_success) {
-          addMsg(_content || '服务暂时没有响应，请重试', 'error');
+          if (typeof chatAddMessage === 'function') {
+            chatAddMessage(_content || '服务暂时没有响应，请重试', true, null, null, null, null, null);
+          }
         } else if (!_content.trim() && !_data.attachments) {
           // Empty response with no attachments — skip rendering (air bubble fix)
         } else {
           const meta = {
             usage: _usage,
+            model: _data.model,
             tools_used: _tools_used,
             tool_call_steps: _tool_call_steps,
             skills_active: _skills_active,
+            skills_used: _skills_used,
             processing_time_ms: _processing_time_ms,
             _raw: _data,
           };
           if (_data.attachments) meta.attachments = _data.attachments;
-          addMsg(_content, 'agent', meta);
+          const agentName = (typeof chatCurrentAgent !== 'undefined' && chatCurrentAgent && chatCurrentAgent.name) ? chatCurrentAgent.name : null;
+          if (typeof chatAddMessage === 'function') {
+            chatAddMessage(_content, true, meta, null, null, agentName, _data.message_id || null);
+          }
         }
         playReplySound();
         // Render TTS audio bar for non-streaming response
@@ -860,27 +696,19 @@ export function connectWS() {
         const _te2 = document.getElementById('typing');
         if (_te2) _te2.className = 'typing';
       } else if (d.type === 'error') {
-        setIsSending(false);
+        resetSendState();
         // Route to chat page if active
         if (currentPage === 'chat') {
-          const _sb3 = document.getElementById('chatSendBtn');
-          if (_sb3) _sb3.disabled = false;
-          chatThinkingHide();
           chatThinkingClear();
           setIsThinking(false);
           if (chatSessionId) updateStreamingBadge(chatSessionId, false);
-          chatAddMessage(d.message || '服务暂时没有响应，请重试', true, null);
+          chatAddMessage(d.message || '服务暂时没有响应，请重试', true, null, null, null, null, null);
           return;
         }
-        const _sb3 = document.getElementById('sendBtn');
-        const _stb3 = document.getElementById('stopBtn');
-        if (_sb3) _sb3.disabled = false;
-        if (_stb3) _stb3.classList.add('hidden');
         const _te = document.getElementById('typing');
         if (_te) _te.className = 'typing';
         const _tt = document.getElementById('typingTools');
         if (_tt) _tt.innerHTML = '';
-        chatThinkingHide();
         chatThinkingClear();
         setIsThinking(false);
         // Reset streaming state on error
@@ -893,11 +721,7 @@ export function connectWS() {
       }
     } catch (err) {
       // Ensure isSending is reset on any unhandled error
-      setIsSending(false);
-      const _sb = document.getElementById('sendBtn');
-      const _stb = document.getElementById('stopBtn');
-      if (_sb) _sb.disabled = false;
-      if (_stb) _stb.classList.add('hidden');
+      resetSendState();
       const _te = document.getElementById('typing');
       if (_te) _te.className = 'typing';
       console.error('[ws.onmessage] unhandled error:', err);

@@ -21,7 +21,8 @@ import * as Theme from './theme.js';
 // DOM utils
 import { addMsg, appendMeta, debugHighlight, loadRecentSession, navigateToPage } from '../utils/dom.js';
 import { isSessionUnread } from '../chat/sidebar.js';
-import { chatFmt, updateCtxInfoDisplay } from '../chat/message.js';
+import { updateCtxInfoDisplay } from '../chat/message.js';
+import { fmtTokens } from '../chat/state.js';
 import { updateCtxFromStreamEnd } from '../chat/stream.js';
 import { closeChatModelDropdown, updateChatHeader } from '../chat/input.js';
 
@@ -387,7 +388,7 @@ window.chatAppendUserMsg = Message.chatAppendUserMsg;
 window.chatAppendAgentMsg = Message.chatAppendAgentMsg;
 window.chatRenderMarkdown = Message.chatRenderMarkdown;
 window.chatEscapeHtml = Message.chatEscapeHtml;
-window.fmtTokens = Message.fmtTokens;
+window.fmtTokens = fmtTokens;
 window.playNotifySound = Message.playNotifySound;
 window.onChatPageEnter = onChatPageEnter;
 
@@ -408,7 +409,7 @@ window.appendMeta = appendMeta;
 window.debugHighlight = debugHighlight;
 window.loadRecentSession = loadRecentSession;
 window.isSessionUnread = isSessionUnread;
-window.chatFmt = chatFmt;
+window.chatFmt = fmtTokens;
 window.updateCtxInfoDisplay = updateCtxInfoDisplay;
 window.updateCtxFromStreamEnd = updateCtxFromStreamEnd;
 
