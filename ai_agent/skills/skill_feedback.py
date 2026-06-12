@@ -2,7 +2,7 @@
 Skill Feedback - 技能使用反馈系统
 
 记录 skill 触发、选中、执行结果等数据，用于持续优化预筛选。
-存储：agents/<name>/skill_call_log.db  (SQLite, 详细调用日志)
+存储：skills/skill_call_log.db  (SQLite, 详细调用日志)
 """
 
 import hashlib
