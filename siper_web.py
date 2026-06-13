@@ -900,6 +900,9 @@ async def main():
                 resp = api_rename_provider(body)
             elif path == "/api/models/test" and method == "POST":
                 resp = await api_test_model(body)
+            elif method == "DELETE" and path.startswith("/api/models/"):
+                # DELETE /api/models/{model_id}?provider=xxx
+                resp = api_delete_model(path, req_headers)
             elif path == "/api/logs" and method == "GET":
                 resp = api_get_logs(full_path)
             elif path == "/api/token" and method == "GET":
@@ -2401,6 +2404,38 @@ async def main():
         except Exception as e:
             logger.warning(f"同步模型到 agent config 失败: {e}")
         return {"success": True, "version": 2}
+
+    def api_delete_model(path, req_headers):
+        # DELETE /api/models/{model_id}?provider=xxx
+        from urllib.parse import urlparse, parse_qs, unquote
+        parsed = urlparse(path)
+        model_id = unquote(parsed.path[len("/api/models/"):])
+        params = parse_qs(parsed.query)
+        provider = unquote(params.get("provider", [None])[0] or "")
+        if not model_id:
+            return {"success": False, "error": "model_id 不能为空"}
+        try:
+            # Find provider if not given
+            if not provider:
+                rows = _models_db.get_all_models()
+                for row in rows:
+                    if row["model_id"] == model_id:
+                        provider = row["provider_id"]
+                        break
+            if not provider:
+                return {"success": False, "error": "模型不存在"}
+            ok = _models_db.delete_model(model_id, provider)
+            if ok:
+                # Sync to agent configs
+                try:
+                    _flat = _models_db.get_models_flat()
+                    _sync_models_to_agent_configs(_flat)
+                except Exception:
+                    pass
+                return {"success": True}
+            return {"success": False, "error": "模型不存在"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def api_get_global_models():
         # 从 SQLite 返回，保留 _mask_key 逻辑

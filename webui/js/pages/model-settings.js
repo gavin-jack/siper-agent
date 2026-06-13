@@ -223,13 +223,30 @@ export async function editProviderName(baseUrl) {
   }
 }
 
-export function removeSettingsModel(idx) {
+export async function removeSettingsModel(idx) {
   const m = settingsModelsCache[idx];
   if (!m) return;
-  confirmDeleteModel(m.name, () => {
+  confirmDeleteModel(m.name, async () => {
+    // 1. Delete from backend DB first
+    try {
+      const r = await fetch(`/api/models/${encodeURIComponent(m.id || m.name)}?provider=${encodeURIComponent(m.provider || '')}`, { method: 'DELETE' });
+      const d = await r.json();
+      if (!d.success) {
+        if (toast) toast.error('删除失败: ' + (d.error || 'unknown'));
+        return;
+      }
+    } catch(e) {
+      if (toast) toast.error('删除失败: ' + e.message);
+      return;
+    }
+    // 2. Remove from frontend cache + UI
     settingsModelsCache.splice(idx, 1);
     renderSettingsModelsList();
-    autoSaveModels();
+    // Update title count
+    const _titleEl = document.querySelector('.siper-form-title span');
+    if (_titleEl && _titleEl.textContent.includes('可用模型')) {
+      _titleEl.textContent = `可用模型（${settingsModelsCache.length}）`;
+    }
     if (toast) toast.success('已删除模型: ' + m.name, 1500);
   });
 }
