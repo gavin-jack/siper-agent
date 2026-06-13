@@ -285,13 +285,7 @@ export async function selectConfigAgent(name) {
     if (!delBtn) {
       delBtn = document.createElement('button');
       delBtn.id = 'cfgAgentDeleteBtn';
-      delBtn.className = 'siper-btn danger small';
-      delBtn.style.marginTop = '8px';
-      delBtn.style.marginBottom = '12px';
-      delBtn.style.padding = '4px 12px';
-      delBtn.style.fontSize = '12px';
-      delBtn.style.display = 'block';
-      delBtn.style.marginLeft = 'auto';
+      delBtn.className = 'siper-btn danger small js-btn-delete-agent';
       delBtn.textContent = '🗑️ 删除智能体';
       delBtn.onclick = function() { confirmDeleteAgent(agent.name); };
       identityRow.parentElement.insertBefore(delBtn, identityRow.nextSibling);

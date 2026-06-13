@@ -232,11 +232,10 @@ export function renderChatModelDropdown(models, showNoModels) {
   if (showNoModels || !models.length) {
   if (btnName) btnName.textContent = '未设置可选模型';
   const item = document.createElement('div');
-  item.className = 'siper-model-item siper-model-item-disabled';
+  item.className = 'siper-model-item siper-model-item-disabled js-cursor-pointer';
   if (showNoModels) {
     // agent 未配置可用模型
     item.textContent = '未设置可选模型，点击前往配置';
-      item.style.cursor = 'pointer';
       item.addEventListener('click', () => {
         closeChatModelDropdown();
         if (typeof chatSwitchPage === 'function') chatSwitchPage('agent-config');
@@ -244,7 +243,6 @@ export function renderChatModelDropdown(models, showNoModels) {
     } else {
       // DB 为空，无模型可添加
       item.textContent = '暂无可选模型，点击前往模型管理';
-      item.style.cursor = 'pointer';
       item.addEventListener('click', () => {
         closeChatModelDropdown();
         if (typeof chatSwitchPage === 'function') chatSwitchPage('model-settings');
@@ -410,7 +408,7 @@ export function bindChatInput() {
       }
     }
   });
-  input.addEventListener('dragover', function(e) { e.preventDefault(); this.style.borderColor = '#07c160'; });
+  input.addEventListener('dragover', function(e) { e.preventDefault(); this.style.borderColor = 'var(--color-success)'; });
   input.addEventListener('dragleave', function(e) { this.style.borderColor = ''; });
   input.addEventListener('drop', function(e) {
     e.preventDefault(); this.style.borderColor = '';

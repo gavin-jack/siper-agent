@@ -164,7 +164,7 @@ export function renderLogPagination() {
   }
 
   html += `<button class="btn-sm" ${currentPage >= totalPages ? 'disabled' : ''} data-action="log-page" data-page="${currentPage + 1}">下一页 ›</button>`;
-  html += `<span style="font-size:11px;color:var(--text-dim);margin-left:8px">第 ${currentPage}/${totalPages} 页</span>`;
+  html += `<span class="js-page-info" style="color:var(--text-dim)">第 ${currentPage}/${totalPages} 页</span>`;
   container.innerHTML = html;
 }
 
