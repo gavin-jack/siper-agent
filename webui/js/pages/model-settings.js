@@ -33,6 +33,12 @@ export async function loadSettingsModels() {
     const def = d.default_model || '';
     settingsModelsCache.forEach(m => { m._isDefault = (m.name === def); });
     renderSettingsModelsList();
+    // Update title with model count
+    const _titleEl = document.querySelector('.siper-form-title span');
+    if (_titleEl && _titleEl.textContent.includes('可用模型')) {
+      _titleEl.textContent = `可用模型（${settingsModelsCache.length}）`;
+    }
+    if (toast) toast.success('已刷新 ' + settingsModelsCache.length + ' 个模型', 1500);
   } catch(e) {
     console.error('loadSettingsModels error:', e);
     const list = document.getElementById('settingsModelsList');
@@ -54,13 +60,11 @@ export function renderSettingsModelsList() {
   const hasSort = _sortDir !== 'asc';
   const showGroups = !searchText && !hasCapFilter && !hasSort;
 
-  // Calculate dynamic max-height for the list container
-  requestAnimationFrame(() => {
-    const rect = list.getBoundingClientRect();
-    const availableH = window.innerHeight - rect.top - 20;
-    list.style.maxHeight = Math.max(200, availableH) + 'px';
-    list.style.overflowY = 'auto';
-  });
+  // Calculate dynamic max-height for the list container (synchronous)
+  const rect = list.getBoundingClientRect();
+  const availableH = window.innerHeight - rect.top - 20;
+  list.style.maxHeight = Math.max(200, availableH) + 'px';
+  list.style.overflowY = 'auto';
 
   let html = '';
 
@@ -112,22 +116,22 @@ export function renderSettingsModelsList() {
 
   list.innerHTML = html;
 
-  // Entrance animation: only on first page load, not on re-renders (verify, filter, etc.)
-  if (!_pageLoaded) {
-    _pageLoaded = true;
+  // Entrance animation: animate only newly added cards (stagger 30ms)
+  const currentCount = list.querySelectorAll('.model-card').length;
+  const prevCount = _lastRenderCount;
+  _lastRenderCount = currentCount;
+  if (currentCount > prevCount) {
     requestAnimationFrame(() => {
-      const grids = list.querySelectorAll('.models-grid');
-      grids.forEach(grid => {
-        const cards = grid.querySelectorAll('.model-card');
-        cards.forEach((card, i) => {
-          card.classList.add('model-card-animate');
-          card.style.animationDelay = `${i * 30}ms`;
-          setTimeout(() => {
-            card.classList.remove('model-card-animate');
-            card.style.animationDelay = '';
-          }, 250 + i * 30 + 50);
-        });
-      });
+      const allCards = list.querySelectorAll('.model-card');
+      for (let i = prevCount; i < allCards.length; i++) {
+        const card = allCards[i];
+        card.classList.add('model-card-animate');
+        card.style.animationDelay = `${(i - prevCount) * 30}ms`;
+        setTimeout(() => {
+          card.classList.remove('model-card-animate');
+          card.style.animationDelay = '';
+        }, 250 + (i - prevCount) * 30 + 50);
+      }
     });
   }
 
@@ -151,7 +155,7 @@ function buildCardHtml(m, i) {
   const ttft = m.ttft ? formatSpeed(m.ttft) : '';
   const latency = (m._latency || m.latency) ? `${formatSpeed(m._latency || m.latency)}` : '';
   const streaming = m.streaming ? '⚡流式' : '';
-  const jsonMode = m.json_mode === true ? '📋json' : '';
+  const jsonMode = m.json_mode ? '📋json' : '';
   // Deduplicate: only show latency in meta if not already shown as ttft
   const latencyOnly = m._latency && !m.ttft ? latency : '';
   const metaTags = [ctxTested, ttft, latencyOnly, streaming, jsonMode].filter(Boolean).map(t2 => '<span class="siper-meta-tag">' + t2 + '</span>').join('');
@@ -168,10 +172,10 @@ function buildCardHtml(m, i) {
           <button class="btn-sm btn-copy-model" data-name="${escapeHtml(m.name)}" title="复制模型名称">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><rect x="5" y="5" width="9" height="9" rx="1.5" opacity="0.6"/><rect x="2" y="2" width="9" height="9" rx="1.5"/></svg>
           </button>
-          <button class="btn-sm danger" onclick="removeSettingsModel(${i})" title="删除模型">✕</button>
+          <button class="btn-sm danger" onclick="window.removeSettingsModel(${i})" title="删除模型">✕</button>
         </div>
       </div>
-      <div class="siper-model-meta">${metaTags}</div>
+      <div class="siper-model-meta">${ctx ? '<span class="siper-meta-tag">ctx ' + ctx + '</span>' : ''}${metaTags}</div>
       ${m._verified === false && m._error ? `<div class="model-card-error" style="font-size:11px;color:var(--color-danger);margin-top:2px;">❌ ${escapeHtml(m._error)}</div>` : ''}
       <div class="model-card-actions-bottom">
         <div class="model-caps-scroll">
@@ -183,19 +187,40 @@ function buildCardHtml(m, i) {
 }
 
 /** Edit provider name for a base_url group */
-export function editProviderName(baseUrl) {
+export async function editProviderName(baseUrl) {
   const current = settingsModelsCache.find(m => m.base_url === baseUrl);
   const currentName = current ? (current.provider || baseUrl) : baseUrl;
   const newName = prompt('请输入 Provider 名称（留空使用 Base URL）:', currentName);
   if (newName === null) return; // cancelled
   const trimmed = newName.trim();
-  settingsModelsCache.forEach(m => {
-    if (m.base_url === baseUrl) {
-      m.provider = trimmed || '';
+  const oldId = currentName;
+  const newId = trimmed || baseUrl;
+
+  if (oldId === newId) return; // no change
+
+  try {
+    const r = await fetch('/api/providers/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_id: oldId, new_id: newId }),
+    });
+    const d = await r.json();
+    if (d.success) {
+      // Update frontend cache
+      settingsModelsCache.forEach(m => {
+        if (m.base_url === baseUrl) {
+          m.provider = trimmed || '';
+        }
+      });
+      renderSettingsModelsList();
+      autoSaveModels();
+      if (toast) toast.success('Provider 已重命名: ' + oldId + ' → ' + newId, 2000);
+    } else {
+      if (toast) toast.error('重命名失败: ' + (d.error || '未知错误'));
     }
-  });
-  renderSettingsModelsList();
-  autoSaveModels();
+  } catch(e) {
+    if (toast) toast.error('重命名失败: ' + e.message);
+  }
 }
 
 export function removeSettingsModel(idx) {
@@ -386,7 +411,7 @@ async function saveModelsImmediate() {
       alias: m.alias || '',
       provider: m.provider,
       base_url: m.base_url,
-      api_key: m.api_key && m.api_key.startsWith('*') ? '' : m.api_key,
+      api_key: m.api_key,
       context_window: m.context_window,
       capabilities: m.capabilities || [],
       is_default: m._isDefault || false,
@@ -534,6 +559,7 @@ window.addAllDiscoveredModels = addAllDiscoveredModels;
 window.chatFilterDiscovered = filterDiscovered;
 window.chatClearDiscoverFilter = clearDiscoverFilter;
 window.filterModelsList = filterModelsList;
+window.removeSettingsModel = removeSettingsModel;
 window.verifyAllModels = verifyAllModels;
 window.clearModelSearch = clearModelSearch;
 window.toggleCapFilterDropdown = toggleCapFilterDropdown;
@@ -543,13 +569,46 @@ window.clearCapFilter = clearCapFilter;
 window.clearModelFilter = clearModelFilter;
 window.toggleSortDir = toggleSortDir;
 window.editProviderName = editProviderName;
+window.discoverModels = discoverModels;
+window.resetSettingsModels = resetSettingsModels;
+window.addModelFromForm = addModelFromForm;
+
+/** Refresh model settings page — called by navigateToPage */
+export function refreshModelsPage() {
+  loadSettingsModels();
+}
+
+/** Add model from the manual add form */
+export function addModelFromForm() {
+  const name = document.getElementById('newModelName')?.value.trim();
+  const provider = document.getElementById('newModelProvider')?.value.trim() || 'custom';
+  const base_url = document.getElementById('newModelBaseUrl')?.value.trim();
+  const api_key = document.getElementById('newModelApiKey')?.value.trim();
+  const ctx = parseInt(document.getElementById('newModelCtx')?.value) || 8192;
+  if (!name) { if (toast) toast.warning('请输入模型名称'); return; }
+  if (settingsModelsCache.find(x => x.name === name)) {
+    if (toast) toast.warning('模型已存在: ' + name); return;
+  }
+  settingsModelsCache.push({
+    id: name, name, alias: '', provider, base_url, api_key,
+    context_window: ctx, capabilities: [],
+  });
+  if (settingsModelsCache.length === 1) settingsModelsCache[0]._isDefault = true;
+  renderSettingsModelsList();
+  saveModelsImmediate();
+  // Clear form
+  ['newModelName','newModelProvider','newModelBaseUrl','newModelApiKey'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  if (toast) toast.success('已添加模型: ' + name, 1500);
+}
 
 // ===== Search / Filter / Sort =====
 
 // Selected capabilities for multi-select filter
 let _selectedCaps = new Set();
 let _sortDir = 'asc'; // 'asc' or 'desc'
-let _pageLoaded = false; // entrance animation only on first load
+let _lastRenderCount = 0; // track model count to animate only new cards
 
 /**
  * Format TTFT/latency ms into human-readable string with color.
@@ -592,6 +651,17 @@ export function filterModelsList() {
     const show = matchSearch && matchCap;
     card.style.display = show ? '' : 'none';
     if (show) visibleCount++;
+  });
+
+  // Hide group headers when all their cards are hidden
+  const grids = document.querySelectorAll('#settingsModelsList .models-grid');
+  grids.forEach(grid => {
+    const gridCards = grid.querySelectorAll('.model-card');
+    const allHidden = gridCards.length > 0 && [...gridCards].every(c => c.style.display === 'none');
+    const prevHeader = grid.previousElementSibling;
+    if (prevHeader && prevHeader.classList.contains('model-group-header')) {
+      prevHeader.style.display = allHidden ? 'none' : '';
+    }
   });
 
   // Sort visible cards
@@ -855,7 +925,7 @@ async function _handleVerify(idx) {
         m.context_window = d.context_window_tested;
       }
       renderSettingsModelsList();
-      autoSaveModels();
+      await saveModelsImmediate();
       const infoParts = [d.latency_ms + 'ms'];
       if (d.ttft_ms) infoParts.push('TTFT ' + d.ttft_ms + 'ms');
       if (d.streaming) infoParts.push('流式');

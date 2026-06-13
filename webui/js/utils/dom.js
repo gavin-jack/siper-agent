@@ -50,6 +50,7 @@ export function navigateToPage(page, skipHash) {
     'memory': 'tpl-memory',
     'agent-config': 'tpl-agent-config',
     'theme-settings': 'tpl-theme-settings',
+    'model-settings': 'tpl-model-settings',
   };
   const tplId = tplMap[page];
   if (tplId) {

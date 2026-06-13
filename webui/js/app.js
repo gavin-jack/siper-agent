@@ -152,6 +152,7 @@ window.addDiscoveredModel = ModelSettings.addDiscoveredModel;
 window.addAllDiscoveredModels = ModelSettings.addAllDiscoveredModels;
 window.filterModelsList = ModelSettings.filterModelsList;
 window.verifyAllModels = ModelSettings.verifyAllModels;
+window.refreshModelsPage = ModelSettings.refreshModelsPage;
 
 // Chat input
 import { toggleChatModelDropdown } from './chat/input.js';

@@ -132,11 +132,21 @@ class ModelsDB:
                 CREATE INDEX IF NOT EXISTS idx_model_capabilities_cap ON model_capabilities(capability);
             """)
 
-            # Migration: add latency column if not exists (for existing DBs)
-            try:
-                conn.execute("ALTER TABLE models ADD COLUMN latency INTEGER")
-            except Exception:
-                pass  # column already exists
+            # Migrations for existing DBs (idempotent ALTER TABLE)
+            _migrations = [
+                "ALTER TABLE models ADD COLUMN latency INTEGER",
+                "ALTER TABLE models ADD COLUMN streaming INTEGER",
+                "ALTER TABLE models ADD COLUMN context_window_tested INTEGER",
+                "ALTER TABLE models ADD COLUMN json_mode INTEGER",
+                "ALTER TABLE model_capabilities ADD COLUMN api_key TEXT DEFAULT ''",
+                "ALTER TABLE model_capabilities ADD COLUMN base_url TEXT DEFAULT ''",
+                "ALTER TABLE model_capabilities ADD COLUMN config TEXT DEFAULT '{}'",
+            ]
+            for _sql in _migrations:
+                try:
+                    conn.execute(_sql)
+                except Exception:
+                    pass  # column already exists
 
     # ===== Provider =====
 
@@ -150,6 +160,24 @@ class ModelsDB:
                     base_url=excluded.base_url, api_key=excluded.api_key,
                     updated_at=excluded.updated_at
             """, (id, base_url, api_key, now, now))
+
+    def rename_provider(self, old_id: str, new_id: str) -> bool:
+        """Rename a provider and cascade to all its models."""
+        now = time.time()
+        with self._connect() as conn:
+            # Check old exists
+            old = conn.execute("SELECT id FROM providers WHERE id=?", (old_id,)).fetchone()
+            if not old:
+                return False
+            # Check new doesn't exist
+            existing = conn.execute("SELECT id FROM providers WHERE id=?", (new_id,)).fetchone()
+            if existing:
+                return False
+            # Update provider id
+            conn.execute("UPDATE providers SET id=?, updated_at=? WHERE id=?", (new_id, now, old_id))
+            # Cascade to models
+            conn.execute("UPDATE models SET provider_id=?, updated_at=? WHERE provider_id=?", (new_id, now, old_id))
+            return True
 
     def get_all_providers(self) -> List[Dict]:
         with self._connect() as conn:
@@ -247,6 +275,11 @@ class ModelsDB:
 
     def delete_model(self, model_id: str, provider_id: str) -> bool:
         with self._connect() as conn:
+            # Clean up model_capabilities first
+            conn.execute(
+                "DELETE FROM model_capabilities WHERE model_id IN (SELECT id FROM models WHERE model_id=? AND provider_id=?)",
+                (model_id, provider_id)
+            )
             cursor = conn.execute(
                 "DELETE FROM models WHERE model_id=? AND provider_id=?",
                 (model_id, provider_id)

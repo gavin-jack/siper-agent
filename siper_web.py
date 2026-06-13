@@ -896,6 +896,8 @@ async def main():
                 resp = api_save_global_models(body)
             elif path == "/api/models/discover" and method == "POST":
                 resp = api_discover_models(body)
+            elif path == "/api/providers/rename" and method == "POST":
+                resp = api_rename_provider(body)
             elif path == "/api/models/test" and method == "POST":
                 resp = await api_test_model(body)
             elif path == "/api/logs" and method == "GET":
@@ -1035,6 +1037,11 @@ async def main():
                     # JS/CSS: gzip compress if client supports it
                     cache_hdr = "Cache-Control: public, max-age=86400" if ct.startswith("image/") or ct.startswith("font/") else "Cache-Control: no-cache, must-revalidate"
                     accept_encoding = req_headers.get("accept-encoding", "")
+                    # ETag/Last-Modified for conditional requests
+                    import hashlib as _hashlib
+                    file_mtime = int(os.path.getmtime(resolved))
+                    etag = '"' + _hashlib.md5(file_data).hexdigest()[:12] + '"'
+                    last_mod = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime(file_mtime))
                     if ext in (".css", ".js") and "gzip" in accept_encoding:
                         import gzip as _gzip
                         compressed = _gzip.compress(file_data, compresslevel=9)
@@ -1043,6 +1050,8 @@ async def main():
                             f"Content-Type: {ct}",
                             f"Content-Length: {len(compressed)}",
                             "Content-Encoding: gzip",
+                            f"ETag: {etag}",
+                            f"Last-Modified: {last_mod}",
                             cache_hdr,
                             "Connection: close",
                             "",
@@ -1054,6 +1063,8 @@ async def main():
                             "HTTP/1.1 200 OK",
                             f"Content-Type: {ct}",
                             f"Content-Length: {len(file_data)}",
+                            f"ETag: {etag}",
+                            f"Last-Modified: {last_mod}",
                             cache_hdr,
                             "Connection: close",
                             "",
@@ -1108,10 +1119,18 @@ async def main():
                             )
                         except Exception:
                             pass
+                    # ETag/Last-Modified for conditional requests — Chromium ESM
+                    # cache ignores Cache-Control: no-cache without these.
+                    import hashlib as _hashlib
+                    file_mtime = int(os.path.getmtime(resolved))
+                    etag = '"' + _hashlib.md5(file_data).hexdigest()[:12] + '"'
+                    last_mod = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime(file_mtime))
                     headers_list = [
                         "HTTP/1.1 200 OK",
                         f"Content-Type: {ct}",
                         f"Content-Length: {len(file_data)}",
+                        f"ETag: {etag}",
+                        f"Last-Modified: {last_mod}",
                         "Cache-Control: no-store, no-cache, must-revalidate",
                         "Pragma: no-cache",
                         "Connection: close",
@@ -1134,10 +1153,16 @@ async def main():
                 if resolved and str(resolved).startswith(str(css_root)) and resolved.is_file():
                     with open(resolved, "rb") as f:
                         file_data = f.read()
+                    import hashlib as _hashlib
+                    file_mtime = int(os.path.getmtime(resolved))
+                    etag = '"' + _hashlib.md5(file_data).hexdigest()[:12] + '"'
+                    last_mod = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime(file_mtime))
                     headers_list = [
                         "HTTP/1.1 200 OK",
                         "Content-Type: text/css",
                         f"Content-Length: {len(file_data)}",
+                        f"ETag: {etag}",
+                        f"Last-Modified: {last_mod}",
                         "Cache-Control: no-store, no-cache, must-revalidate",
                         "Pragma: no-cache",
                         "Connection: close",
@@ -2383,6 +2408,22 @@ async def main():
         for m in flat["models"]:
             m["api_key"] = _mask_key(m.get("api_key", ""))
         return flat
+
+    def api_rename_provider(body):
+        old_id = (body.get("old_id") or "").strip()
+        new_id = (body.get("new_id") or "").strip()
+        if not old_id or not new_id:
+            return {"success": False, "error": "old_id 和 new_id 不能为空"}
+        if old_id == new_id:
+            return {"success": True, "changed": False}
+        try:
+            ok = _models_db.rename_provider(old_id, new_id)
+            if ok:
+                return {"success": True, "changed": True}
+            else:
+                return {"success": False, "error": "Provider 不存在或新名称已存在"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     # ===== Model Discovery API =====
 

@@ -294,6 +294,104 @@
     </div>
   </div>
 
+  <div id="tpl-model-settings" class="hidden">
+    <div class="page-header">
+      <h2>🤖 模型管理</h2>
+      <div class="actions">
+        <button class="btn-sm primary" onclick="window.discoverModels()">🔍 发现模型</button>
+        <button class="btn-sm" onclick="window.verifyAllModels()">✅ 全部验证</button>
+        <button class="btn-sm" onclick="window.loadSettingsModels()">🔄 刷新</button>
+        <button class="btn-sm danger" onclick="window.resetSettingsModels()">🗑 重置</button>
+      </div>
+    </div>
+    <div class="page-body page-body-flex">
+      <!-- Toolbar: Search + Filter + Sort -->
+      <div class="model-toolbar" style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+        <input type="text" id="modelSearchInput" placeholder="搜索模型..." class="siper-search-input" style="flex:1;min-width:120px;" oninput="window.filterModelsList()">
+        <button id="modelSearchClear" class="btn-sm" style="display:none;" onclick="window.clearModelSearch()">✕</button>
+        <select id="modelSortBy" class="select-input select-wide" onchange="window.filterModelsList()" style="width:auto;">
+          <option value="name">名称</option>
+          <option value="ttft">TTFT</option>
+          <option value="latency">延迟</option>
+          <option value="context">上下文</option>
+          <option value="caps">能力数</option>
+        </select>
+        <button id="sortDirBtn" class="btn-sm" onclick="window.toggleSortDir()" title="切换排序">↑</button>
+        <div id="capFilterDropdown" style="position:relative;">
+          <button class="btn-sm" onclick="window.toggleCapFilterDropdown()">🧩 功能</button>
+          <div id="capFilterMenu" style="display:none;position:absolute;top:100%;left:0;background:var(--color-bg);border:1px solid var(--color-border);border-radius:6px;padding:8px;z-index:100;min-width:160px;box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+            <div class="cap-filter-option" data-cap="" onclick="window.selectCapFilter('')" style="padding:4px 8px;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='var(--color-hover)'" onmouseout="this.style.background=''">
+              <input type="checkbox" checked> 全部功能
+            </div>
+            <div class="cap-filter-option" data-cap="chat" onclick="window.selectCapFilter('chat')" style="padding:4px 8px;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='var(--color-hover)'" onmouseout="this.style.background=''">
+              <input type="checkbox"> 💬 对话
+            </div>
+            <div class="cap-filter-option" data-cap="vision" onclick="window.selectCapFilter('vision')" style="padding:4px 8px;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='var(--color-hover)'" onmouseout="this.style.background=''">
+              <input type="checkbox"> 👁 视觉
+            </div>
+            <div class="cap-filter-option" data-cap="reasoning" onclick="window.selectCapFilter('reasoning')" style="padding:4px 8px;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='var(--color-hover)'" onmouseout="this.style.background=''">
+              <input type="checkbox"> 🧠 推理
+            </div>
+            <div class="cap-filter-option" data-cap="code" onclick="window.selectCapFilter('code')" style="padding:4px 8px;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='var(--color-hover)'" onmouseout="this.style.background=''">
+              <input type="checkbox"> 💻 代码
+            </div>
+            <div class="cap-filter-option" data-cap="function_calling" onclick="window.selectCapFilter('function_calling')" style="padding:4px 8px;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='var(--color-hover)'" onmouseout="this.style.background=''">
+              <input type="checkbox"> 🔧 工具调用
+            </div>
+            <div class="cap-filter-option" data-cap="long_context" onclick="window.selectCapFilter('long_context')" style="padding:4px 8px;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='var(--color-hover)'" onmouseout="this.style.background=''">
+              <input type="checkbox"> 📏 长上下文
+            </div>
+            <hr style="margin:6px 0;border:none;border-top:1px solid var(--color-border);">
+            <div style="display:flex;gap:4px;justify-content:flex-end;">
+              <button class="btn-sm" onclick="window.clearCapFilter()">清除</button>
+              <button class="btn-sm primary" onclick="window.applyCapFilter()">确定</button>
+            </div>
+          </div>
+        </div>
+        <span id="capFilterLabel" style="font-size:12px;color:var(--color-text-dim);"></span>
+      </div>
+      <!-- Model list -->
+      <div id="settingsModelsList" class="models-list" style="flex:1;overflow-y:auto;"></div>
+      <!-- Discover panel (hidden by default) -->
+      <div id="discoverPanel" style="display:none;margin-top:12px;border-top:1px solid var(--color-border);padding-top:12px;">
+        <div class="config-group-title" style="margin-bottom:8px;">🔍 发现模型</div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+          <select id="providerPreset" class="select-input select-wide" onchange="window.applyProviderPreset()" style="width:auto;">
+            <option value="">— 选择 Provider —</option>
+            <option value="custom">自定义</option>
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="moonshot">Moonshot</option>
+            <option value="qwen">Qwen</option>
+            <option value="longcat">LongCat</option>
+            <option value="zhipuai">智谱</option>
+            <option value="minimax">MiniMax</option>
+            <option value="groq">Groq</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="ollama">Ollama</option>
+          </select>
+          <input type="text" id="discoverBaseUrl" placeholder="Base URL" class="siper-search-input" style="flex:1;min-width:120px;">
+          <input type="password" id="discoverApiKey" placeholder="API Key" class="siper-search-input" style="flex:1;min-width:120px;">
+          <button id="discoverBtn" class="btn-sm primary" onclick="window.discoverModels()">获取</button>
+        </div>
+        <div id="discoverResult"></div>
+      </div>
+      <!-- Add model form -->
+      <div id="addModelForm" style="display:none;margin-top:12px;border-top:1px solid var(--color-border);padding-top:12px;">
+        <div class="config-group-title" style="margin-bottom:8px;">➕ 添加模型</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="newModelName" placeholder="模型名称" class="siper-search-input" style="flex:1;min-width:100px;">
+          <input type="text" id="newModelProvider" placeholder="Provider" class="siper-search-input" style="width:100px;">
+          <input type="text" id="newModelBaseUrl" placeholder="Base URL" class="siper-search-input" style="flex:1;min-width:120px;">
+          <input type="password" id="newModelApiKey" placeholder="API Key" class="siper-search-input" style="flex:1;min-width:120px;">
+          <input type="number" id="newModelCtx" placeholder="Ctx" class="siper-search-input" style="width:70px;" value="8192">
+          <button class="btn-sm primary" onclick="window.addModelFromForm()">添加</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <!-- 通知系统由 toast.js 动态创建，不再需要静态 HTML 元素 -->
 <!-- ESM entry -->
   <script type="module" src="/js/app.js"></script>
