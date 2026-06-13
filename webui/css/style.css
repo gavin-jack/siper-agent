@@ -3904,7 +3904,7 @@ html { touch-action: manipulation; }
   gap: 4px;
   flex-wrap: wrap;
 }
-.cap-badge {
+.siper-model-caps .cap-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;

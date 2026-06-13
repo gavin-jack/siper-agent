@@ -2,6 +2,16 @@
 模型数据库管理 — models.db
 存储位置: models.db（项目根目录）
 替代 models.json，提供并发安全的 SQLite 存储。
+
+表结构（v6 — 2026-08-08）：
+  providers: id INTEGER PK AUTOINCREMENT, base_url TEXT UNIQUE, provider TEXT NOT NULL DEFAULT '',
+            provider_alias TEXT NOT NULL DEFAULT ''（用户改名记录）, api_key TEXT NOT NULL DEFAULT '',
+            updated_at REAL NOT NULL
+  models: id INTEGER PK AUTOINCREMENT, provider_id INTEGER FK→providers(id),
+          model TEXT NOT NULL, model_alias TEXT NOT NULL DEFAULT ''（用户改名记录）,
+          is_default INTEGER NOT NULL DEFAULT 0,
+          ttft/latency/streaming, context_window_tested, json_mode,
+          15 个 cap_* 能力列（0=未配置, 1=启用）, updated_at REAL NOT NULL
 """
 import json
 import logging
@@ -58,22 +68,26 @@ class ModelsDB:
         with self._connect() as conn:
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS providers (
-                    id TEXT PRIMARY KEY,
-                    base_url TEXT NOT NULL DEFAULT '',
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    base_url TEXT NOT NULL UNIQUE,
+                    provider TEXT NOT NULL DEFAULT '',
+                    provider_alias TEXT NOT NULL DEFAULT '',
                     api_key TEXT NOT NULL DEFAULT '',
-                    created_at REAL NOT NULL,
                     updated_at REAL NOT NULL
                 );
 
                 CREATE TABLE IF NOT EXISTS models (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    provider_id TEXT NOT NULL,
-                    model_id TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    alias TEXT NOT NULL DEFAULT '',
-                    base_url TEXT NOT NULL DEFAULT '',
-                    api_key TEXT NOT NULL DEFAULT '',
-                    context_window INTEGER DEFAULT 8192,
+                    provider_id INTEGER NOT NULL,
+                    model TEXT NOT NULL,
+                    model_alias TEXT NOT NULL DEFAULT '',
+                    is_default INTEGER NOT NULL DEFAULT 0,
+                    ttft INTEGER,
+                    latency INTEGER,
+                    streaming INTEGER,
+                    context_window_tested INTEGER,
+                    json_mode INTEGER,
+                    updated_at REAL NOT NULL,
                     cap_chat INTEGER NOT NULL DEFAULT 1,
                     cap_reasoning INTEGER NOT NULL DEFAULT 0,
                     cap_code INTEGER NOT NULL DEFAULT 0,
@@ -88,106 +102,79 @@ class ModelsDB:
                     cap_math INTEGER NOT NULL DEFAULT 0,
                     cap_chart INTEGER NOT NULL DEFAULT 0,
                     cap_document INTEGER NOT NULL DEFAULT 0,
-                    is_default INTEGER NOT NULL DEFAULT 0,
-                    ttft INTEGER,
-                    latency INTEGER,
-                    streaming INTEGER,
-                    context_window_tested INTEGER,
-                    json_mode INTEGER,
-                    created_at REAL NOT NULL,
-                    updated_at REAL NOT NULL,
                     FOREIGN KEY (provider_id) REFERENCES providers(id),
-                    UNIQUE(provider_id, model_id)
-                );
-
-                CREATE TABLE IF NOT EXISTS model_capabilities (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    model_id INTEGER NOT NULL,
-                    capability TEXT NOT NULL,
-                    enabled INTEGER NOT NULL DEFAULT 0,
-                    api_key TEXT DEFAULT '',
-                    base_url TEXT DEFAULT '',
-                    config TEXT DEFAULT '{}',
-                    created_at REAL NOT NULL,
-                    updated_at REAL NOT NULL,
-                    FOREIGN KEY (model_id) REFERENCES models(id),
-                    UNIQUE(model_id, capability)
-                );
-
-                CREATE TABLE IF NOT EXISTS global_settings (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL,
-                    updated_at REAL NOT NULL
+                    UNIQUE(provider_id, model)
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_models_provider ON models(provider_id);
                 CREATE INDEX IF NOT EXISTS idx_models_default ON models(is_default);
-                CREATE INDEX IF NOT EXISTS idx_models_name ON models(name);
-                CREATE INDEX IF NOT EXISTS idx_models_cap_reasoning ON models(cap_reasoning);
-                CREATE INDEX IF NOT EXISTS idx_models_cap_vision ON models(cap_vision);
-                CREATE INDEX IF NOT EXISTS idx_models_cap_code ON models(cap_code);
-                CREATE INDEX IF NOT EXISTS idx_models_cap_translation ON models(cap_translation);
-                CREATE INDEX IF NOT EXISTS idx_models_cap_ocr ON models(cap_ocr);
-                CREATE INDEX IF NOT EXISTS idx_model_capabilities_model ON model_capabilities(model_id);
-                CREATE INDEX IF NOT EXISTS idx_model_capabilities_cap ON model_capabilities(capability);
             """)
 
             # Migrations for existing DBs (idempotent ALTER TABLE)
             _migrations = [
+                # v5 → v6: rename columns
+                "ALTER TABLE providers RENAME COLUMN provider_name TO provider",
+                "ALTER TABLE providers ADD COLUMN provider_alias TEXT NOT NULL DEFAULT ''",
+                "ALTER TABLE providers DROP COLUMN created_at",
+                "ALTER TABLE models RENAME COLUMN model_name TO model",
+                "ALTER TABLE models RENAME COLUMN alias TO model_alias",
+                "ALTER TABLE models DROP COLUMN created_at",
+                # v4 → v5 兼容（旧库可能还没有 provider_name）
+                "ALTER TABLE providers ADD COLUMN provider TEXT NOT NULL DEFAULT ''",
+                "ALTER TABLE providers ADD COLUMN provider_alias TEXT NOT NULL DEFAULT ''",
+                "ALTER TABLE models ADD COLUMN model_alias TEXT NOT NULL DEFAULT ''",
+                # 新增列（v4/v5 可能缺失）
                 "ALTER TABLE models ADD COLUMN latency INTEGER",
                 "ALTER TABLE models ADD COLUMN streaming INTEGER",
                 "ALTER TABLE models ADD COLUMN context_window_tested INTEGER",
                 "ALTER TABLE models ADD COLUMN json_mode INTEGER",
-                "ALTER TABLE model_capabilities ADD COLUMN api_key TEXT DEFAULT ''",
-                "ALTER TABLE model_capabilities ADD COLUMN base_url TEXT DEFAULT ''",
-                "ALTER TABLE model_capabilities ADD COLUMN config TEXT DEFAULT '{}'",
             ]
             for _sql in _migrations:
                 try:
                     conn.execute(_sql)
                 except Exception:
-                    pass  # column already exists
+                    pass  # column already exists or doesn't exist
 
     # ===== Provider =====
 
-    def upsert_provider(self, id: str, base_url: str = "", api_key: str = ""):
+    def upsert_provider(self, base_url: str, api_key: str = "", provider: str = "",
+                        provider_alias: str = "") -> int:
+        """插入/更新 provider，返回 id。base_url 作为唯一标识。"""
         now = time.time()
         with self._connect() as conn:
-            conn.execute("""
-                INSERT INTO providers (id, base_url, api_key, created_at, updated_at)
+            cursor = conn.execute("""
+                INSERT INTO providers (base_url, provider, provider_alias, api_key, updated_at)
                 VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    base_url=excluded.base_url, api_key=excluded.api_key,
+                ON CONFLICT(base_url) DO UPDATE SET
+                    provider=excluded.provider,
+                    provider_alias=excluded.provider_alias,
+                    api_key=excluded.api_key,
                     updated_at=excluded.updated_at
-            """, (id, base_url, api_key, now, now))
+            """, (base_url, provider, provider_alias, api_key, now))
+            return cursor.lastrowid or conn.execute(
+                "SELECT id FROM providers WHERE base_url=?", (base_url,)
+            ).fetchone()["id"]
 
-    def rename_provider(self, old_id: str, new_id: str) -> bool:
-        """Rename a provider and cascade to all its models."""
+    def update_provider_name(self, base_url: str, provider: str = "",
+                             provider_alias: str = "") -> bool:
+        """Update provider name and/or alias for a given base_url."""
         now = time.time()
         with self._connect() as conn:
-            # Check old exists
-            old = conn.execute("SELECT id FROM providers WHERE id=?", (old_id,)).fetchone()
-            if not old:
-                return False
-            # Check new doesn't exist
-            existing = conn.execute("SELECT id FROM providers WHERE id=?", (new_id,)).fetchone()
-            if existing:
-                return False
-            # Update provider id
-            conn.execute("UPDATE providers SET id=?, updated_at=? WHERE id=?", (new_id, now, old_id))
-            # Cascade to models
-            conn.execute("UPDATE models SET provider_id=?, updated_at=? WHERE provider_id=?", (new_id, now, old_id))
-            return True
+            cursor = conn.execute(
+                "UPDATE providers SET provider=?, provider_alias=?, updated_at=? WHERE base_url=?",
+                (provider, provider_alias, now, base_url)
+            )
+            return cursor.rowcount > 0
 
     def get_all_providers(self) -> List[Dict]:
         with self._connect() as conn:
-            return [dict(r) for r in conn.execute("SELECT * FROM providers").fetchall()]
+            return [dict(r) for r in conn.execute("SELECT * FROM providers ORDER BY id").fetchall()]
 
     # ===== Model CRUD =====
 
-    def upsert_model(self, provider_id: str, model_id: str, name: str = "",
-                     alias: str = "", base_url: str = "", api_key: str = "",
-                     context_window: int = 8192, capabilities: list = None,
+    def upsert_model(self, provider_id: int, model: str,
+                     model_alias: str = "",
+                     capabilities: list = None,
                      is_default: int = 0, ttft: int = None,
                      latency: int = None,
                      streaming: int = None, context_window_tested: int = None,
@@ -196,17 +183,21 @@ class ModelsDB:
         caps = self._caps_to_cols(capabilities or [])
         with self._connect() as conn:
             cursor = conn.execute("""
-                INSERT INTO models (provider_id, model_id, name, alias, base_url, api_key,
-                    context_window, cap_chat, cap_reasoning, cap_code, cap_function_calling,
+                INSERT INTO models (provider_id, model, model_alias,
+                    is_default, ttft, latency, streaming, context_window_tested,
+                    json_mode, updated_at,
+                    cap_chat, cap_reasoning, cap_code, cap_function_calling,
                     cap_vision, cap_long_context, cap_translation, cap_ocr,
                     cap_summarization, cap_sentiment, cap_ner, cap_math, cap_chart,
-                    cap_document, is_default, ttft, latency, streaming, context_window_tested,
-                    json_mode, created_at, updated_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                ON CONFLICT(provider_id, model_id) DO UPDATE SET
-                    name=excluded.name, alias=excluded.alias,
-                    base_url=excluded.base_url, api_key=excluded.api_key,
-                    context_window=excluded.context_window,
+                    cap_document)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(provider_id, model) DO UPDATE SET
+                    model_alias=excluded.model_alias,
+                    is_default=excluded.is_default, ttft=excluded.ttft,
+                    latency=excluded.latency,
+                    streaming=excluded.streaming,
+                    context_window_tested=excluded.context_window_tested,
+                    json_mode=excluded.json_mode,
                     cap_chat=excluded.cap_chat, cap_reasoning=excluded.cap_reasoning,
                     cap_code=excluded.cap_code, cap_function_calling=excluded.cap_function_calling,
                     cap_vision=excluded.cap_vision, cap_long_context=excluded.cap_long_context,
@@ -214,36 +205,35 @@ class ModelsDB:
                     cap_summarization=excluded.cap_summarization, cap_sentiment=excluded.cap_sentiment,
                     cap_ner=excluded.cap_ner, cap_math=excluded.cap_math,
                     cap_chart=excluded.cap_chart, cap_document=excluded.cap_document,
-                    is_default=excluded.is_default, ttft=excluded.ttft,
-                    latency=excluded.latency,
-                    streaming=excluded.streaming,
-                    context_window_tested=excluded.context_window_tested,
-                    json_mode=excluded.json_mode,
                     updated_at=excluded.updated_at
-            """, (provider_id, model_id, name or model_id, alias, base_url, api_key,
-                  context_window, caps["cap_chat"], caps["cap_reasoning"], caps["cap_code"],
+            """, (provider_id, model, model_alias,
+                  is_default, ttft, latency, streaming, context_window_tested,
+                  json_mode, now,
+                  caps["cap_chat"], caps["cap_reasoning"], caps["cap_code"],
                   caps["cap_function_calling"], caps["cap_vision"], caps["cap_long_context"],
                   caps["cap_translation"], caps["cap_ocr"], caps["cap_summarization"],
                   caps["cap_sentiment"], caps["cap_ner"], caps["cap_math"],
-                  caps["cap_chart"], caps["cap_document"],
-                  is_default, ttft, latency, streaming, context_window_tested, json_mode, now, now))
-            return cursor.lastrowid
+                  caps["cap_chart"], caps["cap_document"]))
+            return cursor.lastrowid or conn.execute(
+                "SELECT id FROM models WHERE provider_id=? AND model=?",
+                (provider_id, model)
+            ).fetchone()["id"]
 
-    def get_model(self, model_id: str, provider_id: str = None) -> Optional[Dict]:
+    def get_model(self, model: str, provider_id: int = 0) -> Optional[Dict]:
         with self._connect() as conn:
             if provider_id:
                 row = conn.execute(
-                    "SELECT m.*, p.base_url as prov_base_url, p.api_key as prov_api_key "
+                    "SELECT m.*, p.provider, p.provider_alias, p.base_url as prov_base_url, p.api_key as prov_api_key "
                     "FROM models m LEFT JOIN providers p ON m.provider_id=p.id "
-                    "WHERE m.model_id=? AND m.provider_id=?",
-                    (model_id, provider_id)
+                    "WHERE m.model=? AND m.provider_id=?",
+                    (model, provider_id)
                 ).fetchone()
             else:
                 row = conn.execute(
-                    "SELECT m.*, p.base_url as prov_base_url, p.api_key as prov_api_key "
+                    "SELECT m.*, p.provider, p.provider_alias, p.base_url as prov_base_url, p.api_key as prov_api_key "
                     "FROM models m LEFT JOIN providers p ON m.provider_id=p.id "
-                    "WHERE m.model_id=? OR m.name=?",
-                    (model_id, model_id)
+                    "WHERE m.model=?",
+                    (model,)
                 ).fetchone()
             if not row:
                 return None
@@ -251,20 +241,20 @@ class ModelsDB:
             d["capabilities"] = self._cols_to_caps(d)
             return d
 
-    def get_all_models(self, provider_id: str = None) -> List[Dict]:
+    def get_all_models(self, provider_id: int = 0) -> List[Dict]:
         with self._connect() as conn:
             if provider_id:
                 rows = conn.execute(
-                    "SELECT m.*, p.base_url as prov_base_url, p.api_key as prov_api_key "
+                    "SELECT m.*, p.provider, p.provider_alias, p.base_url as prov_base_url, p.api_key as prov_api_key "
                     "FROM models m LEFT JOIN providers p ON m.provider_id=p.id "
-                    "WHERE m.provider_id=? ORDER BY m.name",
+                    "WHERE m.provider_id=? ORDER BY m.model",
                     (provider_id,)
                 ).fetchall()
             else:
                 rows = conn.execute(
-                    "SELECT m.*, p.base_url as prov_base_url, p.api_key as prov_api_key "
+                    "SELECT m.*, p.provider, p.provider_alias, p.base_url as prov_base_url, p.api_key as prov_api_key "
                     "FROM models m LEFT JOIN providers p ON m.provider_id=p.id "
-                    "ORDER BY m.provider_id, m.name"
+                    "ORDER BY m.provider_id, m.model"
                 ).fetchall()
             result = []
             for r in rows:
@@ -273,33 +263,28 @@ class ModelsDB:
                 result.append(d)
             return result
 
-    def delete_model(self, model_id: str, provider_id: str) -> bool:
+    def delete_model(self, model: str, provider_id: int) -> bool:
         with self._connect() as conn:
-            # Clean up model_capabilities first
-            conn.execute(
-                "DELETE FROM model_capabilities WHERE model_id IN (SELECT id FROM models WHERE model_id=? AND provider_id=?)",
-                (model_id, provider_id)
-            )
             cursor = conn.execute(
-                "DELETE FROM models WHERE model_id=? AND provider_id=?",
-                (model_id, provider_id)
+                "DELETE FROM models WHERE model=? AND provider_id=?",
+                (model, provider_id)
             )
             return cursor.rowcount > 0
 
-    def set_default_model(self, model_id: str, provider_id: str):
+    def set_default_model(self, model: str, provider_id: int):
         now = time.time()
         with self._connect() as conn:
             conn.execute("UPDATE models SET is_default=0")
             conn.execute(
                 "UPDATE models SET is_default=1, updated_at=? "
-                "WHERE model_id=? AND provider_id=?",
-                (now, model_id, provider_id)
+                "WHERE model=? AND provider_id=?",
+                (now, model, provider_id)
             )
 
     def get_default_model(self) -> Optional[Dict]:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT m.*, p.base_url as prov_base_url, p.api_key as prov_api_key "
+                "SELECT m.*, p.provider, p.provider_alias, p.base_url as prov_base_url, p.api_key as prov_api_key "
                 "FROM models m LEFT JOIN providers p ON m.provider_id=p.id "
                 "WHERE m.is_default=1 LIMIT 1"
             ).fetchone()
@@ -309,135 +294,70 @@ class ModelsDB:
             d["capabilities"] = self._cols_to_caps(d)
             return d
 
-    # ===== 配置能力 =====
-
-    def set_capability(self, model_id: int, capability: str,
-                       enabled: int = 0, api_key: str = "",
-                       base_url: str = "", config: dict = None):
-        now = time.time()
-        config_json = json.dumps(config or {})
-        with self._connect() as conn:
-            conn.execute("""
-                INSERT INTO model_capabilities
-                    (model_id, capability, enabled, api_key, base_url, config, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(model_id, capability) DO UPDATE SET
-                    enabled=excluded.enabled, api_key=excluded.api_key,
-                    base_url=excluded.base_url, config=excluded.config,
-                    updated_at=excluded.updated_at
-            """, (model_id, capability, enabled, api_key, base_url, config_json, now, now))
-
-    def get_capabilities(self, model_id: int) -> List[Dict]:
-        with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT * FROM model_capabilities WHERE model_id=?", (model_id,)
-            ).fetchall()
-            return [dict(r) for r in rows]
-
-    def get_enabled_capabilities(self, model_id: int) -> List[str]:
-        with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT capability FROM model_capabilities WHERE model_id=? AND enabled=1",
-                (model_id,)
-            ).fetchall()
-            return [r["capability"] for r in rows]
-
-    # ===== 全局设置 =====
-
-    def set_global_setting(self, key: str, value: str):
-        now = time.time()
-        with self._connect() as conn:
-            conn.execute("""
-                INSERT INTO global_settings (key, value, updated_at)
-                VALUES (?, ?, ?)
-                ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at
-            """, (key, value, now))
-
-    def get_global_setting(self, key: str, default: str = "") -> str:
-        with self._connect() as conn:
-            row = conn.execute(
-                "SELECT value FROM global_settings WHERE key=?", (key,)
-            ).fetchone()
-            return row["value"] if row else default
-
     # ===== 兼容层（前端 flat 格式） =====
 
     def get_models_flat(self) -> Dict:
         """返回前端兼容的 flat 格式（模拟 models.json v2 GET 返回）"""
         models = self.get_all_models()
-        default_model = self.get_global_setting("default_model")
-        default_provider = self.get_global_setting("default_provider")
 
         flat = []
         for m in models:
             flat.append({
-                "id": m["model_id"],
-                "name": m["name"],
-                "alias": m["alias"],
+                "id": m["model"],
+                "name": m["model"],
+                "alias": m.get("model_alias", "") or m.get("alias", ""),
                 "provider": m["provider_id"],
-                "base_url": m["base_url"] or m.get("prov_base_url", ""),
-                "api_key": m["api_key"] or m.get("prov_api_key", ""),
-                "context_window": m["context_window"],
+                "provider_name": m.get("provider", "") or m.get("provider_name", ""),
+                "provider_alias": m.get("provider_alias", ""),
+                "base_url": m.get("prov_base_url", ""),
+                "api_key": m.get("prov_api_key", ""),
                 "capabilities": m["capabilities"],
                 "is_default": bool(m["is_default"]),
                 "ttft": m.get("ttft"),
                 "latency": m.get("latency"),
                 "streaming": m.get("streaming"),
-                "context_window_tested": m.get("context_window_tested"),
+                "context_window": m.get("context_window_tested") or 8192,
                 "json_mode": m.get("json_mode"),
             })
 
         return {
-            "version": 2,
+            "version": 3,
             "models": flat,
-            "default_model": default_model,
-            "default_provider": default_provider,
         }
 
     def save_models_flat(self, data: Dict):
-        """从前端 flat 格式保存（模拟 models.json v2 POST 请求）
-
-        保留 de-mask 逻辑：前端 GET 时 api_key 被掩码，POST 时还原。
-        """
+        """从前端 flat 格式保存（模拟 models.json v2 POST 请求）"""
         models = data.get("models", [])
-        default_model = data.get("default_model", "")
-        default_provider = data.get("default_provider", "")
 
-        # 收集旧数据中的真实 api_key（用于 de-mask）
-        old_real_keys = {}
-        for m in self.get_all_models():
-            mid = m["model_id"]
-            mk = m["api_key"]
-            if mk and not mk.startswith("*"):
-                old_real_keys[mid] = mk
-
-        # 按 provider 分组写入
+        # 按 provider_id 分组写入
         providers_seen = set()
         for m in models:
-            prov = m.get("provider", "custom")
-            if prov not in providers_seen:
-                self.upsert_provider(prov, m.get("base_url", ""), m.get("api_key", ""))
-                providers_seen.add(prov)
+            prov_id = m.get("provider", 0)
+            if not isinstance(prov_id, int):
+                prov_id = int(prov_id) if prov_id else 0
+            if not prov_id:
+                continue
+
+            if prov_id not in providers_seen:
+                # 通过 id 查找 provider 的 base_url
+                provs = self.get_all_providers()
+                prov = next((p for p in provs if p["id"] == prov_id), None)
+                if prov:
+                    self.upsert_provider(
+                        prov["base_url"],
+                        m.get("api_key", ""),
+                        m.get("provider_name", "") or m.get("provider", ""),
+                        m.get("provider_alias", ""),
+                    )
+                providers_seen.add(prov_id)
 
             mid = m.get("id") or m.get("name", "")
-            name = m.get("name") or m.get("id", "")
-            is_default = 1 if name == default_model else 0
-
-            # De-mask api_key
-            api_key = m.get("api_key", "")
-            if not api_key or api_key.startswith("*"):
-                real = old_real_keys.get(mid)
-                if real:
-                    api_key = real
+            is_default = 1 if m.get("is_default") else 0
 
             self.upsert_model(
-                provider_id=prov,
-                model_id=mid,
-                name=name,
-                alias=m.get("alias", ""),
-                base_url=m.get("base_url", ""),
-                api_key=api_key,
-                context_window=m.get("context_window", 8192),
+                provider_id=prov_id,
+                model=mid,
+                model_alias=m.get("alias", ""),
                 capabilities=m.get("capabilities", []),
                 is_default=is_default,
                 ttft=m.get("ttft"),
@@ -446,9 +366,6 @@ class ModelsDB:
                 context_window_tested=m.get("context_window_tested"),
                 json_mode=m.get("json_mode"),
             )
-
-        self.set_global_setting("default_model", default_model)
-        self.set_global_setting("default_provider", default_provider)
 
     # ===== 内部转换 =====
 

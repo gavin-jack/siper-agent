@@ -515,7 +515,7 @@ class AIAgent:
                     'model': llm_response.get('model', ''),
                     'finish_reason': llm_response.get('finish_reason', ''),
                     'tool_calls_executed': len(tool_results),
-                    'tool_call_steps': tool_results,
+                    'tool_call_steps': self._truncate_tool_steps(tool_results),
                     'skills_active': skills_active,
                     'skills_used': used_skills,
                     'skills_recommended': [s for s in (skills_active or []) if s not in (used_skills or [])],
@@ -555,7 +555,7 @@ class AIAgent:
                 'response': response_content,
                 'session_id': session_id,
                 'tool_calls_executed': len(tool_results),
-                'tool_call_steps': tool_results,
+                'tool_call_steps': self._truncate_tool_steps(tool_results),
                 'processing_time_ms': processing_time * 1000,
                 'skills_active': skills_active,
                 'skills_used': used_skills,  # LLM actually invoked skill_view
@@ -1587,6 +1587,26 @@ Always aim to be helpful, honest, and harmless in your responses.
             'success': success,
             'elapsed_ms': round(elapsed_ms, 1),
         }
+
+    @staticmethod
+    def _truncate_tool_steps(tool_results: list, max_result_len: int = 200, max_param_len: int = 100) -> list:
+        """Return a shallow copy of tool_results with result/parameters truncated for DB storage."""
+        truncated = []
+        for step in tool_results:
+            t = dict(step)
+            result = t.get('result')
+            if isinstance(result, str) and len(result) > max_result_len:
+                t['result'] = result[:max_result_len] + '... (truncated, {} chars)'.format(len(result))
+            params = t.get('parameters')
+            if isinstance(params, dict):
+                t['parameters'] = {
+                    k: (v[:max_param_len] + '... (truncated, {} chars)'.format(len(v)))
+                    if isinstance(v, str) and len(v) > max_param_len
+                    else v
+                    for k, v in params.items()
+                }
+            truncated.append(t)
+        return truncated
 
     def _generate_final_response_from_tool_calls(self, tool_calls: List[Dict]) -> str:
         """Generate a text response describing the tool calls that would have been made.

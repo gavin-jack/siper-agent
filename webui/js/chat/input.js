@@ -207,6 +207,17 @@ export async function loadChatModels() {
     renderChatModelDropdown(models, noModels);
     updateCtxInfoDisplay();
     updateChatHeader();
+    // 无模型时，点击按钮直接跳转而非展开下拉
+    const btn = document.getElementById('chatModelBtn');
+    if (btn) {
+      if (noModels) {
+        btn.onclick = () => { if (typeof window.chatSwitchPage === 'function') window.chatSwitchPage('agent-config'); };
+      } else if (!models.length) {
+        btn.onclick = () => { if (typeof window.chatSwitchPage === 'function') window.chatSwitchPage('model-settings'); };
+      } else {
+        btn.onclick = toggleChatModelDropdown;
+      }
+    }
   } catch(e) {
     console.error('chatLoadModels error:', e);
     toast.error(t ? t('chat.loadModelsFailed') : '模型加载失败');
@@ -219,10 +230,26 @@ export function renderChatModelDropdown(models, showNoModels) {
   if (!menu) return;
   menu.innerHTML = '';
   if (showNoModels || !models.length) {
-    if (btnName) btnName.textContent = '无可用模型';
-    const item = document.createElement('div');
-    item.className = 'siper-model-item siper-model-item-disabled';
-    item.textContent = '无可用模型，请在 Agent 配置中设置';
+  if (btnName) btnName.textContent = '未设置可选模型';
+  const item = document.createElement('div');
+  item.className = 'siper-model-item siper-model-item-disabled';
+  if (showNoModels) {
+    // agent 未配置可用模型
+    item.textContent = '未设置可选模型，点击前往配置';
+      item.style.cursor = 'pointer';
+      item.addEventListener('click', () => {
+        closeChatModelDropdown();
+        if (typeof chatSwitchPage === 'function') chatSwitchPage('agent-config');
+      });
+    } else {
+      // DB 为空，无模型可添加
+      item.textContent = '暂无可选模型，点击前往模型管理';
+      item.style.cursor = 'pointer';
+      item.addEventListener('click', () => {
+        closeChatModelDropdown();
+        if (typeof chatSwitchPage === 'function') chatSwitchPage('model-settings');
+      });
+    }
     menu.appendChild(item);
     return;
   }
@@ -234,7 +261,7 @@ export function renderChatModelDropdown(models, showNoModels) {
     const item = document.createElement('div');
     item.className = 'siper-model-item';
     if (m.name === chatCurrentModel) item.classList.add('active');
-    item.innerHTML = `<span class="siper-model-item-name">${chatEscapeHtml(m.alias || m.name)}</span><span class="siper-model-item-provider">${chatEscapeHtml(m.provider || '')}</span>${_renderCapBadges(m.capabilities)}`;
+    item.innerHTML = `<span class="siper-model-item-name">${chatEscapeHtml(m.alias || m.name)}</span><span class="siper-model-item-provider">${chatEscapeHtml(m.provider_name || m.provider || '')}</span>${_renderCapBadges(m.capabilities)}`;
     item.addEventListener('click', () => {
       setChatCurrentModel(m.name);
       setChatModelContextWindow(m.context_window || 8192);

@@ -491,11 +491,4 @@ class LLMClient:
         # All retries exhausted — but we already yielded what we could
         self.logger.error(f"流式请求重试 2 次后仍失败：{last_error}")
 
-    def simple_complete(self, prompt: str, system: str = "") -> str:
-        """Simple single-prompt completion. Returns just the text."""
-        messages = []
-        if system:
-            messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
-        result = self.chat_completion(messages)
-        return result.get("content", "")
+

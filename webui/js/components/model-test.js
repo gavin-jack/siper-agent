@@ -5,14 +5,14 @@ import { CAP_LABELS, CAP_ICONS } from '../utils/capabilities.js';
 import { toast } from './toast.js';
 
 // ===== Core: call backend test API =====
-export async function testModel(baseUrl, apiKey, modelName) {
+export async function testModel(baseUrl, apiKey, modelName, providerId) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 90000);
   try {
     const r = await fetch('/api/models/test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ base_url: baseUrl, api_key: apiKey, model: modelName }),
+      body: JSON.stringify({ base_url: baseUrl, api_key: apiKey, model: modelName, provider_id: providerId || 0 }),
       signal: controller.signal,
     });
     clearTimeout(timer);
@@ -46,7 +46,7 @@ export async function verifyGlobalModel(idx, settingsModelsCache, allGlobalModel
   m._verified = 'pending';
   if (typeof renderSettingsModelsList === 'function') renderSettingsModelsList();
 
-  const d = await testModel(m.base_url, m.api_key, m.name);
+  const d = await testModel(m.base_url, m.api_key, m.name, m.provider);
 
   if (d.success) {
     const caps = d.capabilities || [];
@@ -127,7 +127,7 @@ export async function verifyChatModel(idx, _toast) {
       card.style.borderColor = 'var(--color-warning)';
     }
 
-    const d = await testModel(m.base_url, m.api_key, modelName);
+    const d = await testModel(m.base_url, m.api_key, modelName, m.provider);
 
     if (d.success) {
       const caps = d.capabilities || [];

@@ -88,6 +88,7 @@ export async function loadAgentSettings() {
   if (currentConfigAgent && agentConfigData && agentConfigData.agents) {
     const agent = agentConfigData.agents.find(a => a.name === currentConfigAgent);
     if (agent) {
+      await loadGlobalModelsForAgent();
       renderAgentModelsForAgent(agent);
     }
   }

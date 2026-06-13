@@ -898,6 +898,10 @@ async def main():
                 resp = api_discover_models(body)
             elif path == "/api/providers/rename" and method == "POST":
                 resp = api_rename_provider(body)
+            elif path == "/api/providers/update_name" and method == "POST":
+                resp = api_update_provider_name(body)
+            elif path == "/api/models/reset" and method == "POST":
+                resp = api_reset_models()
             elif path == "/api/models/test" and method == "POST":
                 resp = await api_test_model(body)
             elif method == "DELETE" and path.startswith("/api/models/"):
@@ -1566,7 +1570,10 @@ async def main():
         llm_client = agent.llm_client
         # Get models from global models.db
         _all_models = _models_db.get_models_flat()["models"]
-        _gm_default = _models_db.get_global_setting("default_model")
+        _gm_default = ""
+        _default_model = _models_db.get_default_model()
+        if _default_model:
+            _gm_default = _default_model.get("model", "")
         # Determine effective default model
         _effective_default = agent.config.default_chat_model or _gm_default or (llm_client.model if llm_client else "")
         return {
@@ -1692,7 +1699,7 @@ async def main():
                 agent.config.default_tts_model = body["default_tts_model"]
             if "models" in body:
                 # Save models to models.db (NOT config.json)
-                _models_db.save_models_flat({"models": body["models"], "default_model": body.get("default_model", "")})
+                _models_db.save_models_flat({"models": body["models"]})
             if "default_model" in body:
                 agent.config.default_chat_model = body["default_model"]
             # Persist non-model settings to config.json (models go to models.db)
@@ -2406,25 +2413,26 @@ async def main():
         return {"success": True, "version": 2}
 
     def api_delete_model(path, req_headers):
-        # DELETE /api/models/{model_id}?provider=xxx
+        # DELETE /api/models/{model}?provider=xxx
         from urllib.parse import urlparse, parse_qs, unquote
         parsed = urlparse(path)
-        model_id = unquote(parsed.path[len("/api/models/"):])
+        model = unquote(parsed.path[len("/api/models/"):])
         params = parse_qs(parsed.query)
-        provider = unquote(params.get("provider", [None])[0] or "")
-        if not model_id:
-            return {"success": False, "error": "model_id 不能为空"}
+        provider_str = unquote(params.get("provider", [None])[0] or "")
+        if not model:
+            return {"success": False, "error": "model 不能为空"}
         try:
             # Find provider if not given
-            if not provider:
+            if not provider_str:
                 rows = _models_db.get_all_models()
                 for row in rows:
-                    if row["model_id"] == model_id:
-                        provider = row["provider_id"]
+                    if row["model"] == model:
+                        provider_str = str(row["provider_id"])
                         break
-            if not provider:
+            if not provider_str:
                 return {"success": False, "error": "模型不存在"}
-            ok = _models_db.delete_model(model_id, provider)
+            provider_id = int(provider_str)
+            ok = _models_db.delete_model(model, provider_id)
             if ok:
                 # Sync to agent configs
                 try:
@@ -2437,10 +2445,32 @@ async def main():
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def api_reset_models():
+        """删除 models.db 并重建，清空内存缓存，同步清理 agent 配置"""
+        import os as _os
+        db_path = str(PROJECT_ROOT / "models.db")
+        # 1. 删除数据库文件
+        if _os.path.exists(db_path):
+            _os.remove(db_path)
+            logger.info(f"已删除 {db_path}")
+        # 2. 重建空数据库（ModelsDB.__init__ 自动建表）
+        nonlocal _models_db
+        from ai_agent.models_db import ModelsDB as _ModelsDB
+        _models_db = _ModelsDB(db_path)
+        # 3. 清空内存变量
+        nonlocal _gm_models, _gm_default, _cfg_key_default
+        _gm_models = []
+        _gm_default = ""
+        _cfg_key_default = ""
+        # 4. 同步清理 agent config.json
+        _sync_models_to_agent_configs({"version": 3, "models": []})
+        logger.info("模型数据库已重置，agent 配置已清理")
+        return {"success": True}
+
     def api_get_global_models():
         # 从 SQLite 返回，保留 _mask_key 逻辑
         flat = _models_db.get_models_flat()
-        for m in flat["models"]:
+        for m in flat.get("models", []):
             m["api_key"] = _mask_key(m.get("api_key", ""))
         return flat
 
@@ -2457,6 +2487,20 @@ async def main():
                 return {"success": True, "changed": True}
             else:
                 return {"success": False, "error": "Provider 不存在或新名称已存在"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def api_update_provider_name(body):
+        base_url = (body.get("base_url") or "").strip()
+        provider = (body.get("provider") or "").strip()
+        provider_alias = (body.get("provider_alias") or "").strip()
+        if not base_url:
+            return {"success": False, "error": "base_url 不能为空"}
+        try:
+            ok = _models_db.update_provider_name(base_url, provider, provider_alias)
+            if ok:
+                return {"success": True}
+            return {"success": False, "error": "Provider 不存在"}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -2490,11 +2534,11 @@ async def main():
                 return name
         return "custom"
 
-    def _estimate_context_window(model_id):
+    def _estimate_context_window(model):
         """Estimate context window (tokens) from model name."""
-        if not model_id:
+        if not model:
             return 8192
-        mid = model_id.lower()
+        mid = model.lower()
         # GPT-4o / GPT-4 Turbo
         if "gpt-4o" in mid:
             return 128000
@@ -2669,6 +2713,7 @@ async def main():
                     "name": mid,
                     "alias": "",
                     "provider": provider,
+                    "provider_alias": "",
                     "base_url": base_url,
                     "api_key": api_key,
                     "context_window": ctx_window,
@@ -2699,18 +2744,19 @@ async def main():
         base_url = (body.get("base_url") or "").rstrip("/")
         api_key = body.get("api_key", "")
         model = body.get("model", "")
+        provider_id = body.get("provider_id", 0)
         if not base_url or not model:
-            return {"success": False, "error": "Base URL 和模型名称不能为空"}
+            return {"success": False, "error": "base_url 和 model 不能为空"}
         # If api_key is masked (from frontend /api/models/global), look up real key from models.db
         if api_key.startswith("*") or not api_key:
             try:
-                _db_model = _models_db.get_model(model)
+                _db_model = _models_db.get_model(model, int(provider_id) if provider_id else 0)
                 if _db_model:
-                    _new_key = _db_model.get("api_key", "")
+                    _new_key = _db_model.get("prov_api_key", "") or ""
                     if _new_key and not _new_key.startswith("*"):
                         api_key = _new_key
                     if not base_url:
-                        base_url = _db_model.get("base_url", "")
+                        base_url = _db_model.get("prov_base_url", "") or ""
             except Exception:
                 pass
         if not api_key or api_key.startswith("*"):

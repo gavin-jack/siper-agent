@@ -296,7 +296,7 @@ function renderModelSettingsPageChat(container) {
     <div id="settingsModelsList"></div>
   </div>
   <div class="siper-form-card" style="width:380px;flex-shrink:0;display:flex;flex-direction:column;">
-    <div class="siper-form-title">🔍 自动发现模型</div>
+    <div class="siper-form-title">🔍 发现模型</div>
     <div style="display:flex;gap:6px;align-items:end;margin-bottom:6px;">
       <div style="flex:1;">
         <div class="text-dim" style="font-size:11px;margin-bottom:2px;height:16px;line-height:16px;">Provider</div>

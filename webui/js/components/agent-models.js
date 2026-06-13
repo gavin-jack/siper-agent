@@ -93,10 +93,9 @@ export function renderAgentModelsForAgent(agentData, loadChatAgents, loadChatMod
     defChat: agentData ? (agentData.default_chat_model || '') : '',
     defVision: agentData ? (agentData.default_vision_model || '') : '',
   };
-  if (modelsLoaded && globalModelsList.length > 0) {
+  if (modelsLoaded) {
     renderAgentModelSection(globalModelsList, agentAvailNames);
-  } else if (!modelsLoaded) {
-    // 避免重复 fetch：只有未加载时才请求
+  } else {
     loadGlobalModelsForAgent().then(() => {
       renderAgentModelSection(globalModelsList, agentAvailNames);
     });

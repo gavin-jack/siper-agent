@@ -96,6 +96,7 @@ export function _syncStreamToCurrent() {
   s.thinking = _isThinking || false;
 }
 
+// ===== Setters (去重：保留语义更清晰的命名) =====
 export function setCurrentPage(page) { chatCurrentPage = page; }
 export function setCurrentModel(model) { chatCurrentModel = model; }
 export function setChatCurrentModel(model) { chatCurrentModel = model; }
@@ -104,11 +105,8 @@ export function setChatModelContextWindow(ctx) { chatModelContextWindow = ctx; }
 export function setChatAgents(agents) { chatAgents = agents; }
 export function setChatExpandedAgents(expanded) { chatExpandedAgents = expanded; }
 export function setChatSessionId(sid) { chatSessionId = sid; }
-export function setCurrentAgent(agent) { chatCurrentAgent = agent; }
 export function setChatCurrentAgent(agent) { chatCurrentAgent = agent; }
-export function setPendingFiles(files) { chatPendingFiles = files; }
 export function setChatPendingFiles(files) { chatPendingFiles = files; }
-export function setSending(val) { isSending = val; }
 export function setIsSending(val) { isSending = val; }
 export function getIsSending() { return isSending; }
 export function setChatAgentData(data) { _chatAgentData = data; }
@@ -121,6 +119,7 @@ export function setCtxMenu(menu) { _ctxMenu = menu; }
 export function setChatStreamAcc(acc) { _chatStreamAcc = acc; }
 export function setChatStreamRow(row) { _chatStreamRow = row; }
 export function setChatStreamBubble(bubble) { _chatStreamBubble = bubble; }
+
 // Per-session streaming state — 独立于选中状态，跨会话/跨 agent 保持
 export const _streamingSessions = new Set();
 

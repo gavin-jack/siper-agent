@@ -30,7 +30,8 @@ export async function loadSettingsModels() {
       json_mode: m.json_mode ?? m._json_mode ?? null,
     }));
     window.settingsModelsCache = settingsModelsCache;
-    const def = d.default_model || '';
+    const _defaultModel = settingsModelsCache.find(m => m.is_default);
+    const def = _defaultModel ? _defaultModel.name : '';
     settingsModelsCache.forEach(m => { m._isDefault = (m.name === def); });
     renderSettingsModelsList();
     // Update title with model count
@@ -38,7 +39,11 @@ export async function loadSettingsModels() {
     if (_titleEl && _titleEl.textContent.includes('可用模型')) {
       _titleEl.textContent = `可用模型（${settingsModelsCache.length}）`;
     }
-    if (toast) toast.success('已刷新 ' + settingsModelsCache.length + ' 个模型', 1500);
+    if (settingsModelsCache.length === 0) {
+      if (toast) toast.warning('模型数据库为空，请先添加模型配置', 3000);
+    } else {
+      if (toast) toast.success('已刷新 ' + settingsModelsCache.length + ' 个模型', 2000);
+    }
   } catch(e) {
     console.error('loadSettingsModels error:', e);
     const list = document.getElementById('settingsModelsList');
@@ -73,7 +78,7 @@ export function renderSettingsModelsList() {
     const groups = new Map();
     settingsModelsCache.forEach((m, i) => {
       const key = m.base_url || '';
-      if (!groups.has(key)) groups.set(key, { base_url: key, models: [], provider: m.provider || '' });
+      if (!groups.has(key)) groups.set(key, { base_url: key, models: [], provider: m.provider || '', provider_name: m.provider_name || '' });
       groups.get(key).models.push({ ...m, _idx: i });
     });
 
@@ -87,7 +92,7 @@ export function renderSettingsModelsList() {
     });
 
     sortedGroups.forEach(group => {
-      const providerLabel = group.provider || group.base_url;
+      const providerLabel = group.provider_name || group.base_url;
       html += `<div class="model-group-header" data-base-url="${escapeHtml(group.base_url)}" style="display:flex;align-items:center;gap:6px;margin-top:10px;margin-bottom:4px;padding:4px 0;border-bottom:1px solid var(--color-border);">`;
       html += `<span class="model-group-label" style="font-size:12px;font-weight:600;color:var(--color-text);cursor:pointer;" onclick="window.editProviderName('${escapeHtml(group.base_url)}')" title="点击编辑 Provider 名称">${escapeHtml(providerLabel)}</span>`;
       html += `<span class="model-group-count" style="font-size:11px;color:var(--color-text-dim);">(${group.models.length})</span>`;
@@ -189,27 +194,23 @@ function buildCardHtml(m, i) {
 /** Edit provider name for a base_url group */
 export async function editProviderName(baseUrl) {
   const current = settingsModelsCache.find(m => m.base_url === baseUrl);
-  const currentName = current ? (current.provider || baseUrl) : baseUrl;
+  const currentName = current ? (current.provider_name || current.provider || baseUrl) : baseUrl;
   const newName = prompt('请输入 Provider 名称（留空使用 Base URL）:', currentName);
   if (newName === null) return; // cancelled
   const trimmed = newName.trim();
-  const oldId = currentName;
-  const newId = trimmed || baseUrl;
-
-  if (oldId === newId) return; // no change
 
   try {
-    const r = await fetch('/api/providers/rename', {
+    const r = await fetch('/api/providers/update_name', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ old_id: oldId, new_id: newId }),
+      body: JSON.stringify({ base_url: baseUrl, provider: trimmed }),
     });
     const d = await r.json();
     if (d.success) {
       // Update frontend cache
       settingsModelsCache.forEach(m => {
         if (m.base_url === baseUrl) {
-          m.provider = trimmed || '';
+          m.provider_name = trimmed || '';
         }
       });
       renderSettingsModelsList();
@@ -380,6 +381,7 @@ export async function doAddDiscoveredModel(idx) {
     name: m.name,
     alias: m.alias || '',
     provider: m.provider,
+    provider_name: m.provider_name || '',
     base_url: m.base_url,
     api_key: m.api_key,
     context_window: m.context_window,
@@ -401,6 +403,7 @@ export async function addAllDiscoveredModels() {
       name: m.name,
       alias: m.alias || '',
       provider: m.provider,
+      provider_name: m.provider_name || '',
       base_url: m.base_url,
       api_key: m.api_key,
       context_window: m.context_window,
@@ -427,6 +430,7 @@ async function saveModelsImmediate() {
       name: m.name,
       alias: m.alias || '',
       provider: m.provider,
+      provider_name: m.provider_name || '',
       base_url: m.base_url,
       api_key: m.api_key,
       context_window: m.context_window,
@@ -444,7 +448,6 @@ async function saveModelsImmediate() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         models: modelsToSave,
-        default_model: defaultModel ? defaultModel.name : '',
       }),
     });
     const d = await r.json();
@@ -505,17 +508,27 @@ export function applyProviderPreset() {
 export function resetSettingsModels() {
   showConfirm({
     title: t('settings.confirmReset') || '重置模型',
-    msg: '确定要清空所有已添加的模型吗？',
-    impact: '⚠ 所有已添加的模型配置、默认模型设置将丢失',
+    msg: '确定要清除所有模型配置吗？',
+    impact: '⚠ 将删除 models.db 数据库，清空所有已添加的模型、默认模型设置、Provider 配置，并清理所有 Agent 中的模型引用。此操作不可恢复！',
     danger: true,
-    okText: '确认清空',
-    onConfirm: () => {
-      settingsModelsCache = [];
-      discoveredModelsCache = [];
-      const ids = ['discoverBaseUrl','discoverApiKey','discoverResult','newModelName','newModelProvider','newModelBaseUrl','newModelApiKey','newModelCtx'];
-      ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = (id === 'newModelCtx' ? '8192' : ''); });
-      renderSettingsModelsList();
-      if (toast) toast.success(t('settings.resetDone'), 1500);
+    okText: '确认清除',
+    onConfirm: async () => {
+      try {
+        const r = await fetch('/api/models/reset', { method: 'POST' });
+        const d = await r.json();
+        if (d.success) {
+          settingsModelsCache = [];
+          discoveredModelsCache = [];
+          const ids = ['discoverBaseUrl','discoverApiKey','discoverResult','newModelName','newModelProvider','newModelBaseUrl','newModelApiKey','newModelCtx'];
+          ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = (id === 'newModelCtx' ? '8192' : ''); });
+          renderSettingsModelsList();
+          if (toast) toast.success('已清除所有模型配置', 2000);
+        } else {
+          if (toast) toast.error(d.error || '重置失败');
+        }
+      } catch(e) {
+        if (toast) toast.error('重置失败: ' + (e.message || e));
+      }
     }
   });
 }
@@ -821,7 +834,7 @@ export async function verifyAllModels() {
   async function verifyOne(m) {
     try {
       const { testModel } = await import('../components/model-test.js');
-      const d = await testModel(m.base_url, m.api_key, m.name);
+      const d = await testModel(m.base_url, m.api_key, m.name, m.provider);
       if (d.success) {
         const caps = d.capabilities || [];
         if (caps.length) {
@@ -920,7 +933,7 @@ async function _handleVerify(idx) {
   renderSettingsModelsList();
   try {
     const { testModel } = await import('../components/model-test.js');
-    const d = await testModel(m.base_url, m.api_key, m.name);
+    const d = await testModel(m.base_url, m.api_key, m.name, m.provider);
     if (d.success) {
       const caps = d.capabilities || [];
       if (caps.length) {
