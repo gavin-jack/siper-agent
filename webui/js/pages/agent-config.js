@@ -221,11 +221,10 @@ export async function refreshConfigAgentPanel() {
 export function handleEmptyModels() {
   const tabModels = document.getElementById('tab-models');
   if (!tabModels) return;
+  // 空模型时隐藏整个 config-section 内容，只显示"添加模型"按钮
+  const section = tabModels.querySelector('.config-section');
   if (globalModelsList.length === 0) {
-    tabModels.querySelectorAll('select').forEach(s => s.style.display = 'none');
-    tabModels.querySelectorAll('button').forEach(b => b.style.display = 'none');
-    const list = document.getElementById('agentModelListSection');
-    if (list) list.style.display = 'none';
+    if (section) section.style.display = 'none';
     let addBtn = document.getElementById('agentAddModelBtn');
     if (!addBtn) {
       addBtn = document.createElement('button');
@@ -238,10 +237,7 @@ export function handleEmptyModels() {
       addBtn.style.display = '';
     }
   } else {
-    tabModels.querySelectorAll('select').forEach(s => s.style.display = '');
-    tabModels.querySelectorAll('button').forEach(b => b.style.display = '');
-    const list = document.getElementById('agentModelListSection');
-    if (list) list.style.display = '';
+    if (section) section.style.display = '';
     const addBtn = document.getElementById('agentAddModelBtn');
     if (addBtn) addBtn.style.display = 'none';
   }
