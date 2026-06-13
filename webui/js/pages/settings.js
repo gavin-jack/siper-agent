@@ -155,11 +155,11 @@ export function switchSettingsTab(tab) {
   tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   const sys = document.getElementById('chatSystemSettings');
   const agents = document.getElementById('chatGlobalAgents');
-  if (sys) sys.style.display = (tab === 'system') ? '' : 'none';
+  if (sys) sys.classList.toggle('js-hidden', tab !== 'system');
   if (tab === 'system' && typeof refreshGlobalSettings === 'function') {
     refreshGlobalSettings();
   }
-  if (agents) agents.style.display = (tab === 'agents') ? '' : 'none';
+  if (agents) agents.classList.toggle('js-hidden', tab !== 'agents');
   if (tab === 'agents' && typeof renderGlobalAgents === 'function') {
     renderGlobalAgents();
   }

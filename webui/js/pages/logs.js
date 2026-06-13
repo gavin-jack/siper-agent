@@ -20,7 +20,7 @@ const logState = {
 };
 let logSearchDebounce = null;
 
-export async function refreshLogs() {
+export async function refreshLogs(silent) {
   try {
     const params = new URLSearchParams();
     if (logState.levels.length) params.set('levels', logState.levels.join(','));
@@ -64,7 +64,7 @@ export async function refreshLogs() {
       }).join('');
     }
 
-    toast.info(t('logs.refreshed'), 1500);
+    if (!silent) toast.info(t('logs.refreshed'), 1500);
 
     const start = logState.offset + 1;
     const end = Math.min(logState.offset + (d.logs || []).length, logState.total);

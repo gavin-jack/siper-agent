@@ -44,18 +44,18 @@ export function renderAgentModelSection(globalModels, agentAvailNames) {
   if (defaultContainer) {
     // Sidebar mode: replace inner HTML of the container
     defaultContainer.innerHTML = `
-    <div class="field-group">
-      <label class="field-label" for="agentDefaultChatModel">默认对话模型</label>
-      <select id="agentDefaultChatModel" onchange="autoSaveAgentModels()" class="field-select">
-        <option value="">— 使用全局默认 —</option>${modelOptions}
-      </select>
-    </div>
-    <div class="field-group">
-      <label class="field-label" for="agentDefaultVisionModel">默认视觉模型</label>
-      <select id="agentDefaultVisionModel" onchange="autoSaveAgentModels()" class="field-select">
-        <option value="">— 使用全局默认 —</option>${modelOptions}
-      </select>
-    </div>`;
+      <div class="field-group">
+        <label class="field-label" for="agentDefaultChatModel">默认对话模型</label>
+        <select id="agentDefaultChatModel" onchange="autoSaveAgentModels()" class="field-select">
+          <option value="">— 使用全局默认 —</option>${modelOptions}
+        </select>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="agentDefaultVisionModel">默认视觉模型</label>
+        <select id="agentDefaultVisionModel" onchange="autoSaveAgentModels()" class="field-select">
+          <option value="">— 使用全局默认 —</option>${modelOptions}
+        </select>
+      </div>`;
   } else {
     // Agent config page mode: fill existing select elements
     const chatSel = document.getElementById('agentDefaultChatModel');

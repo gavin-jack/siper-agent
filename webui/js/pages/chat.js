@@ -29,11 +29,12 @@ import { closeChatModelDropdown, updateChatHeader } from '../chat/input.js';
 // ===== Page Config =====
 const CHAT_PAGES = {
   chat:    { title: '对话', icon: '💬' },
-  skills:    { title: '技能管理', icon: '🧩' },
-  token:     { title: 'Token 用量', icon: '📊' },
-  'global-settings': { title: '全局设置', icon: '⚙️' },
+  tasks:    { title: '任务', icon: '📋' },
   'model-settings': { title: '模型管理', icon: '🤖' },
-  logs:      { title: '系统日志', icon: '📜' },
+  tools:    { title: '工具', icon: '🔧' },
+  skills:    { title: '技能管理', icon: '🧩' },
+  monitor:  { title: '监控', icon: '📊' },
+  'global-settings': { title: '全局设置', icon: '⚙️' },
 };
 
 // ===== Init =====
@@ -82,11 +83,13 @@ export function chatSwitchPage(page, fromNavigate) {
 
   switch (page) {
     case 'chat':    renderChatPage(content); break;
+    case 'tasks':    renderTasksPageChat(content); break;
     case 'skills':    renderSkillsPageChat(content); break;
     case 'token':     renderTokenPageChat(content); break;
     case 'global-settings': renderSettingsPageChat(content); break;
     case 'model-settings': renderModelSettingsPageChat(content); break;
     case 'logs':      renderLogsPageChat(content); break;
+    case 'monitor':  renderMonitorPageChat(content); break;
   }
 }
 
@@ -159,6 +162,110 @@ export function renderChatPage(container, skipSidebar) {
 // ===== Page Lifecycle =====
 export function onChatPageEnter() { chatSwitchPage('chat', true); }
 
+// ===== New Page Renderers =====
+
+function renderTasksPageChat(container) {
+  container.className = 'siper-content siper-full-content';
+  container.innerHTML = `<div class="page-header"><h2>📋 任务管理</h2></div><div class="page-body"><div class="empty-state">任务管理功能开发中...</div></div></div>`;
+}
+
+function switchMonitorTab(tab) {
+  const tabs = document.querySelectorAll('#monitorTabs .siper-settings-tab');
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  ['token','logs','performance','directory'].forEach(t => {
+    const el = document.getElementById('monitorTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (el) el.classList.toggle('js-hidden', t !== tab);
+  });
+  if (tab === 'logs') {
+    const logsContainer = document.getElementById('monitorTabLogs');
+    if (logsContainer && !logsContainer.querySelector('#chatLogsList')) {
+      logsContainer.innerHTML = `<div class="siper-page-toolbar js-toolbar-logs">
+        <input type="text" id="chatLogSearchInput" placeholder="搜索..." class="siper-input" style="width:140px;" oninput="window.applyLogLogsDebounced()" aria-label="日志搜索">
+        <select id="chatLogLogLevel" class="siper-input js-w-auto" onchange="window.applyChatLogLevelFilter()" aria-label="日志级别"><option value="">全部级别</option><option value="DEBUG">DEBUG</option><option value="INFO">INFO</option><option value="WARN">WARN</option><option value="ERROR">ERROR</option></select>
+        <select id="logSourceFilter" class="siper-input js-w-auto" onchange="window.applyLogFilters()" aria-label="日志来源"><option value="">全部来源</option></select>
+        <span id="chatLogStats" class="text-dim js-text-xs"></span>
+      </div>
+      <div id="logLevelFilters" class="js-mb-6"></div>
+      <div id="chatLogsList" class="js-code-block"></div>
+      <div id="chatLogPagination"></div>`;
+    }
+    if (typeof window.refreshLogs === 'function') window.refreshLogs(true);
+  }
+  if (tab === 'performance') renderMonitorPerformance();
+  if (tab === 'directory') renderMonitorDirectory();
+}
+
+function renderMonitorPerformance() {
+  const container = document.getElementById('monitorTabPerformance');
+  if (!container) return;
+  container.innerHTML = `<div class="page-header"><h3>系统性能</h3></div><div class="page-body"><div class="siper-settings-section"><div class="siper-settings-section-title">系统信息</div><div class="siper-settings-row"><label>端口</label><span id="perfPort">9724</span></div><div class="siper-settings-row"><label>运行时间</label><span id="perfUptime">加载中...</span></div><div class="siper-settings-row"><label>内存使用</label><span id="perfMemory">加载中...</span></div><div class="siper-settings-row"><label>CPU 使用</label><span id="perfCpu">加载中...</span></div></div><div class="siper-settings-section"><div class="siper-settings-section-title">资源使用</div><div class="siper-settings-row"><label>models.db</label><span id="perfModelsDb">加载中...</span></div><div class="siper-settings-row"><label>sessions.db</label><span id="perfSessionsDb">加载中...</span></div><div class="siper-settings-row"><label>token.db</label><span id="perfTokenDb">加载中...</span></div></div><div class="siper-settings-section"><div class="siper-settings-section-title">大文件</div><div id="perfLargeFiles" class="js-scroll-list"></div></div></div>`;
+  // 加载性能数据
+  fetch('/api/status').then(r => r.json()).then(data => {
+    if (data.port) document.getElementById('perfPort').textContent = data.port;
+    if (data.uptime) document.getElementById('perfUptime').textContent = data.uptime;
+    if (data.memory) document.getElementById('perfMemory').textContent = data.memory;
+    if (data.cpu) document.getElementById('perfCpu').textContent = data.cpu;
+  }).catch(() => {});
+  // 加载数据库大小
+  fetch('/api/config').then(r => r.json()).then(data => {
+    // 从后端获取文件信息
+  }).catch(() => {});
+}
+
+function renderMonitorDirectory() {
+  const container = document.getElementById('monitorTabDirectory');
+  if (!container) return;
+  container.innerHTML = `<div class="page-header"><h3>项目目录</h3></div><div class="page-body"><div id="dirTree" class="js-code-block"></div></div>`;
+  const dirTree = document.getElementById('dirTree');
+  if (dirTree) {
+    dirTree.textContent = '项目目录结构（后端 API 待开发）\n\nsiper/\n├── ai_agent/\n│   ├── core/\n│   ├── tools/\n│   ├── skills/\n│   ├── sessions/\n│   └── utils/\n├── webui/\n│   ├── js/\n│   ├── css/\n│   └── static/\n├── agents/\n├── skills/\n├── models.db\n├── siper_web.py\n└── setup.py';
+  }
+}
+
+function renderMonitorPageChat(container) {
+  container.className = 'siper-content siper-full-content';
+  container.innerHTML = `
+<div class="siper-page-toolbar js-toolbar-flex-wrap">
+  <div class="siper-settings-tabs" id="monitorTabs">
+    <button class="siper-settings-tab active" data-tab="token" onclick="window.switchMonitorTab('token')">Token用量</button>
+    <button class="siper-settings-tab" data-tab="logs" onclick="window.switchMonitorTab('logs')">日志</button>
+    <button class="siper-settings-tab" data-tab="performance" onclick="window.switchMonitorTab('performance')">性能</button>
+    <button class="siper-settings-tab" data-tab="directory" onclick="window.switchMonitorTab('directory')">目录</button>
+  </div>
+  <div class="js-flex-shrink-0">
+    <button class="siper-btn" onclick="window.refreshMonitorTab()">刷新</button>
+  </div>
+</div>
+<div id="monitorContent">
+  <div id="monitorTabToken"></div>
+  <div id="monitorTabLogs" class="js-hidden"></div>
+  <div id="monitorTabPerformance" class="js-hidden"></div>
+  <div id="monitorTabDirectory" class="js-hidden"></div>
+</div>`;
+  // 默认显示 token tab
+  const tokenEl = document.getElementById('monitorTabToken');
+  if (tokenEl) tokenEl.classList.remove('js-hidden');
+  // 加载 token 数据（独立渲染，不依赖旧 token 页面）
+  renderMonitorTokenTab();
+}
+
+function renderMonitorTokenTab() {
+  const container = document.getElementById('monitorTabToken');
+  if (!container) return;
+  container.innerHTML = `<div id="monitorTokenStats" class="js-mb-12"></div>`;
+  fetch('/api/token').then(r => r.json()).then(data => {
+    const stats = document.getElementById('monitorTokenStats');
+    if (stats && data) {
+      stats.innerHTML = `<div class="siper-token-charts-row">
+        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">总请求数</div><div style="font-size:24px;font-weight:700;color:var(--color-primary)">${data.total_requests || 0}</div></div>
+        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">总 Token</div><div style="font-size:24px;font-weight:700;color:var(--color-primary)">${data.total_tokens || 0}</div></div>
+        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">Prompt Token</div><div style="font-size:24px;font-weight:700;color:var(--color-success)">${data.total_prompt_tokens || 0}</div></div>
+        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">Completion Token</div><div style="font-size:24px;font-weight:700;color:var(--color-warning)">${data.total_completion_tokens || 0}</div></div>
+      </div>`;
+    }
+  }).catch(() => {});
+}
+
 // ===== Sub-page renderers (delegated to ESM pages) =====
 // These are kept here for backward compat with HTML onclick handlers
 // The actual logic is in the ESM page modules
@@ -210,7 +317,7 @@ function renderSettingsPageChat(container) {
   })();
   // Show system tab content by default
   const sysEl = document.getElementById('chatSystemSettings');
-  if (sysEl) sysEl.style.display = '';
+  if (sysEl) sysEl.classList.remove('js-hidden');
   if (typeof window.refreshGlobalSettings === 'function') window.refreshGlobalSettings();
   _populateSettingsFields();
   // Pre-render agents tab
@@ -524,4 +631,15 @@ window.insertChatMsg = insertChatMsg;
 
 // Stop handler
 window.chatHandleStopped = Stream.chatHandleStopped;
+
+// Monitor / Tasks page
+window.switchMonitorTab = switchMonitorTab;
+window.refreshMonitorTab = function() {
+  const active = document.querySelector('#monitorTabs .siper-settings-tab.active');
+  if (active) switchMonitorTab(active.dataset.tab);
+};
+window.renderMonitorPerformance = renderMonitorPerformance;
+window.renderMonitorDirectory = renderMonitorDirectory;
+window.renderTasksPageChat = renderTasksPageChat;
+window.renderMonitorPageChat = renderMonitorPageChat;
 

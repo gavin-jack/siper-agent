@@ -90,6 +90,30 @@ export async function loadAgentSettings() {
     if (agent) {
       await loadGlobalModelsForAgent();
       renderAgentModelsForAgent(agent);
+      // Handle empty models: hide model field-groups, show "add model" button
+      const modelsTab = document.getElementById('tab-models');
+      if (modelsTab) {
+        const modelFieldGroups = modelsTab.querySelectorAll('.config-section');
+        const addModelBtnId = 'agentAddModelBtn';
+        if (globalModelsList.length === 0) {
+          modelFieldGroups.forEach(el => el.style.display = 'none');
+          let addBtn = document.getElementById(addModelBtnId);
+          if (!addBtn) {
+            addBtn = document.createElement('button');
+            addBtn.id = addModelBtnId;
+            addBtn.className = 'siper-btn primary';
+            addBtn.textContent = '+ 添加模型';
+            addBtn.onclick = function() { if (typeof chatSwitchPage === 'function') chatSwitchPage('model-settings'); };
+            modelsTab.appendChild(addBtn);
+          } else {
+            addBtn.style.display = '';
+          }
+        } else {
+          modelFieldGroups.forEach(el => el.style.display = '');
+          const addBtn = document.getElementById(addModelBtnId);
+          if (addBtn) addBtn.style.display = 'none';
+        }
+      }
     }
   }
   // 内联绑定 agent 配置 auto-save（避免 DOMContentLoaded 时机问题）

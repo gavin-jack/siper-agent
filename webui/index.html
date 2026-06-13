@@ -28,14 +28,17 @@
         <div class="siper-nav-section">
           <div class="siper-nav-title" data-i18n="nav.agent">智能体</div>
           <div class="siper-nav-item active" data-page="chat" onclick="chatSwitchPage('chat')"><span>💬</span><span class="siper-nav-item-label" data-i18n="nav.chat">对话</span></div>
+          <div class="siper-nav-item" data-page="tasks" onclick="chatSwitchPage('tasks')"><span>📋</span><span class="siper-nav-item-label" data-i18n="nav.task">任务</span></div>
+        </div>
+        <div class="siper-nav-section">
+          <div class="siper-nav-title" data-i18n="nav.support">支持</div>
           <div class="siper-nav-item" data-page="model-settings" onclick="chatSwitchPage('model-settings')"><span>🤖</span><span class="siper-nav-item-label" data-i18n="nav.modelSettings">模型</span></div>
           <div class="siper-nav-item" data-page="tools" onclick="chatSwitchPage('tools')"><span>🔧</span><span class="siper-nav-item-label" data-i18n="nav.tools">工具</span></div>
           <div class="siper-nav-item" data-page="skills" onclick="chatSwitchPage('skills')"><span>🧩</span><span class="siper-nav-item-label" data-i18n="nav.skills">技能</span></div>
         </div>
         <div class="siper-nav-section">
-          <div class="siper-nav-title" data-i18n="nav.system">系统</div>
-          <div class="siper-nav-item" data-page="token" onclick="chatSwitchPage('token')"><span>📊</span><span class="siper-nav-item-label" data-i18n="nav.token">Token</span></div>
-          <div class="siper-nav-item" data-page="logs" onclick="chatSwitchPage('logs')"><span>📜</span><span class="siper-nav-item-label" data-i18n="nav.logs">日志</span></div>
+          <div class="siper-nav-title" data-i18n="nav.monitor">监控</div>
+          <div class="siper-nav-item" data-page="monitor" onclick="chatSwitchPage('monitor')"><span>📊</span><span class="siper-nav-item-label" data-i18n="nav.monitorPage">监控</span></div>
           <div class="siper-nav-item" data-page="global-settings" onclick="chatSwitchPage('global-settings')"><span>⚙️</span><span class="siper-nav-item-label" data-i18n="nav.globalSettings">全局</span></div>
         </div>
       </nav>
@@ -374,6 +377,14 @@
           <button id="discoverBtn" class="btn-sm primary" onclick="window.discoverModels()">获取</button>
         </div>
         <div id="discoverResult"></div>
+      </div>
+      <!-- Auxiliary Models -->
+      <div class="siper-form-card js-form-card">
+        <div class="siper-form-title">🔧 辅助模型</div>
+        <div class="js-mb-6">
+          <div class="text-dim js-label-sm">辅助模型用于特定任务（如代码生成、数据分析等），后端 API 待开发。</div>
+        </div>
+        <div id="auxiliaryModelsList"></div>
       </div>
       <!-- Add model form -->
       <div id="addModelForm" class="add-model-form">
