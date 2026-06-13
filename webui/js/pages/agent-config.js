@@ -90,29 +90,36 @@ export async function loadAgentSettings() {
     if (agent) {
       await loadGlobalModelsForAgent();
       renderAgentModelsForAgent(agent);
-      // Handle empty models: hide model field-groups, show "add model" button
-      const modelsTab = document.getElementById('tab-models');
-      if (modelsTab) {
-        const modelFieldGroups = modelsTab.querySelectorAll('.config-section');
-        const addModelBtnId = 'agentAddModelBtn';
-        if (globalModelsList.length === 0) {
-          modelFieldGroups.forEach(el => el.style.display = 'none');
-          let addBtn = document.getElementById(addModelBtnId);
-          if (!addBtn) {
-            addBtn = document.createElement('button');
-            addBtn.id = addModelBtnId;
-            addBtn.className = 'siper-btn primary';
-            addBtn.textContent = '+ 添加模型';
-            addBtn.onclick = function() { if (typeof chatSwitchPage === 'function') chatSwitchPage('model-settings'); };
-            modelsTab.appendChild(addBtn);
-          } else {
-            addBtn.style.display = '';
-          }
+      // Handle empty models: hide select/checkbox, show "add model" button
+      const tabModels = document.getElementById('tab-models');
+      if (tabModels && globalModelsList.length === 0) {
+        // Hide all config-section content (selects, buttons, list)
+        const selects = tabModels.querySelectorAll('select');
+        selects.forEach(s => s.style.display = 'none');
+        const btns = tabModels.querySelectorAll('button');
+        btns.forEach(b => b.style.display = 'none');
+        const list = document.getElementById('agentModelListSection');
+        if (list) list.style.display = 'none';
+        // Show "add model" button
+        let addBtn = document.getElementById('agentAddModelBtn');
+        if (!addBtn) {
+          addBtn = document.createElement('button');
+          addBtn.id = 'agentAddModelBtn';
+          addBtn.className = 'siper-btn primary';
+          addBtn.textContent = '+ 添加模型';
+          addBtn.onclick = function() { if (typeof chatSwitchPage === 'function') chatSwitchPage('model-settings'); };
+          tabModels.appendChild(addBtn);
         } else {
-          modelFieldGroups.forEach(el => el.style.display = '');
-          const addBtn = document.getElementById(addModelBtnId);
-          if (addBtn) addBtn.style.display = 'none';
+          addBtn.style.display = '';
         }
+      } else if (tabModels && globalModelsList.length > 0) {
+        // Restore visibility
+        tabModels.querySelectorAll('select').forEach(s => s.style.display = '');
+        tabModels.querySelectorAll('button').forEach(b => b.style.display = '');
+        const list = document.getElementById('agentModelListSection');
+        if (list) list.style.display = '';
+        const addBtn = document.getElementById('agentAddModelBtn');
+        if (addBtn) addBtn.style.display = 'none';
       }
     }
   }
@@ -343,9 +350,21 @@ export function switchConfigAgentPageTab(tab) {
   document.getElementById('agentTabAbout').className = 'agent-tab' + (tab === 'about' ? ' active' : '');
   document.getElementById('agentTabFiles').className = 'agent-tab' + (tab === 'files' ? ' active' : '');
   document.getElementById('agentTabMemory').className = 'agent-tab' + (tab === 'memory' ? ' active' : '');
+  const modelsTabBtn = document.querySelector('[data-tab="models"]');
+  const limitsTabBtn = document.querySelector('[data-tab="limits"]');
+  const avatarTabBtn = document.querySelector('[data-tab="avatar"]');
+  if (modelsTabBtn) modelsTabBtn.className = 'agent-tab' + (tab === 'models' ? ' active' : '');
+  if (limitsTabBtn) limitsTabBtn.className = 'agent-tab' + (tab === 'limits' ? ' active' : '');
+  if (avatarTabBtn) avatarTabBtn.className = 'agent-tab' + (tab === 'avatar' ? ' active' : '');
   document.getElementById('agentTabContentAbout').classList[tab !== 'about' ? 'add' : 'remove']('hidden');
   document.getElementById('agentTabContentFiles').classList[tab !== 'files' ? 'add' : 'remove']('hidden');
   document.getElementById('agentTabContentMemory').classList[tab !== 'memory' ? 'add' : 'remove']('hidden');
+  const tabModels = document.getElementById('tab-models');
+  if (tabModels) tabModels.classList[tab !== 'models' ? 'add' : 'remove']('hidden');
+  const tabLimits = document.getElementById('tab-limits');
+  if (tabLimits) tabLimits.classList[tab !== 'limits' ? 'add' : 'remove']('hidden');
+  const tabAvatar = document.getElementById('tab-avatar');
+  if (tabAvatar) tabAvatar.classList[tab !== 'avatar' ? 'add' : 'remove']('hidden');
   // Auto-load memory when switching to memory tab
   if (tab === 'memory' && currentConfigAgent) {
     loadAgentMemoryContent(currentConfigAgent);
