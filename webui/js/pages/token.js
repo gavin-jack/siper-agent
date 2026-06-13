@@ -63,6 +63,9 @@ function _echartsPalette() {
 }
 
 export async function refreshTokenStats() {
+  // Show loading state immediately
+  const stats = document.getElementById('chatTokenStats') || document.getElementById('TokenStats');
+  if (stats) stats.innerHTML = '<div class="js-empty-state-lg" style="padding:24px;text-align:center;">⏳ 加载 Token 数据中...</div>';
   try {
     const r = await fetch('/api/token');
     if (!r.ok) return;

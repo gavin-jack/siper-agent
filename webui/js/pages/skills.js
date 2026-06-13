@@ -4,6 +4,8 @@ import { toast } from '../components/toast.js';
 import { CAP_LABELS } from '../utils/capabilities.js';
 
 export async function refreshSkills() {
+  const list = document.getElementById('chatSkillsList') || document.getElementById('skillsList');
+  if (list) list.innerHTML = '<div class="js-empty-state-lg" style="padding:24px;text-align:center;">⏳ 加载技能数据中...</div>';
   try {
     const r = await fetch('/api/skills');
     const data = await r.json();

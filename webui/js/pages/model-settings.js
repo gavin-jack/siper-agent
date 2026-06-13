@@ -15,6 +15,9 @@ export let discoveredModelsCache = [];
 // ===== Models Management =====
 
 export async function loadSettingsModels() {
+  // Show loading state immediately
+  const list = document.getElementById('settingsModelsList');
+  if (list) list.innerHTML = '<div class="js-empty-state-lg" style="padding:24px;text-align:center;">⏳ 加载模型数据中...</div>';
   try {
     const r = await fetch('/api/models/global');
     const d = await r.json();
