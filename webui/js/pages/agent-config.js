@@ -90,37 +90,7 @@ export async function loadAgentSettings() {
     if (agent) {
       await loadGlobalModelsForAgent();
       renderAgentModelsForAgent(agent);
-      // Handle empty models: hide select/checkbox, show "add model" button
-      const tabModels = document.getElementById('tab-models');
-      if (tabModels && globalModelsList.length === 0) {
-        // Hide all config-section content (selects, buttons, list)
-        const selects = tabModels.querySelectorAll('select');
-        selects.forEach(s => s.style.display = 'none');
-        const btns = tabModels.querySelectorAll('button');
-        btns.forEach(b => b.style.display = 'none');
-        const list = document.getElementById('agentModelListSection');
-        if (list) list.style.display = 'none';
-        // Show "add model" button
-        let addBtn = document.getElementById('agentAddModelBtn');
-        if (!addBtn) {
-          addBtn = document.createElement('button');
-          addBtn.id = 'agentAddModelBtn';
-          addBtn.className = 'siper-btn primary';
-          addBtn.textContent = '+ 添加模型';
-          addBtn.onclick = function() { if (typeof chatSwitchPage === 'function') chatSwitchPage('model-settings'); };
-          tabModels.appendChild(addBtn);
-        } else {
-          addBtn.style.display = '';
-        }
-      } else if (tabModels && globalModelsList.length > 0) {
-        // Restore visibility
-        tabModels.querySelectorAll('select').forEach(s => s.style.display = '');
-        tabModels.querySelectorAll('button').forEach(b => b.style.display = '');
-        const list = document.getElementById('agentModelListSection');
-        if (list) list.style.display = '';
-        const addBtn = document.getElementById('agentAddModelBtn');
-        if (addBtn) addBtn.style.display = 'none';
-      }
+      handleEmptyModels();
     }
   }
   // 内联绑定 agent 配置 auto-save（避免 DOMContentLoaded 时机问题）
@@ -247,6 +217,36 @@ export async function refreshConfigAgentPanel() {
   }
 }
 
+// ===== Empty Models Handler =====
+export function handleEmptyModels() {
+  const tabModels = document.getElementById('tab-models');
+  if (!tabModels) return;
+  if (globalModelsList.length === 0) {
+    tabModels.querySelectorAll('select').forEach(s => s.style.display = 'none');
+    tabModels.querySelectorAll('button').forEach(b => b.style.display = 'none');
+    const list = document.getElementById('agentModelListSection');
+    if (list) list.style.display = 'none';
+    let addBtn = document.getElementById('agentAddModelBtn');
+    if (!addBtn) {
+      addBtn = document.createElement('button');
+      addBtn.id = 'agentAddModelBtn';
+      addBtn.className = 'siper-btn primary';
+      addBtn.textContent = '+ 添加模型';
+      addBtn.onclick = function() { if (typeof chatSwitchPage === 'function') chatSwitchPage('model-settings'); };
+      tabModels.appendChild(addBtn);
+    } else {
+      addBtn.style.display = '';
+    }
+  } else {
+    tabModels.querySelectorAll('select').forEach(s => s.style.display = '');
+    tabModels.querySelectorAll('button').forEach(b => b.style.display = '');
+    const list = document.getElementById('agentModelListSection');
+    if (list) list.style.display = '';
+    const addBtn = document.getElementById('agentAddModelBtn');
+    if (addBtn) addBtn.style.display = 'none';
+  }
+}
+
 // ===== Agent Config =====
 export async function selectConfigAgent(name) {
   // agentConfigData 可能尚未加载（sidebar 切换 agent 时 refreshConfigAgentPanel 异步未完成）
@@ -344,6 +344,8 @@ export async function selectConfigAgent(name) {
 
   // Render model section from agent config data (full model objects)
   renderAgentModelsForAgent(agent);
+  // Handle empty models: hide model UI, show "add model" button
+  handleEmptyModels();
 }
 
 export function switchConfigAgentPageTab(tab) {

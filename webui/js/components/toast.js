@@ -615,7 +615,7 @@ function _renderValue(val, indent, C) {
     if (Array.isArray(val)) {
       if (val.length === 0) return `<span style="color:${C.textDim}">[]</span>`;
       const items = val.map((v, i) =>
-        `${nextPad}<span style="color:${C.textDim};font-size:10px;font-weight:500">#${i}</span> ${_renderValue(v, indent + 1, C)}`
+        `${nextPad}<span style="color:${C.textDim};font-size:12px;font-weight:500">#${i}</span> ${_renderValue(v, indent + 1, C)}`
       );
       return `<span style="color:${C.textDim}">[</span>\n${items.join(',\n')}\n${pad}<span style="color:${C.textDim}">]</span>`;
     }

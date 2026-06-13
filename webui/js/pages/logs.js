@@ -58,9 +58,9 @@ export async function refreshLogs(silent) {
           HEARTBEAT: 'var(--color-success)',
         })[level] || 'var(--color-text-dim)';
         const sourceBadge = loggerName
-          ? `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;background:color-mix(in srgb, ${levelColor} 12%, transparent);color:${levelColor};margin-right:6px;vertical-align:middle;letter-spacing:0.3px">${escapeHtml(loggerName)}</span>`
+          ? `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:12px;font-weight:600;background:color-mix(in srgb, ${levelColor} 12%, transparent);color:${levelColor};margin-right:6px;vertical-align:middle;letter-spacing:0.3px">${escapeHtml(loggerName)}</span>`
           : '';
-        return `<div class="log-entry" style="background:var(--color-surface);border-left:4px solid ${levelColor};border-radius:var(--border-radius);padding:8px 12px;margin-bottom:6px;box-shadow:0 1px 2px var(--shadow-sm);transition:background 0.15s" onmouseover="this.style.background='var(--color-hover)'" onmouseout="this.style.background='var(--color-surface)'"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="js-log-time">${timeStr}</span>${sourceBadge}<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${levelColor}">${level}</span></div><div class="js-log-msg">${escapedMsg}</div></div>`;
+        return `<div class="log-entry" style="background:var(--color-surface);border-left:4px solid ${levelColor};border-radius:var(--border-radius);padding:8px 12px;margin-bottom:6px;box-shadow:0 1px 2px var(--shadow-sm);transition:background 0.15s" onmouseover="this.style.background='var(--color-hover)'" onmouseout="this.style.background='var(--color-surface)'"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="js-log-time">${timeStr}</span>${sourceBadge}<span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${levelColor}">${level}</span></div><div class="js-log-msg">${escapedMsg}</div></div>`;
       }).join('');
     }
 
@@ -92,7 +92,7 @@ export function renderLogLevelFilters() {
     const bg = isActive ? color : 'transparent';
     const textColor = isActive ? 'var(--color-surface)' : color;
     const border = `1px solid ${color}`;
-    return `<span class="log-level-chip" data-level="${lvl}" onclick="toggleLogLevel('${lvl}')" style="cursor:pointer;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;border:${border};background:${bg};color:${textColor};margin-right:4px;user-select:none;transition:all 0.15s">${lvl}</span>`;
+    return `<span class="log-level-chip" data-level="${lvl}" onclick="toggleLogLevel('${lvl}')" style="cursor:pointer;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;border:${border};background:${bg};color:${textColor};margin-right:4px;user-select:none;transition:all 0.15s">${lvl}</span>`;
   }).join('');
 }
 

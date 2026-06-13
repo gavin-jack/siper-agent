@@ -179,7 +179,7 @@ export function renderGlobalAgents() {
     const agents = data.agents || data || [];
     _agentListCache = agents;
     if (agents.length === 0) {
-      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-dim);font-size:13px">暂无智能体<br><span style="font-size:11px">点击右上角「+ 新增智能体」创建</span></div>';
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-dim);font-size:13px">暂无智能体<br><span style="font-size:12px">点击右上角「+ 新增智能体」创建</span></div>';
       return;
     }
     grid.innerHTML = '';
@@ -231,7 +231,7 @@ export function onGlobalAgentSelect(name) {
     (agent.avatar
       ? '<img src="/' + escapeHtml(agent.avatar) + '" style="width:40px;height:40px;border-radius:50%;object-fit:cover">'
       : '<div style="width:40px;height:40px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px">' + escapeHtml(agent.icon || '🎭') + '</div>') +
-    '<div><b>' + escapeHtml(agent.display_name || agent.name) + '</b> <span style="font-size:11px;color:var(--text-dim)">' + escapeHtml(agent.name) + '</span></div>' +
+    '<div><b>' + escapeHtml(agent.display_name || agent.name) + '</b> <span style="font-size:12px;color:var(--text-dim)">' + escapeHtml(agent.name) + '</span></div>' +
     '</div>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">' +
       '<button class="siper-btn" onclick="window._agentRename(\'' + escapeHtml(name) + '\')">✏ 重命名</button>' +
