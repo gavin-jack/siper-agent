@@ -4,6 +4,35 @@
 
 ---
 
+## v0.1.6 (2026-06-13)
+
+### 新功能 (feat)
+
+- **模型数据库 v6**：`provider_name` → `provider`，新增 `provider_alias` 记录用户改名；`model_name` → `model`，`alias` → `model_alias` 记录用户改名；删除 `created_at`，仅保留 `updated_at`
+- **tool_call_steps 防膨胀**：sessions.db 中 assistant 消息的 `meta.tool_call_steps` 结果自动截断（result ≤200 字符，参数值 ≤100 字符），预计新会话 DB 大小从 ~676MB 降到 <1MB
+- **模型选择器空库跳转**：DB 为空时按钮点击跳转 model-settings 页面，agent 未配置时跳转 agent-config 页面
+- **选择器文字优化**：空库/无可用模型时显示"未设置可选模型"（非"无可用模型"）
+- **"发现模型"简化**：UI 标题从"🔍 自动发现模型"改为"🔍 发现模型"
+- **前端消息气泡布局统一**：stream_delta 渲染改为 grid 布局，tool-calls-wrap 由 appendMeta 统一管理
+- **Dict Modal**：新增 `showDictModal(data)`，agent 消息 actions-below 加 {} 按钮显示完整响应 dict，语法高亮
+- **JS 语法检查**：`node -c` 被安全策略拦截，改用 `write_file + new Function(code)` 模式
+- **sessions.db per-agent 目录**：会话库从 `data/sessions.db` 迁移到 `agents/default/sessions.db`
+
+### Bug 修复 (fix)
+
+- **RateLimitError 重试**：429 错误改为指数退避重试（1s/2s/4s），不再立即返回
+- **模型配置保存链路**：前端 saveAllModels 补全 {model, base_url, api_key} 字段，后端调 configure_llm() 重建 LLMClient
+- **agent 配置页面加载中修复**：modelsLoaded=true 但列表为空时也渲染空 select
+- **skill-caps CSS 冲突**：`.cap-badge` 加 `.siper-model-caps` 前缀限定作用域
+- **chatSwitchPage 引用修复**：ES module 中 `chatSwitchPage` 改为 `window.chatSwitchPage` 避免 ReferenceError
+- **模型验证 provider_id 传递**：前端 testModel 传 providerId，后端 api_test_model 精确查找
+- **前端全局命名空间污染修复**：多个 page-*.js 共享全局作用域导致 SyntaxError，重命名冲突变量
+
+### 重构 (refactor)
+
+- 模型数据库 v5→v6 迁移：RENAME COLUMN + DROP COLUMN，兼容旧库
+- 前端 ESM 缓存策略：ETag + Last-Modified 头，解决 Chromium 缓存不更新
+
 ## v0.1.5 (2026-07-30)
 
 ### 新功能 (feat)
