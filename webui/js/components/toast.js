@@ -247,8 +247,8 @@ export function showForm(opts) {
   const fieldHtml = fields.map(f => {
     const id = f.id || ('formField_' + Math.random().toString(36).slice(2, 8));
     f._id = id;
-    return `<div style="margin-bottom:10px">`
-      + `<label style="font-size:12px;color:var(--text-dim)">${escapeHtml(f.label)}</label>`
+    return `<div class="js-mb-10">`
+      + `<label class="js-text-xs">${escapeHtml(f.label)}</label>`
       + `<input type="text" id="${id}" class="siper-notif-input-field" placeholder="${escapeHtml(f.placeholder || '')}" `
       + (f.value ? `value="${escapeHtml(String(f.value))}" ` : '')
       + (f.maxlength ? `maxlength="${f.maxlength}" ` : '')

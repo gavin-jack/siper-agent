@@ -566,8 +566,8 @@ var _agentConfigHtmlTemplate = '\
                 </div>\
               </div>\
             </div>\
-            <div class="field-group"><label class="field-label" data-i18n="agent.defaultModel">默认模型</label><div id="agentDefaultModelSection" style="margin-top:4px"><div class="empty-state" style="padding:8px;font-size:12px">加载中...</div></div></div>\
-            <div class="field-group"><label class="field-label" data-i18n="agent.availableModels">可用模型</label><div id="agentModelListSection" style="margin-top:4px;max-height:200px;overflow-y:auto"><div class="empty-state" style="padding:8px;font-size:12px">加载中...</div></div></div>\
+            <div class="field-group"><label class="field-label" data-i18n="agent.defaultModel">默认模型</label><div id="agentDefaultModelSection" style="margin-top:4px"><div class="empty-state" class="js-text-sm">加载中...</div></div></div>\
+            <div class="field-group"><label class="field-label" data-i18n="agent.availableModels">可用模型</label><div id="agentModelListSection" class="js-scroll-list"><div class="empty-state" class="js-text-sm">加载中...</div></div></div>\
           </div>\        </div>\
         <div class="card"><div class="card-header"><span class="card-icon">⚡</span><span class="card-title-text" data-i18n="agent.limitsLlm">LLM 调用与会话</span><span id="currentAgentLabelLimits" class="card-subtitle"></span></div><div class="card-body"><div class="field-group"><label class="field-label" data-i18n="agent.llmTimeout">请求超时 (秒)</label><small class="field-hint" data-i18n="agent.llmTimeoutHint">单次 API 调用等待时间</small><input type="number" id="agentCfgLlmTimeout" class="field-input field-input-sm" min="10" max="600" value="120" aria-label="LLM 超时"></div><div class="field-group"><label class="field-label" data-i18n="agent.llmMaxTokens">最大输出 Token</label><small class="field-hint" data-i18n="agent.llmMaxTokensHint">单次回复最大长度</small><input type="number" id="agentCfgLlmMaxTokens" class="field-input field-input-sm" min="256" max="32768" value="8192" aria-label="LLM 最大 Token"></div><div class="field-group"><label class="field-label" data-i18n="agent.llmMaxRetries">最大重试次数</label><small class="field-hint" data-i18n="agent.llmMaxRetriesHint">超时后自动重试轮数</small><input type="number" id="agentCfgLlmMaxRetries" class="field-input field-input-sm" min="0" max="5" value="2" aria-label="LLM 最大重试次数"></div><div class="field-group"><label class="field-label" data-i18n="agent.sessionTimeout">会话超时 (秒)</label><small class="field-hint" data-i18n="agent.sessionTimeoutHint">空闲会话保留时间</small><input type="number" id="agentCfgSessionTimeout" class="field-input field-input-sm" min="60" max="86400" value="3600" aria-label="会话超时"></div><div class="field-group"><label class="field-label" data-i18n="agent.maxHistoryMessages">历史消息加载数</label><small class="field-hint" data-i18n="agent.maxHistoryMessagesHint">每次加载的历史消息条数</small><input type="number" id="agentCfgMaxHistoryMessages" class="field-input field-input-sm" min="10" max="200" value="50" aria-label="最大历史消息数"></div></div></div>\
         <div class="card"><div class="card-header"><span class="card-icon">🔧</span><span class="card-title-text" data-i18n="agent.limitsTool">工具调用</span></div><div class="card-body"><div class="field-group"><label class="field-label" data-i18n="agent.maxToolRounds">最大工具轮数</label><small class="field-hint" data-i18n="agent.maxToolRoundsHint">单条消息最多工具调用轮次</small><input type="number" id="agentCfgMaxToolRounds" class="field-input field-input-sm" min="1" max="200" value="100" aria-label="最大工具轮次"></div><div class="field-group"><label class="field-label" data-i18n="agent.maxTools">最大并发工具数</label><small class="field-hint" data-i18n="agent.maxToolsHint">同时执行的工具数上限</small><input type="number" id="agentCfgMaxTools" class="field-input field-input-sm" min="1" max="500" value="300" aria-label="最大并发工具数"></div></div></div>\
@@ -603,15 +603,15 @@ function loadAgentsForConfig() {
       var agents = (data && data.agents) || [];
       var active = (data && data.active) || '';
       if (!agents.length) { page.innerHTML = '<div class="text-dim" style="padding:40px;text-align:center;">暂无智能体</div>'; return; }
-      var selHtml = '<div class="bg-bg" style="padding:8px 10px;border-bottom:1px solid var(--color-border);flex-shrink:0;"><div style="font-size:12px;font-weight:600;margin-bottom:6px;" class="text-normal">选择智能体</div><div style="display:flex;gap:4px;flex-wrap:wrap;">';
+      var selHtml = '<div class="bg-bg" style="padding:8px 10px;border-bottom:1px solid var(--color-border);flex-shrink:0;"><div class="js-title-sm" class="text-normal">选择智能体</div><div style="display:flex;gap:4px;flex-wrap:wrap;">';
       for (var i = 0; i < agents.length; i++) {
         var a = agents[i];
         var isActive = a.name === active;
         var btnClass = isActive ? 'siper-btn primary' : 'siper-btn';
-        selHtml += '<button class="' + btnClass + ' onclick="selectChatAgent(\'' + a.name + '\')" style="font-size:12px;padding:5px 12px;">' + chatEscapeHtml(a.display_name || a.name) + (isActive ? ' ●' : '') + '</button>';
+        selHtml += '<button class="' + btnClass + ' onclick="selectChatAgent(\'' + a.name + '\')" class="js-badge">' + chatEscapeHtml(a.display_name || a.name) + (isActive ? ' ●' : '') + '</button>';
       }
       selHtml += '</div></div>';
-      page.innerHTML = selHtml + '<div id="chatAgentDetail" style="flex:1;overflow-y:auto;padding:10px;"></div>';
+      page.innerHTML = selHtml + '<div id="chatAgentDetail" class="js-scroll-flex"></div>';
       if (agents.length > 0) selectChatAgent(agents[0].name);
     })
     .catch(() => { page.innerHTML = '<div class="text-danger" style="padding:20px;">加载失败</div>'; });

@@ -123,7 +123,7 @@ export async function verifyChatModel(idx, _toast) {
     const card = document.querySelector('[data-model-name="' + modelName.replace(/"/g, '\\"') + '"]');
     if (card) {
       const capsEl = card.querySelector('.siper-model-caps');
-      if (capsEl) capsEl.innerHTML = '<span style="font-size:12px;color:var(--color-text-dim);">⏳ 正在验证模型功能</span>';
+      if (capsEl) capsEl.innerHTML = '<span class="js-text-xs">⏳ 正在验证模型功能</span>';
       card.style.borderColor = 'var(--color-warning)';
     }
 

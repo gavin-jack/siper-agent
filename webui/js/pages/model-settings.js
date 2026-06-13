@@ -94,8 +94,8 @@ export function renderSettingsModelsList() {
     sortedGroups.forEach(group => {
       const providerLabel = group.provider_name || group.base_url;
       html += `<div class="model-group-header" data-base-url="${escapeHtml(group.base_url)}" style="display:flex;align-items:center;gap:6px;margin-top:10px;margin-bottom:4px;padding:4px 0;border-bottom:1px solid var(--color-border);">`;
-      html += `<span class="model-group-label" style="font-size:12px;font-weight:600;color:var(--color-text);cursor:pointer;" onclick="window.editProviderName('${escapeHtml(group.base_url)}')" title="点击编辑 Provider 名称">${escapeHtml(providerLabel)}</span>`;
-      html += `<span class="model-group-count" style="font-size:11px;color:var(--color-text-dim);">(${group.models.length})</span>`;
+      html += `<span class="model-group-label" class="js-model-name" onclick="window.editProviderName('${escapeHtml(group.base_url)}')" title="点击编辑 Provider 名称">${escapeHtml(providerLabel)}</span>`;
+      html += `<span class="model-group-count" class="js-text-dim-xs">(${group.models.length})</span>`;
       html += `</div>`;
 
       const cards = group.models.map((m) => buildCardHtml(m, m._idx)).join('');
@@ -112,9 +112,9 @@ export function renderSettingsModelsList() {
       if (hasCapFilter) parts.push(`${_selectedCaps.size}项筛选`);
       if (hasSort) parts.push(`排序: ${_sortDir === 'desc' ? '↓' : '↑'}`);
       const desc = parts.join(' + ');
-      html = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 10px;background:var(--color-input-bg);border-radius:6px;font-size:12px;">` +
-        `<span style="flex:1;color:var(--color-text-dim);">📋 ${desc}</span>` +
-        `<button class="siper-btn" style="height:24px;padding:0 10px;font-size:11px;border-radius:4px;" onclick="window.clearModelFilter()">恢复分组</button>` +
+      html = `<div class="js-model-card">` +
+        `<span class="js-text-dim">📋 ${desc}</span>` +
+        `<button class="siper-btn" class="js-btn-xs" onclick="window.clearModelFilter()">恢复分组</button>` +
         `</div>` + html;
     }
   }
@@ -181,10 +181,10 @@ function buildCardHtml(m, i) {
         </div>
       </div>
       <div class="siper-model-meta">${ctx ? '<span class="siper-meta-tag">ctx ' + ctx + '</span>' : ''}${metaTags}</div>
-      ${m._verified === false && m._error ? `<div class="model-card-error" style="font-size:11px;color:var(--color-danger);margin-top:2px;">❌ ${escapeHtml(m._error)}</div>` : ''}
+      ${m._verified === false && m._error ? `<div class="model-card-error" class="js-text-danger-sm">❌ ${escapeHtml(m._error)}</div>` : ''}
       <div class="model-card-actions-bottom">
         <div class="model-caps-scroll">
-          ${m._verified === "pending" ? `<div class="model-caps-inner" style="color:var(--color-warning);font-size:11px;padding:2px 0;"><span class="pulse">⏳</span> 正在更新模型能力...</div>` : (capBadges ? `<div class="model-caps-inner">${capBadges}</div>` : '')}
+          ${m._verified === "pending" ? `<div class="model-caps-inner" class="js-text-warning-sm"><span class="pulse">⏳</span> 正在更新模型能力...</div>` : (capBadges ? `<div class="model-caps-inner">${capBadges}</div>` : '')}
         </div>
         ${verifyBtnHtml}
       </div>

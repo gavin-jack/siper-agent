@@ -67,7 +67,7 @@ export function renderAgentModelSection(globalModels, agentAvailNames) {
   const listContainer = document.getElementById('agentModelListSection');
   if (listContainer) {
     listContainer.innerHTML = `
-    <div class="field-hint" style="margin-bottom:8px">可用模型（勾选后该 agent 可在对话中使用）</div>
+    <div class="field-hint" class="js-mb-8">可用模型（勾选后该 agent 可在对话中使用）</div>
     <div class="model-list">${checkboxes}</div>`;
   }
 

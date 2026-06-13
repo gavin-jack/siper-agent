@@ -46,7 +46,7 @@ export function chatHandleStreamDelta(delta, streamSessionId) {
       <img src="${avatarUrl}" class="siper-msg-avatar" alt="" onerror="this.src='/static/default_avatar_256.png'">
       <div class="siper-bubble-col">
         <div class="siper-msg-time"></div>
-        <div class="siper-bubble agent-bubble"><div class="siper-msg-body"><span class="siper-stream-text"></span><span class="siper-stream-cursor" style="display:none">▊</span></div></div>
+        <div class="siper-bubble agent-bubble"><div class="siper-msg-body"><span class="siper-stream-text"></span><span class="siper-stream-cursor" class="js-hidden">▊</span></div></div>
         <div class="siper-msg-actions"></div>
       </div>
     `;

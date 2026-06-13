@@ -166,19 +166,19 @@ export function onChatPageEnter() { chatSwitchPage('chat', true); }
 
 function renderSkillsPageChat(container) {
   container.className = 'siper-content siper-full-content';
-  container.innerHTML = `<div class="siper-page-toolbar"><button class="siper-btn" onclick="window.refreshSkills()">刷新</button></div><div id="chatSkillsList"></div>`;
+  container.innerHTML = `<div id="chatSkillsList"></div>`;
   if (typeof window.refreshSkills === 'function') window.refreshSkills();
 }
 
 function renderTokenPageChat(container) {
   container.className = 'siper-content siper-full-content';
-  container.innerHTML = `<div class="token-stats" id="chatTokenStats"></div><div class="siper-token-charts-row"><div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">📊 分模型 Token 分布</div><div id="chatChartModel" style="width:100%;height:240px;"></div></div><div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">⏰ 24小时 Token 分布</div><div id="chatChartHourly" style="width:100%;height:240px;"></div></div></div><div class="siper-token-chart-card card-hover" style="margin-top:12px;"><div class="siper-token-chart-title">📈 每日 Token 趋势</div><div id="chatChartDate" style="width:100%;height:240px;"></div></div><div class="siper-token-charts-row" style="margin-top:12px;"><div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">⚡ 模型效率对比</div><div id="chatChartEfficiency" style="width:100%;height:240px;"></div></div><div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">📅 活跃时段热力图</div><div id="chatChartHeatmap" style="width:100%;height:240px;"></div></div></div>`;
+  container.innerHTML = `<div class="token-stats" id="chatTokenStats"></div><div class="siper-token-charts-row"><div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">📊 分模型 Token 分布</div><div id="chatChartModel" class="js-chart-box"></div></div><div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">⏰ 24小时 Token 分布</div><div id="chatChartHourly" class="js-chart-box"></div></div></div><div class="siper-token-chart-card card-hover" class="js-mt-12"><div class="siper-token-chart-title">📈 每日 Token 趋势</div><div id="chatChartDate" class="js-chart-box"></div></div><div class="siper-token-charts-row" class="js-mt-12"><div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">⚡ 模型效率对比</div><div id="chatChartEfficiency" class="js-chart-box"></div></div><div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">📅 活跃时段热力图</div><div id="chatChartHeatmap" class="js-chart-box"></div></div></div>`;
   if (typeof window.refreshTokenStats === 'function') window.refreshTokenStats();
 }
 
 function renderSettingsPageChat(container) {
   container.className = 'siper-content siper-full-content';
-  container.innerHTML = `<div class="siper-page-toolbar" style="justify-content:space-between;flex-wrap:wrap;gap:8px;"><div class="siper-settings-tabs" id="settingsTabs"><button class="siper-settings-tab active" data-tab="system" onclick="window.switchSettingsTab('system')">系统参数</button><button class="siper-settings-tab" data-tab="agents" onclick="window.switchSettingsTab('agents')">Agent管理</button></div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="siper-btn" onclick="window.resetSystemParams()">重置</button><button class="siper-btn" onclick="window.refreshGlobalSettings()">刷新</button></div></div><div id="chatGlobalSettings"><div id="chatSystemSettings" style="display:none;"><div class="siper-settings-section"><div class="siper-settings-section-title">运行时</div><div class="siper-settings-row"><label>WS 心跳超时 (秒)</label><input type="number" id="sysWsHeartbeatTimeout" class="siper-input" min="60" max="3600" value="300" aria-label="WS 心跳超时"></div><div class="siper-settings-row"><label>会话列表加载数</label><input type="number" id="sysSessionListLimit" class="siper-input" min="10" max="500" value="50" aria-label="会话列表加载数"></div><div class="siper-settings-row"><label>日志缓冲区大小</label><input type="number" id="sysLogBufferSize" class="siper-input" min="100" max="10000" value="2000" aria-label="日志缓冲区大小"></div><div class="siper-settings-row"><label>Token 记录上限</label><input type="number" id="sysTokenUsageMax" class="siper-input" min="100" max="5000" value="500" aria-label="Token 记录上限"></div><div class="siper-settings-row"><label>上下文窗口默认值</label><input type="number" id="sysCtxWindowDefault" class="siper-input" min="1024" max="1000000" value="8192" aria-label="上下文窗口默认值"></div></div></div></div><div id="chatGlobalAgents" style="display:none;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div class="siper-settings-section-title" style="margin:0">智能体管理</div><button class="siper-btn primary" onclick="window.showAddAgentModal()" style="padding:6px 16px;font-size:13px">+ 新增智能体</button></div><div id="globalAgentCards" class="agent-cards-grid"></div><div id="globalAgentCardDetail" class="agent-card-detail" style="display:none"></div></div><div id="chatGlobalModels" style="display:none;"><span id="chatSettingsModelCount" class="text-dim" style="font-size:12px;"></span><div id="chatSettingsModelsList"></div></div>`;
+  container.innerHTML = `<div class="siper-page-toolbar" style="justify-content:space-between;flex-wrap:wrap;gap:8px;"><div class="siper-settings-tabs" id="settingsTabs"><button class="siper-settings-tab active" data-tab="system" onclick="window.switchSettingsTab('system')">系统参数</button><button class="siper-settings-tab" data-tab="agents" onclick="window.switchSettingsTab('agents')">Agent管理</button></div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="siper-btn" onclick="window.resetSystemParams()">重置</button><button class="siper-btn" onclick="window.refreshGlobalSettings()">刷新</button></div></div><div id="chatGlobalSettings"><div id="chatSystemSettings" class="js-hidden"><div class="siper-settings-section"><div class="siper-settings-section-title">运行时</div><div class="siper-settings-row"><label>WS 心跳超时 (秒)</label><input type="number" id="sysWsHeartbeatTimeout" class="siper-input" min="60" max="3600" value="300" aria-label="WS 心跳超时"></div><div class="siper-settings-row"><label>会话列表加载数</label><input type="number" id="sysSessionListLimit" class="siper-input" min="10" max="500" value="50" aria-label="会话列表加载数"></div><div class="siper-settings-row"><label>日志缓冲区大小</label><input type="number" id="sysLogBufferSize" class="siper-input" min="100" max="10000" value="2000" aria-label="日志缓冲区大小"></div><div class="siper-settings-row"><label>Token 记录上限</label><input type="number" id="sysTokenUsageMax" class="siper-input" min="100" max="5000" value="500" aria-label="Token 记录上限"></div><div class="siper-settings-row"><label>上下文窗口默认值</label><input type="number" id="sysCtxWindowDefault" class="siper-input" min="1024" max="1000000" value="8192" aria-label="上下文窗口默认值"></div></div></div></div><div id="chatGlobalAgents" class="js-hidden"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div class="siper-settings-section-title" style="margin:0">智能体管理</div><button class="siper-btn primary" onclick="window.showAddAgentModal()" style="padding:6px 16px;font-size:13px">+ 新增智能体</button></div><div id="globalAgentCards" class="agent-cards-grid"></div><div id="globalAgentCardDetail" class="agent-card-detail" class="js-hidden"></div></div><div id="chatGlobalModels" class="js-hidden"><span id="chatSettingsModelCount" class="text-dim" class="js-text-xs"></span><div id="chatSettingsModelsList"></div></div>`;
   window._currentSettingsTab = 'system';
   // 内联绑定系统参数 auto-save（避免 ESM 跨模块引用 attachSettingsAutoSaveListeners）
   (function(){
@@ -238,7 +238,7 @@ function renderModelSettingsPageChat(container) {
       <span>可用模型</span>
       <div style="flex:1;min-width:0;"></div>
       <div style="position:relative;display:flex;align-items:center;width:160px;flex-shrink:0;">
-        <input type="text" id="modelSearchInput" placeholder="搜索模型..." class="siper-input" style="width:100%;height:28px;padding:0 24px 0 8px;box-sizing:border-box;font-size:12px;" oninput="window.filterModelsList()">
+        <input type="text" id="modelSearchInput" placeholder="搜索模型..." class="siper-input" class="js-input-xs" oninput="window.filterModelsList()">
         <span id="modelSearchClear" onclick="window.clearModelSearch()" style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:14px;color:var(--color-text-dim);line-height:1;" title="清空">✕</span>
       </div>
       <div id="capFilterDropdown" style="position:relative;display:inline-block;">
@@ -248,36 +248,36 @@ function renderModelSettingsPageChat(container) {
         <div id="capFilterMenu" style="display:none;position:absolute;top:100%;right:0;margin-top:2px;background:var(--bg-card);border:1px solid var(--color-border);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:200;min-width:200px;padding:0;">
           <div style="padding:6px 10px;display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--color-border);">
             <div class="cap-filter-option" data-cap="chat" onclick="window.selectCapFilter('chat')" style="padding:3px 8px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:4px;border:1px solid var(--color-border);border-radius:4px;user-select:none;">
-              <input type="checkbox" style="margin:0;cursor:pointer;pointer-events:none;"> 💬对话
+              <input type="checkbox" class="js-checkbox"> 💬对话
             </div>
             <div class="cap-filter-option" data-cap="vision" onclick="window.selectCapFilter('vision')" style="padding:3px 8px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:4px;border:1px solid var(--color-border);border-radius:4px;user-select:none;">
-              <input type="checkbox" style="margin:0;cursor:pointer;pointer-events:none;"> 👁视觉
+              <input type="checkbox" class="js-checkbox"> 👁视觉
             </div>
             <div class="cap-filter-option" data-cap="reasoning" onclick="window.selectCapFilter('reasoning')" style="padding:3px 8px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:4px;border:1px solid var(--color-border);border-radius:4px;user-select:none;">
-              <input type="checkbox" style="margin:0;cursor:pointer;pointer-events:none;"> 🧠推理
+              <input type="checkbox" class="js-checkbox"> 🧠推理
             </div>
             <div class="cap-filter-option" data-cap="code" onclick="window.selectCapFilter('code')" style="padding:3px 8px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:4px;border:1px solid var(--color-border);border-radius:4px;user-select:none;">
-              <input type="checkbox" style="margin:0;cursor:pointer;pointer-events:none;"> 💻代码
+              <input type="checkbox" class="js-checkbox"> 💻代码
             </div>
             <div class="cap-filter-option" data-cap="function_calling" onclick="window.selectCapFilter('function_calling')" style="padding:3px 8px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:4px;border:1px solid var(--color-border);border-radius:4px;user-select:none;">
-              <input type="checkbox" style="margin:0;cursor:pointer;pointer-events:none;"> 🔧工具
+              <input type="checkbox" class="js-checkbox"> 🔧工具
             </div>
             <div class="cap-filter-option" data-cap="tts" onclick="window.selectCapFilter('tts')" style="padding:3px 8px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:4px;border:1px solid var(--color-border);border-radius:4px;user-select:none;">
-              <input type="checkbox" style="margin:0;cursor:pointer;pointer-events:none;"> 🔊语音
+              <input type="checkbox" class="js-checkbox"> 🔊语音
             </div>
             <div class="cap-filter-option" data-cap="embedding" onclick="window.selectCapFilter('embedding')" style="padding:3px 8px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:4px;border:1px solid var(--color-border);border-radius:4px;user-select:none;">
-              <input type="checkbox" style="margin:0;cursor:pointer;pointer-events:none;"> 📎嵌入
+              <input type="checkbox" class="js-checkbox"> 📎嵌入
             </div>
             <div class="cap-filter-option" data-cap="image_gen" onclick="window.selectCapFilter('image_gen')" style="padding:3px 8px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:4px;border:1px solid var(--color-border);border-radius:4px;user-select:none;">
-              <input type="checkbox" style="margin:0;cursor:pointer;pointer-events:none;"> 🎨生图
+              <input type="checkbox" class="js-checkbox"> 🎨生图
             </div>
             <div class="cap-filter-option" data-cap="long_context" onclick="window.selectCapFilter('long_context')" style="padding:3px 8px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:4px;border:1px solid var(--color-border);border-radius:4px;user-select:none;">
-              <input type="checkbox" style="margin:0;cursor:pointer;pointer-events:none;"> 📏长上下文
+              <input type="checkbox" class="js-checkbox"> 📏长上下文
             </div>
           </div>
           <div style="display:flex;gap:6px;padding:6px 10px;">
-            <button class="siper-btn" style="flex:1;height:24px;padding:0 8px;font-size:11px;border-radius:4px;" onclick="window.clearCapFilter()">清除</button>
-            <button class="siper-btn primary" style="flex:1;height:24px;padding:0 8px;font-size:11px;border-radius:4px;" onclick="window.applyCapFilter()">确定</button>
+            <button class="siper-btn" class="js-btn-xs" onclick="window.clearCapFilter()">清除</button>
+            <button class="siper-btn primary" class="js-btn-xs" onclick="window.applyCapFilter()">确定</button>
           </div>
         </div>
       </div>
@@ -299,8 +299,8 @@ function renderModelSettingsPageChat(container) {
     <div class="siper-form-title">🔍 发现模型</div>
     <div style="display:flex;gap:6px;align-items:end;margin-bottom:6px;">
       <div style="flex:1;">
-        <div class="text-dim" style="font-size:11px;margin-bottom:2px;height:16px;line-height:16px;">Provider</div>
-        <select id="providerPreset" class="siper-input" style="width:100%;height:32px;padding:0 8px;box-sizing:border-box;" onchange="window.applyProviderPreset()" aria-label="Provider 预设">
+        <div class="text-dim" class="js-label-sm">Provider</div>
+        <select id="providerPreset" class="siper-input" class="js-input-sm" onchange="window.applyProviderPreset()" aria-label="Provider 预设">
           <option value="">— 选择 —</option>
           <option value="openai">OpenAI</option>
           <option value="anthropic">Anthropic</option>
@@ -317,13 +317,13 @@ function renderModelSettingsPageChat(container) {
         </select>
       </div>
       <div style="flex:1.5;">
-        <div class="text-dim" style="font-size:11px;margin-bottom:2px;height:16px;line-height:16px;">Base URL</div>
-        <input type="text" class="siper-input" id="discoverBaseUrl" placeholder="https://api.openai.com/v1" aria-label="发现 Base URL" style="width:100%;height:32px;padding:0 8px;box-sizing:border-box;">
+        <div class="text-dim" class="js-label-sm">Base URL</div>
+        <input type="text" class="siper-input" id="discoverBaseUrl" placeholder="https://api.openai.com/v1" aria-label="发现 Base URL" class="js-input-sm">
       </div>
     </div>
-    <div style="margin-bottom:6px;">
-      <div class="text-dim" style="font-size:11px;margin-bottom:2px;height:16px;line-height:16px;">API Key</div>
-      <input type="password" class="siper-input" id="discoverApiKey" placeholder="sk-..." aria-label="发现 API Key" style="width:100%;height:32px;padding:0 8px;box-sizing:border-box;">
+    <div class="js-mb-6">
+      <div class="text-dim" class="js-label-sm">API Key</div>
+      <input type="password" class="siper-input" id="discoverApiKey" placeholder="sk-..." aria-label="发现 API Key" class="js-input-sm">
     </div>
     <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
       <button class="siper-btn primary" onclick="window.discoverModels()">获取模型列表</button>
@@ -350,7 +350,7 @@ function renderModelSettingsPageChat(container) {
 
 function renderLogsPageChat(container) {
   container.className = 'siper-content siper-full-content';
-  container.innerHTML = `<div class="siper-page-toolbar" style="flex-wrap:wrap;gap:6px;"><button class="siper-btn" onclick="window.refreshLogs()">刷新</button><button class="siper-btn danger" onclick="window.clearLogs()">清空显示</button><input type="text" id="chatLogSearchInput" placeholder="搜索..." class="siper-input" style="width:140px;" oninput="window.applyLogLogsDebounced()" aria-label="日志搜索"><select id="chatLogLogLevel" class="siper-input" style="width:auto;" onchange="window.applyChatLogLevelFilter()" aria-label="日志级别"><option value="">全部级别</option><option value="DEBUG">DEBUG</option><option value="INFO">INFO</option><option value="WARN">WARN</option><option value="ERROR">ERROR</option></select><select id="logSourceFilter" class="siper-input" style="width:auto;" onchange="window.applyLogFilters()" aria-label="日志来源"><option value="">全部来源</option></select><span id="chatLogStats" class="text-dim" style="font-size:12px;"></span></div><div id="logLevelFilters" style="margin-bottom:6px;"></div><div id="chatLogsList" style="font-family:monospace;font-size:12px;line-height:1.8;"></div><div id="chatLogPagination"></div>`;
+  container.innerHTML = `<div class="siper-page-toolbar" style="flex-wrap:wrap;gap:6px;"><button class="siper-btn" onclick="window.refreshLogs()">刷新</button><button class="siper-btn danger" onclick="window.clearLogs()">清空显示</button><input type="text" id="chatLogSearchInput" placeholder="搜索..." class="siper-input" style="width:140px;" oninput="window.applyLogLogsDebounced()" aria-label="日志搜索"><select id="chatLogLogLevel" class="siper-input" class="js-w-auto" onchange="window.applyChatLogLevelFilter()" aria-label="日志级别"><option value="">全部级别</option><option value="DEBUG">DEBUG</option><option value="INFO">INFO</option><option value="WARN">WARN</option><option value="ERROR">ERROR</option></select><select id="logSourceFilter" class="siper-input" class="js-w-auto" onchange="window.applyLogFilters()" aria-label="日志来源"><option value="">全部来源</option></select><span id="chatLogStats" class="text-dim" class="js-text-xs"></span></div><div id="logLevelFilters" class="js-mb-6"></div><div id="chatLogsList" style="font-family:monospace;font-size:12px;line-height:1.8;"></div><div id="chatLogPagination"></div>`;
   if (typeof window.refreshLogs === 'function') window.refreshLogs();
 }
 

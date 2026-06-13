@@ -240,13 +240,13 @@ export function onGlobalAgentSelect(name) {
     '</div>' +
     '<div id="agentFileEditor" style="display:none">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
-        '<span id="agentFileEditorTitle" style="font-size:12px;font-weight:600"></span>' +
+        '<span id="agentFileEditorTitle" class="js-text-bold-sm"></span>' +
         '<div style="display:flex;gap:4px">' +
-          '<button class="siper-btn primary" onclick="window._agentSaveFile()" style="padding:4px 10px;font-size:12px">保存</button>' +
-          '<button class="siper-btn" onclick="window._agentCloseEditor()" style="padding:4px 10px;font-size:12px">取消</button>' +
+          '<button class="siper-btn primary" onclick="window._agentSaveFile()" class="js-btn-sm">保存</button>' +
+          '<button class="siper-btn" onclick="window._agentCloseEditor()" class="js-btn-sm">取消</button>' +
         '</div>' +
       '</div>' +
-      '<textarea id="agentFileEditorArea" class="siper-input" style="width:100%;min-height:200px;font-family:monospace;font-size:12px;resize:vertical" aria-label="文件编辑器"></textarea>' +
+      '<textarea id="agentFileEditorArea" class="siper-input" class="js-textarea-code" aria-label="文件编辑器"></textarea>' +
     '</div>';
 }
 

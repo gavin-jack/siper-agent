@@ -160,7 +160,7 @@ export function buildMetaHtml(meta) {
   if (meta.skills_used && meta.skills_used.length) lines.push('🧩 技能：' + meta.skills_used.join(', '));
   if (meta.skills_recommended && meta.skills_recommended.length) {
     const notUsed = meta.skills_recommended.filter(s => !meta.skills_used || !meta.skills_used.includes(s));
-    if (notUsed.length) lines.push('<span style="opacity:0.5">💡 推荐：' + notUsed.join(', ') + '</span>');
+    if (notUsed.length) lines.push('<span class="js-opacity-50">💡 推荐：' + notUsed.join(', ') + '</span>');
   }
   if (meta.finish_reason && meta.finish_reason !== 'stop') lines.push('🏁 ' + meta.finish_reason);
   return lines.map(l => l.startsWith('<span') ? '<div>' + l + '</div>' : '<div>' + chatEscapeHtml(l) + '</div>').join('');

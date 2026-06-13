@@ -231,5 +231,5 @@ try {
 } catch(e) {
   console.error('[app.js] initRouter failed:', e.message);
   // Show visible error when page init fails
-  document.body.innerHTML = '<div style="padding:40px;text-align:center;font-size:18px;color:#e53e3e;">⚠️ 页面初始化失败: ' + e.message + '<br><br><button onclick="location.reload()" style="padding:8px 20px;font-size:16px;cursor:pointer;">重试</button></div>';
+  document.body.innerHTML = '<div class="js-error-lg">⚠️ 页面初始化失败: ' + e.message + '<br><br><button onclick="location.reload()" class="js-btn-lg">重试</button></div>';
 }

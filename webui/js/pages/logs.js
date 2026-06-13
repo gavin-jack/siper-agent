@@ -44,7 +44,7 @@ export async function refreshLogs() {
 
     const list = document.getElementById('chatLogsList');
     if (!d.logs || d.logs.length === 0) {
-      list.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:40px">' + t('logs.empty') + '</div>';
+      list.innerHTML = '<div class="js-empty-state-lg">' + t('logs.empty') + '</div>';
     } else {
       list.innerHTML = d.logs.map(l => {
         const level = (l.level || 'info').toUpperCase();
@@ -60,7 +60,7 @@ export async function refreshLogs() {
         const sourceBadge = loggerName
           ? `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;background:color-mix(in srgb, ${levelColor} 12%, transparent);color:${levelColor};margin-right:6px;vertical-align:middle;letter-spacing:0.3px">${escapeHtml(loggerName)}</span>`
           : '';
-        return `<div class="log-entry" style="background:var(--color-surface);border-left:4px solid ${levelColor};border-radius:var(--border-radius);padding:8px 12px;margin-bottom:6px;box-shadow:0 1px 2px var(--shadow-sm);transition:background 0.15s" onmouseover="this.style.background='var(--color-hover)'" onmouseout="this.style.background='var(--color-surface)'"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:11px;color:var(--color-text-dim);font-family:monospace;white-space:nowrap">${timeStr}</span>${sourceBadge}<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${levelColor}">${level}</span></div><div style="font-size:13px;color:var(--color-text);line-height:1.5;word-break:break-word">${escapedMsg}</div></div>`;
+        return `<div class="log-entry" style="background:var(--color-surface);border-left:4px solid ${levelColor};border-radius:var(--border-radius);padding:8px 12px;margin-bottom:6px;box-shadow:0 1px 2px var(--shadow-sm);transition:background 0.15s" onmouseover="this.style.background='var(--color-hover)'" onmouseout="this.style.background='var(--color-surface)'"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="js-log-time">${timeStr}</span>${sourceBadge}<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${levelColor}">${level}</span></div><div class="js-log-msg">${escapedMsg}</div></div>`;
       }).join('');
     }
 
@@ -74,7 +74,7 @@ export async function refreshLogs() {
 
     renderLogPagination();
   } catch(e) {
-    document.getElementById('chatLogsList').innerHTML = '<div style="color:var(--red);padding:12px">' + t('logs.loadFailed') + ': ' + e.message + '</div>';
+    document.getElementById('chatLogsList').innerHTML = '<div class="js-text-error">' + t('logs.loadFailed') + ': ' + e.message + '</div>';
   }
 }
 
@@ -160,7 +160,7 @@ export function renderLogPagination() {
 
   for (let i = startPage; i <= endPage; i++) {
     const isActive = i === currentPage;
-    html += `<button class="btn-sm ${isActive ? 'primary' : ''}" data-action="log-page" data-page="${i}" style="min-width:32px;padding:4px 8px">${i}</button>`;
+    html += `<button class="btn-sm ${isActive ? 'primary' : ''}" data-action="log-page" data-page="${i}" class="js-badge-sm">${i}</button>`;
   }
 
   html += `<button class="btn-sm" ${currentPage >= totalPages ? 'disabled' : ''} data-action="log-page" data-page="${currentPage + 1}">下一页 ›</button>`;
@@ -189,7 +189,7 @@ export function toggleAutoRefresh() {
 }
 
 export function clearLogs() {
-  document.getElementById('chatLogsList').innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:40px">' + t('logs.cleared') + '</div>';
+  document.getElementById('chatLogsList').innerHTML = '<div class="js-empty-state-lg">' + t('logs.cleared') + '</div>';
   document.getElementById('chatLogStats').textContent = '';
   const lp = document.getElementById('chatLogPagination') || document.getElementById('logPagination');
   if (lp) lp.innerHTML = '';

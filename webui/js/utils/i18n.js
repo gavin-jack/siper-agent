@@ -3,13 +3,12 @@
 
 export const LANG = {
   zh: {
-    'nav.main': '主要功能',
-
     'nav.chat': '对话',
     'nav.sessions': '会话',
     'nav.models': '模型',
     'nav.agent': '智能体',
     'nav.memory': '记忆',
+    'nav.tools': '工具',
     'memory.mdFile': '记忆文件',
     'memory.integration': '记忆整合',
     'memory.integrationTitle': '记忆整合进提示词的方式',
@@ -58,8 +57,8 @@ export const LANG = {
     'nav.files': '文件',
     'nav.logs': '日志',
     'nav.token': 'Token',
-    'nav.globalSettings': '全局设置',
-    'nav.modelSettings': '模型管理',
+    'nav.globalSettings': '全局',
+    'nav.modelSettings': '模型',
     'nav.theme': '外观',
     'nav.language': '语言',
     'models.title': '模型管理',
@@ -459,8 +458,6 @@ export const LANG = {
     'theme.sizeSettings': '尺寸设置',
   },
   en: {
-    'nav.main': 'Main',
-
     'nav.chat': 'Chat',
     'nav.chat': 'Chat',
     'nav.sessions': 'Sessions',
@@ -511,11 +508,12 @@ export const LANG = {
     'memory.previewPlaceholder': '(memory content preview)',
     'memory.previewNone': 'Memory not integrated into prompt (manual reference only)',
     'nav.skills': 'Skills',
+    'nav.tools': 'Tools',
     'nav.system': 'System',
     'nav.files': 'Files',
     'nav.logs': 'Logs',
     'nav.token': 'Token',
-    'nav.globalSettings': 'Global Settings',
+    'nav.globalSettings': 'Global',
     'nav.theme': 'Theme',
     'theme.title': 'Appearance Settings',
     'theme.colors': 'Colors',
@@ -876,8 +874,6 @@ export const LANG = {
     'chat.visionWarnClose': 'Close',
   },
   tw: {
-    'nav.main': '主要功能',
-
     'nav.chat': '對話',
     'nav.sessions': '會話',
     'nav.models': '模型',
@@ -927,11 +923,12 @@ export const LANG = {
     'memory.previewPlaceholder': '（記憶內容預覽）',
     'memory.previewNone': '記憶未整合到提示詞（僅手動引用）',
     'nav.skills': '技能',
+    'nav.tools': '工具',
     'nav.system': '系統',
     'nav.files': '文件',
     'nav.logs': '日誌',
     'nav.token': 'Token',
-    'nav.globalSettings': '全局設置',
+    'nav.globalSettings': '全局',
     'nav.language': '語言',
     'theme.title': '外觀設置',
     'theme.colors': '顏色設置',

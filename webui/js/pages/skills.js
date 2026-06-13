@@ -16,7 +16,7 @@ export async function refreshSkills() {
     }
     
     if (!skills.length) {
-      list.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:40px">' + t('skills.empty') + '</div>';
+      list.innerHTML = '<div class="js-empty-state-lg">' + t('skills.empty') + '</div>';
       return;
     }
 
@@ -39,7 +39,7 @@ export async function refreshSkills() {
   } catch (e) {
     console.error('[skills] refreshSkills error:', e);
     const list = document.getElementById('chatSkillsList') || document.getElementById('skillsList');
-    if (list) list.innerHTML = '<div style="color:var(--red);padding:12px">加载失败: ' + e.message + '</div>';
+    if (list) list.innerHTML = '<div class="js-text-error">加载失败: ' + e.message + '</div>';
   }
 }
 
