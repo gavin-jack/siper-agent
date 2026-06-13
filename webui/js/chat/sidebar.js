@@ -127,13 +127,12 @@ function _getAgentLatestUpdated(agent) {
 let _renderMiddleTimer = null;
 let _switchingAgents = new Set();  // 防重入锁：正在切换的 agent 名集合
 export function renderMiddleList() {
-  // Debounce: coalesce rapid successive calls (e.g. loadChatAgents → renderMiddleList + chatLoadAllSessions → renderMiddleList)
-  // Schedule rebuild on next microtask; if another call arrives before execution, the timer resets
-  if (_renderMiddleTimer) clearTimeout(_renderMiddleTimer);
-  _renderMiddleTimer = setTimeout(_doRenderMiddle, 16); // 1 frame @60fps
+  // 直接执行排序渲染，不走 debounce
+  // 原因：debounce 导致 updateSessionPreview 和 chatLoadAllSessions 竞态，排序结果不稳定
+  if (_renderMiddleTimer) { clearTimeout(_renderMiddleTimer); _renderMiddleTimer = null; }
+  _doRenderMiddle();
 }
 function _doRenderMiddle() {
-  _renderMiddleTimer = null;
   const container = document.getElementById('chatMiddleList');
   if (!container) return;
   container.innerHTML = '';
@@ -192,6 +191,7 @@ function _doRenderMiddle() {
     const sessionsWrap = document.createElement('div');
     sessionsWrap.className = 'siper-agent-sessions';
     if (isExpanded) {
+      let _sessionIdx = 0;
       if (!agent.sessions.length) {
         const empty = document.createElement('div');
         empty.className = 'siper-session-empty';
@@ -372,8 +372,8 @@ export function selectChatSession(session, agent) {
     }
     const container = document.getElementById('chatMessages');
     if (container) container.scrollTop = container.scrollHeight;
-    // Start wave badge for resumed stream
-    if (typeof updateStreamingBadge === 'function') updateStreamingBadge(session.session_id, true);
+    // Start wave badge for resumed stream — only if stream is still active (has accumulated text)
+    if (typeof updateStreamingBadge === 'function' && _chatStreamAcc) updateStreamingBadge(session.session_id, true);
   }
   setTimeout(() => { chatLoadSessionMessages(session.session_id); }, 50);
 }

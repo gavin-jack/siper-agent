@@ -5185,3 +5185,168 @@ html { touch-action: manipulation; }
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ===== NEW ANIMATION KEYFRAMES (2026-07-30) ===== */
+
+/* scaleIn — was referenced but never defined */
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* 1. Message bubble entrance — slide up + fade in */
+@keyframes msgSlideIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.siper-msg-row.msg-animate-in {
+  animation: msgSlideIn 0.2s ease-out both;
+}
+
+/* 2. Typing dots — breathing scale (replaces blink) */
+@keyframes dotBounce {
+  0%, 100% { transform: scale(0.6); opacity: 0.3; }
+  50%      { transform: scale(1.2); opacity: 1; }
+}
+.siper-typing-dots span {
+  display: inline-block;
+  animation: dotBounce 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+}
+.siper-typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.siper-typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+/* 3. Streaming cursor blink */
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+.siper-stream-cursor {
+  display: inline-block;
+  animation: cursorBlink 1s step-end infinite;
+  color: var(--color-primary);
+  font-weight: 700;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+}
+
+/* 6. Toast slide in/out */
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes toastSlideOut {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(40px); }
+}
+.siper-toast.toast-animate-in {
+  animation: toastSlideIn 0.25s ease-out both;
+}
+.siper-toast.toast-animate-out {
+  animation: toastSlideOut 0.2s ease-in both;
+}
+
+/* 8. Send button elastic pop */
+@keyframes btnPop {
+  0%   { transform: scale(0.7); }
+  60%  { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.siper-send-btn.btn-pop,
+.siper-stop-btn.btn-pop {
+  animation: btnPop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* 10. Connection status pulse */
+@keyframes statusPulse {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 40%, transparent); }
+  70%  { box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-primary) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 0%, transparent); }
+}
+.siper-status-dot.status-pulse {
+  animation: statusPulse 0.6s ease-out;
+}
+
+/* 11. Code block border-left reveal */
+@keyframes codeReveal {
+  from { border-left-width: 0; padding-left: 13px; }
+  to   { border-left-width: 3px; padding-left: 10px; }
+}
+.siper-code-block.code-animate-in {
+  border-left: 3px solid var(--color-primary);
+  animation: codeReveal 0.3s ease-out both;
+}
+
+/* 12. Tool call collapse/expand */
+@keyframes toolExpand {
+  from { opacity: 0; max-height: 0; }
+  to   { opacity: 1; max-height: 200px; }
+}
+@keyframes toolCollapse {
+  from { opacity: 1; max-height: 200px; }
+  to   { opacity: 0; max-height: 0; }
+}
+.siper-tool-calls.tool-expanding {
+  animation: toolExpand 0.2s ease-out both;
+  overflow: hidden;
+}
+
+/* 13. Scroll-to-bottom button entrance */
+@keyframes scrollBtnIn {
+  from { opacity: 0; transform: scale(0.6) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.siper-scroll-bottom-btn {
+  animation: scrollBtnIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ===== prefers-reduced-motion: disable all non-essential animations ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .siper-session-item.streaming,
+  .siper-session-item.streaming.active {
+    animation: none !important;
+  }
+}
+
+/* ===== Input focus ring (17) ===== */
+#chatInput:focus-visible {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 20%, transparent);
+  transition: border-color 0.15s, box-shadow 0.2s ease-out;
+}
+
+/* ===== Message bubble hover float (8) ===== */
+.siper-bubble {
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.siper-msg-row:hover .siper-bubble {
+  box-shadow: 0 4px 12px var(--shadow-md);
+}
+.siper-msg-row:hover .siper-bubble.agent-bubble {
+  transform: translateY(-1px);
+}
+.siper-msg-row:hover .siper-bubble.user-bubble {
+  transform: translateY(-1px);
+}
+
+/* ===== Page crossfade (5) ===== */
+.siper-content.siper-page-enter {
+  animation: pageFadeIn 0.15s ease-out both;
+}
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== New message indicator enhanced ===== */
+.siper-new-msg-indicator {
+  transition: opacity 0.2s, transform 0.15s ease-out;
+}
+.siper-new-msg-indicator:hover {
+  opacity: 0.85;
+  transform: scale(1.05);
+}

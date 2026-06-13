@@ -75,7 +75,8 @@ export function chatSwitchPage(page, fromNavigate) {
   if (!content) return;
 
   content.innerHTML = '';
-  content.className = 'siper-content';
+  content.className = 'siper-content siper-page-enter';
+  setTimeout(() => content.classList.remove('siper-page-enter'), 200);
 
   if (middle) middle.style.display = (page === 'chat') ? '' : 'none';
 
