@@ -46,7 +46,7 @@ export function chatHandleStreamDelta(delta, streamSessionId) {
       <img src="${avatarUrl}" class="siper-msg-avatar" alt="" onerror="this.src='/static/default_avatar_256.png'">
       <div class="siper-bubble-col">
         <div class="siper-msg-time"></div>
-        <div class="siper-bubble agent-bubble"><div class="siper-msg-body"><span class="siper-stream-text"></span></div></div>
+        <div class="siper-bubble agent-bubble"><div class="siper-msg-body"><span class="siper-stream-text"></span><span class="siper-stream-cursor" style="display:none">▊</span></div></div>
         <div class="siper-msg-actions"></div>
       </div>
     `;
@@ -56,6 +56,8 @@ export function chatHandleStreamDelta(delta, streamSessionId) {
   }
 
   const textEl = _chatStreamRow.querySelector('.siper-stream-text');
+  const cursorEl = _chatStreamRow.querySelector('.siper-stream-cursor');
+  if (cursorEl) cursorEl.style.display = 'inline';
   if (textEl) {
     // Throttle markdown render: only render every 3rd delta to reduce CPU usage
     // The final stream_end will always render the complete text
@@ -113,6 +115,8 @@ export function chatHandleStreamEnd(data, streamSessionId) {
   // 复用流式 DOM，直接更新内容（避免移除重建导致的闪烁）
   if (_chatStreamRow) {
     _chatStreamRow.classList.remove('siper-stream-row');
+    const cursorEl = _chatStreamRow.querySelector('.siper-stream-cursor');
+    if (cursorEl) cursorEl.style.display = 'none';
     // 替换流式文本为渲染后的 markdown
     const streamTextEl = _chatStreamRow.querySelector('.siper-stream-text');
     if (streamTextEl) {

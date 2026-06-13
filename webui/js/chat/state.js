@@ -180,6 +180,12 @@ export function updateSessionPreview(sessionId, text, updatedAt) {
           const preview = item.querySelector('.siper-session-preview');
           if (preview) preview.textContent = _sess.last_message;
         }
+        if (updatedAt !== undefined) {
+          const timeEl = item.querySelector('.siper-session-time');
+          if (timeEl && updatedAt) {
+            timeEl.textContent = new Date(updatedAt).toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+          }
+        }
         break;
       }
     }

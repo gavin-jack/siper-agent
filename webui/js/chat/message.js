@@ -67,6 +67,9 @@ export function chatAppendUserMsg(text) {
     </div>
   `;
   row.dataset.rawText = text;
+  row.classList.add('msg-animate-in');
+  // Remove animation class after it plays so re-renders don't re-trigger
+  setTimeout(() => row.classList.remove('msg-animate-in'), 300);
   msgs.appendChild(row);
   msgs.scrollTop = msgs.scrollHeight;
   return row;
@@ -101,6 +104,8 @@ export function chatAppendAgentMsg(text, meta) {
     bubble.innerHTML = chatRenderMarkdown(text);
   }
   row.dataset.rawText = text;
+  row.classList.add('msg-animate-in');
+  setTimeout(() => row.classList.remove('msg-animate-in'), 300);
   if (meta && meta.message_id) {
     const dictData = meta._raw || meta;
     const actions = row.querySelector('.siper-msg-actions');
@@ -115,6 +120,7 @@ export function chatAppendAgentMsg(text, meta) {
       actions.appendChild(dictBtn);
     }
   }
+  _animateCodeBlocks(row);
   msgs.appendChild(row);
   msgs.scrollTop = msgs.scrollHeight;
   playNotifySound();
