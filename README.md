@@ -6,13 +6,54 @@
 
 ## 功能
 
-- **多模型 LLM**：OpenAI 兼容接口，支持多 Provider、多模型切换，模型配置 SQLite 持久化
-- **流式响应**：WebSocket 实时流式输出
-- **28 个内置工具**：文件操作、代码执行、网络搜索、浏览器控制、技能系统、记忆系统、图像生成、TTS 等
+### 🧠 多模型 LLM
+- OpenAI 兼容接口，支持多 Provider、多模型切换
+- 模型配置 SQLite 持久化（WAL 模式，并发安全）
+- 15 种模型能力标签（chat/reasoning/code/vision/long_context 等）
+- Provider 预设（OpenAI/Anthropic/DeepSeek/Qwen/智谱/MiniMax/Groq/OpenRouter/Ollama 等 12 个）
+- 模型发现：从 Provider API 批量获取模型列表，支持筛选和批量添加
+- TTFT/latency 实时测量与颜色编码
+
+### 💬 流式响应
+- WebSocket 实时流式输出
+- 流式光标指示（闪烁 ▊）
+- 思考面板（CoT 步骤可视化）
+- 打字指示器（弹性圆点动画）
+
+### 🔧 28 个内置工具
+- **文件操作**：读/写/编辑/搜索/批量操作
+- **代码执行**：Python 沙箱、Shell 命令
+- **网络搜索**：SearXNG 本地实例、DuckDuckGo
+- **浏览器控制**：完整浏览器自动化（导航/点击/输入/截图）
 - **技能系统**：自动加载 SKILL.md、语义预筛选、上下文注入
-- **多智能体**：独立配置、独立会话、独立 SOUL/Agent 定义
-- **Web UI**：内置完整管理界面，实时聊天、配置管理、Token 统计
-- **数据持久化**：SQLite + WAL 模式（会话、记忆、模型配置、技能调用记录）
+- **记忆系统**：跨会话持久化记忆、知识空间管理
+- **图像生成**：AI 图片生成
+- **TTS**：文字转语音
+- **会话管理**：创建/切换/重命名/删除会话
+- **定时任务**：cron 调度
+
+### 🤖 多智能体
+- 独立配置（config.json + soul.md）
+- 独立会话（per-agent sessions.db）
+- 独立 SOUL/Agent 定义
+- Agent 切换、新增、删除、头像上传
+
+### 🖥️ Web UI
+- **实时聊天**：流式输出、消息气泡入场动画、hover 微交互
+- **模型管理**：独立页面、搜索/筛选/排序、分组/平铺切换、卡片 UI
+- **会话管理**：列表折叠/展开、重命名、未读标记、波浪背景
+- **Token 统计**：echarts 图表（分模型/24小时/每日趋势/效率对比/热力图）
+- **系统设置**：运行时参数、Agent 管理、全局配置
+- **主题系统**：9 种预设 + 自定义主题
+- **技能管理**：技能卡片、搜索筛选
+- **记忆管理**：Markdown 编辑器、知识空间浏览
+- **系统日志**：多级别过滤、分页、自动刷新
+- **14 项前端动效**：消息入场、流式光标、弹性按钮、代码块展开、工具调用折叠、Toast 滑入、输入框聚焦光环、页面切换淡入、气泡 hover 上浮、连接状态脉冲、滚动按钮弹性入场、打字指示器弹性圆点、会话列表错开入场、prefers-reduced-motion 支持
+
+### 💾 数据持久化
+- SQLite + WAL 模式（会话、记忆、模型配置、技能调用记录）
+- 乐观更新会话列表
+- 快速重启脚本（1 秒重启）
 
 ## 快速开始
 
@@ -39,6 +80,7 @@ siper-agent/
 ├── setup.py                  # pip 安装配置
 ├── LICENSE                   # MIT License
 ├── README.md                 # 项目说明
+├── CHANGELOG.md              # 详细变更记录
 ├── ai_agent/                 # Agent 核心
 │   ├── core/                 #   agent.py + llm_client.py
 │   ├── models_db.py          #   模型数据库（SQLite）
@@ -48,18 +90,18 @@ siper-agent/
 │   └── utils/                #   工具类
 ├── agents/                   # 智能体数据（运行时自动生成）
 │   ├── default/              #   默认智能体配置
-│   ├── token.db              #    token 统计 DB
+│   ├── token.db              #   Token 统计 DB
 │   └── company-researcher/   #   企业研究智能体
 │   └── tv-recommender/       #   电视推荐智能体
 ├── webui/                    # Web 前端
 │   ├── index.html            #   SPA 入口
 │   ├── js/                   #   ESM 模块化 JS（21 个文件）
 │   │   ├── app.js            #   唯一 ESM 入口
-│   │   ├── chat/             #   聊天模块
+│   │   ├── chat/             #   聊天模块（message/stream/input/sidebar/state/toast/lang）
 │   │   ├── pages/            #   页面模块（9 个页面）
-│   │   ├── components/       #   公共组件
-│   │   └── utils/            #   工具函数
-│   ├── css/style.css         #   全局样式
+│   │   ├── components/       #   公共组件（toast/model-test/agent-models）
+│   │   └── utils/            #   工具函数（dom/escape/api/i18n）
+│   ├── css/style.css         #   全局样式（~5400 行，17 个 @keyframes）
 │   └── static/               #   静态资源（echarts、头像等）
 ├── skills/                   # 内置技能
 │   ├── code-review/          #   代码审查
@@ -82,7 +124,29 @@ siper-agent/
 
 ## 更新日志
 
-### v0.1.4 (2026-06-12)
+### v0.1.5 (2026-07-30)
+
+**新功能**：
+- **14 项前端动效**：消息气泡入场（slide up + fade in）、流式光标（闪烁 ▊）、打字指示器弹性圆点（scale bounce）、发送按钮弹性回弹（cubic-bezier 回弹）、连接状态脉冲（box-shadow 扩散）、代码块左侧边框展开、工具调用折叠动画、Toast 滑入/滑出、输入框聚焦光环（box-shadow 扩散）、页面切换淡入、气泡 hover 上浮、滚动按钮弹性入场、会话列表错开入场（stagger 40ms）、prefers-reduced-motion 全局支持
+- **会话 item UI 优化**：ID 显示 12 字符、时间显示、× 按钮 active 状态显示、左右 35px 留白
+- **历史消息补全 meta 信息**：token 用量、模型名、处理时间、工具调用、技能使用
+- **快速重启脚本**：`siper_restart.sh`，1 秒重启，替代手动 kill + 等待
+- **前端消息渲染统一**：stream_end 复用 DOM，避免移除重建闪烁
+
+**Bug 修复**：
+- 会话排序竞态：`renderMiddleList` 去掉 debounce，改为同步执行，修复 `updateSessionPreview` 和 `chatLoadAllSessions` 竞态导致排序不稳定
+- 波浪背景不停止：`selectChatSession` 只在 `_chatStreamAcc` 非空（仍在 streaming）时才开启 badge
+- 回复结束 thinking panel 未隐藏
+- 会话排序字段更新
+- 非 chat 路径波浪停止
+- 前端消息渲染统一 + 后端 import 优化
+- `updateSessionPreview` 同步更新 DOM 时间显示
+
+**重构**：
+- 前端消息渲染统一：stream_end 路径和历史消息路径共享 DOM 更新逻辑
+- 后端 import 优化
+
+### v0.1.4 (2026-07-30)
 
 **新功能**：
 - **模型管理独立页面**：从全局设置页拆分为独立页面，更专注的模型管理体验
