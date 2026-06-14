@@ -9,7 +9,7 @@ import { chatHandleStreamDelta, chatHandleStreamEnd, chatHandleToolProgress, cha
 import { chatThinkingHide } from '../chat/state.js';
 
 // Pages rendered inside #page-chat three-column layout (migrated from core.js)
-const _CHAT_RENDERED_PAGES = new Set(['chat','tasks','skills','token','global-settings','model-settings','logs','monitor']);
+const _CHAT_RENDERED_PAGES = new Set(['chat','tasks','skills','plugins','token','global-settings','model-settings','logs','monitor']);
 let currentPage = 'chat';
 let currentSession = null;  // null until first WS connection or session load
 let ws = null;  // WebSocket connection — set by connectWS(), used by _sendClarifyResponse

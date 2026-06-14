@@ -33,6 +33,7 @@ const CHAT_PAGES = {
   'model-settings': { title: '模型管理', icon: '🤖' },
   tools:    { title: '工具', icon: '🔧' },
   skills:    { title: '技能管理', icon: '🧩' },
+  plugins:  { title: '插件管理', icon: '🔌' },
   monitor:  { title: '监控', icon: '📊' },
   'global-settings': { title: '全局设置', icon: '⚙️' },
 };
@@ -85,6 +86,7 @@ export function chatSwitchPage(page, fromNavigate) {
     case 'chat':    renderChatPage(content); break;
     case 'tasks':    renderTasksPageChat(content); break;
     case 'skills':    renderSkillsPageChat(content); break;
+    case 'plugins':  renderPluginsPageChat(content); break;
     case 'token':     renderTokenPageChat(content); break;
     case 'global-settings': renderSettingsPageChat(content); break;
     case 'model-settings': renderModelSettingsPageChat(content); break;
@@ -614,6 +616,11 @@ function renderSkillsPageChat(container) {
   container.className = 'siper-content siper-full-content';
   container.innerHTML = `<div id="chatSkillsList"></div>`;
   if (typeof window.refreshSkills === 'function') window.refreshSkills();
+}
+
+function renderPluginsPageChat(container) {
+  container.className = 'siper-content siper-full-content';
+  container.innerHTML = `<div class="page-header"><h2>🔌 插件管理</h2></div><div class="page-body"><div class="empty-state">插件管理功能开发中...</div></div></div>`;
 }
 
 function renderTokenPageChat(container) {
