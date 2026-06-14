@@ -3611,6 +3611,15 @@ async def main():
             _adapter = WebUIAdapter(ws)
             await snapshot_mgr.register(conn_id, _adapter)
             carrier_mgr.add(conn_id, _adapter)
+            # 起源：初始数据同步（agents with sessions）
+            logger.info(f"[起源] WS {conn_id} 注册完成，开始初始同步...")
+            from ai_agent.state.session_sync import sync_agents
+            try:
+                _agents = sync_agents(snapshot_mgr)
+                await snapshot_mgr.set("agents", _agents)
+                logger.info(f"[起源] 初始同步: {len(_agents)} agents")
+            except Exception as e:
+                logger.error(f"[起源] initial sync failed: {e}", exc_info=True)
         # Create per-connection queue
         _msg_queues[conn_id] = asyncio.Queue(maxsize=100)
         _msg_queue_locks[conn_id] = asyncio.Lock()
@@ -4029,11 +4038,9 @@ async def main():
                 ("stream_text", ""),
                 ("active_session_id", session_id),
             ])
-            # 同步会话列表
-            from ai_agent.state.session_sync import sync_sessions, sync_agents
+            # 同步 agents（含 sessions）
+            from ai_agent.state.session_sync import sync_agents
             try:
-                sessions = sync_sessions(snapshot_mgr, agent)
-                await snapshot_mgr.set("sessions", sessions)
                 agents = sync_agents(snapshot_mgr)
                 await snapshot_mgr.set("agents", agents)
             except Exception as e:

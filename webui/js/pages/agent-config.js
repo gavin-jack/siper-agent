@@ -800,3 +800,4 @@ export function showAddAgentModal() {
 // ===== Window Mount =====
 window.showAddAgentModal = showAddAgentModal;
 window.confirmDeleteAgent = confirmDeleteAgent;
+window.switchConfigAgentPageTab = switchConfigAgentPageTab;

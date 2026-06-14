@@ -85,7 +85,7 @@ def sync_sessions(snapshot_mgr: "SnapshotManager", agent) -> list:
 
 
 def sync_agents(snapshot_mgr: "SnapshotManager") -> list:
-    """加载智能体列表 → 返回 AgentInfo dict 列表"""
+    """加载智能体列表 → 返回 AgentInfo dict 列表（含 sessions）"""
     agents = []
     agents_dir = Path(os.path.dirname(__file__)).parent.parent / "agents"
     if not agents_dir.exists():
@@ -100,10 +100,58 @@ def sync_agents(snapshot_mgr: "SnapshotManager") -> list:
                 config = json.loads(config_path.read_text(encoding="utf-8"))
             except Exception:
                 pass
+        # 从 DB 加载该 agent 的会话列表
+        sessions = _load_agent_sessions(d.name, agents_dir)
         agents.append({
             "name": d.name,
             "icon": config.get("icon", "🎭"),
             "display_name": config.get("display_name", d.name),
             "model": config.get("model", ""),
+            "sessions": sessions,
         })
     return agents
+
+
+def _load_agent_sessions(agent_name: str, agents_dir: Path) -> list:
+    """从 DB 加载指定 agent 的会话摘要列表"""
+    db_path = agents_dir / agent_name / "sessions" / "sessions.db"
+    if not db_path.exists():
+        return []
+    try:
+        import sqlite3 as _sq
+        conn = _sq.connect(str(db_path), check_same_thread=False)
+        conn.row_factory = _sq.Row
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT s.session_id, s.user_id, s.created_at, s.ended_at, s.title,
+                   COUNT(m.message_id) as msg_count,
+                   m_last.content as last_content,
+                   m_last.timestamp as last_ts
+            FROM sessions s
+            LEFT JOIN messages m ON m.session_id = s.session_id
+            LEFT JOIN messages m_last ON m_last.message_id = (
+                SELECT message_id FROM messages
+                WHERE session_id = s.session_id
+                ORDER BY timestamp DESC LIMIT 1
+            )
+            GROUP BY s.session_id
+            HAVING msg_count > 0
+            ORDER BY s.created_at DESC
+            LIMIT 50
+        """)
+        sessions = []
+        for row in cursor.fetchall():
+            sessions.append({
+                "session_id": row["session_id"],
+                "user_id": row["user_id"],
+                "created_at": row["created_at"],
+                "ended_at": row["ended_at"],
+                "title": row["title"] or "",
+                "updated_at": row["last_ts"] or row["created_at"],
+                "message_count": row["msg_count"],
+                "last_message": (row["last_content"] or "")[:80],
+            })
+        conn.close()
+        return sessions
+    except Exception:
+        return []

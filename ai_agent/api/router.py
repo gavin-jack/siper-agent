@@ -5,12 +5,23 @@ import asyncio
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
+import re
+
 class Router:
     """HTTP 路由注册器"""
 
     def __init__(self, prefix: str = "/api/v1"):
         self.prefix = prefix
         self._routes: List[Tuple[str, str, Callable]] = []
+
+    def _compile_path(self, path: str) -> Tuple[re.Pattern, List[str]]:
+        """将路径模板编译为正则，提取参数名列表。
+        
+        /api/sessions/{sid} → (re.compile(r'^/api/sessions/(?P<sid>[^/]+)$'), ['sid'])
+        """
+        param_names = []
+        pattern = re.sub(r'\{(\w+)\}', lambda m: (param_names.append(m.group(1)), r'([^/]+)')[1], path)
+        return re.compile(f'^{pattern}$'), param_names
 
     def get(self, path: str):
         def deco(fn):
@@ -39,21 +50,43 @@ class Router:
     async def dispatch(self, method: str, path: str, body=None):
         """Dispatch 请求到匹配的路由处理函数。
 
-        如果路由函数是 async 函数则 await，否则直接调用。
-        body 参数仅在 POST/PUT/DELETE 时传递给处理函数。
+        支持路径参数：/api/sessions/{sid} 匹配 /api/sessions/abc123
+        路径参数通过关键字参数传递给处理函数。
         """
         _pass_body = method in ("POST", "PUT", "DELETE") and body is not None
         for m, p, fn in self._routes:
-            if m == method and p == path:
+            if m != method:
+                continue
+            # 尝试精确匹配
+            if p == path:
                 try:
                     if asyncio.iscoroutinefunction(fn):
                         return await fn(body) if _pass_body else await fn()
                     return fn(body) if _pass_body else fn()
                 except TypeError:
-                    # 函数不接受 body 参数，尝试不传参调用
                     if asyncio.iscoroutinefunction(fn):
                         return await fn()
                     return fn()
+            # 尝试参数化匹配
+            if '{' in p:
+                pattern, param_names = self._compile_path(p)
+                match = pattern.match(path)
+                if match:
+                    kwargs = dict(zip(param_names, match.groups()))
+                    try:
+                        if asyncio.iscoroutinefunction(fn):
+                            return await fn(body, **kwargs) if _pass_body else await fn(**kwargs)
+                        return fn(body, **kwargs) if _pass_body else fn(**kwargs)
+                    except TypeError:
+                        # 函数不接受 kwargs，尝试只传 body
+                        try:
+                            if asyncio.iscoroutinefunction(fn):
+                                return await fn(body) if _pass_body else await fn()
+                            return fn(body) if _pass_body else fn()
+                        except TypeError:
+                            if asyncio.iscoroutinefunction(fn):
+                                return await fn()
+                            return fn()
         return None
 
     @property

@@ -7,7 +7,8 @@ import {
   _ctxMenu,
   setChatAgents, setChatSessionId, setChatCurrentAgent, setSelectedAgent, setAgentConfigName,
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu, setChatExpandedAgents,
-  setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges
+  setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
+  syncStreamToCurrent, syncStreamFromCurrent
 } from './state.js';
 import { chatEscapeHtml, chatLoadSessionMessages, chatRenderMarkdown, chatClearMessages } from './message.js';
 import { updateChatHeader } from './input.js';
@@ -312,9 +313,9 @@ export function selectChatSession(session, agent) {
   if (_ssb) _ssb.disabled = false;
   const _sstb = document.getElementById('chatStopBtn');
   if (_sstb) _sstb.classList.add('hidden');
-  _syncStreamToCurrent();
+  syncStreamToCurrent();
   // Hide stream row instead of removeChild — preserves DOM for seamless restore
-  if (_chatStreamRow) _chatStreamRow.style.display = 'none';
+  if (typeof _chatStreamRow !== 'undefined' && _chatStreamRow) _chatStreamRow.style.display = 'none';
   const prevSid = chatSessionId;
   const _prevAgent = chatCurrentAgent;
   setChatSessionId(session.session_id);
@@ -329,7 +330,7 @@ export function selectChatSession(session, agent) {
     });
   }
   clearSessionUnread(session.session_id);
-  _syncStreamFromCurrent();
+  syncStreamFromCurrent();
   // 确保 agent 展开（点+创建新会话或切换会话时）
   chatExpandedAgents[agent.name] = true;
   // 始终切换到 chat 页面确保右栏渲染消息列表+输入框
@@ -655,3 +656,32 @@ export function selectChatAgent(name) {
 }
 
 // Agent config operations moved to agent-config.js — old wcfg-prefixed functions removed
+
+// ===== Window Mounts (for renderer handlers) =====
+window.renderMiddleList = renderMiddleList;
+
+/**
+ * Render agent list from backend snapshot data.
+ * Updates chatAgents state and renders middle list.
+ * @param {Array} agents - [{name, display_name, description, sessions: [...]}]
+ */
+window.renderAgentList = function(agents) {
+  if (!Array.isArray(agents)) return;
+  // Update state
+  setChatAgents(agents);
+  // Also update legacy sessions flat list for backward compat
+  const flatSessions = [];
+  for (const agent of agents) {
+    if (agent.sessions && Array.isArray(agent.sessions)) {
+      for (const s of agent.sessions) {
+        flatSessions.push({...s, agent_name: agent.name});
+      }
+    }
+  }
+  // Update session-related state if needed
+  if (typeof setChatSessionId === 'function' && flatSessions.length > 0) {
+    // Don't auto-select, just make data available
+  }
+  // Re-render middle list
+  renderMiddleList();
+};

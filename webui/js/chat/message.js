@@ -363,3 +363,38 @@ export function updateCtxInfoDisplay() {
 }
 
 // ===== ECharts =====
+
+// ===== Window Mounts (for renderer handlers) =====
+
+/**
+ * Render message list from backend snapshot data.
+ * Clears container and re-renders all messages.
+ * @param {Array} messages - [{role, content, timestamp, meta, message_id, agent_name}]
+ */
+window.renderChatMessages = function(messages) {
+  if (!Array.isArray(messages)) return;
+  const container = document.getElementById('chatMessages');
+  if (!container) return;
+  // Clear but keep empty state
+  container.innerHTML = '';
+  if (messages.length === 0) {
+    container.innerHTML = '<div class="siper-empty-state" id="chatEmptyState"><div class="siper-empty-state-icon">💬</div><div>通过agent发送消息</div></div>';
+    return;
+  }
+  for (const msg of messages) {
+    const role = msg.role || 'assistant';
+    const isAgent = role !== 'user';
+    const meta = msg.meta || {};
+    // Attachments injection
+    if (msg.attachments) meta.attachments = msg.attachments;
+    chatAddMessage(
+      msg.content || '',
+      isAgent,
+      meta,
+      msg.timestamp || null,
+      false,
+      msg.agent_name || null,
+      msg.message_id || null
+    );
+  }
+};

@@ -188,7 +188,9 @@ export function registerAllHandlers() {
     });
 
     register('messages', (v) => {
-        // 消息渲染由 chat.js 处理
+        if (typeof window.renderChatMessages === 'function') {
+            window.renderChatMessages(v);
+        }
     });
 
     register('agents', (v) => {
