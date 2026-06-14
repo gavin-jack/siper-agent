@@ -1304,8 +1304,7 @@ html { touch-action: manipulation; }
   transition: background-color 0.15s, opacity 0.15s;
 }
 .siper-notif-btn-primary,
-.modal-footer-base button.primary,
-.siper-settings-tab.active {
+.modal-footer-base button.primary {
   background: var(--color-primary); color: var(--color-primary-fg); border-color: var(--color-primary);
 }
 .siper-notif-btn-primary:hover { background: var(--color-success-hover); }
@@ -4045,18 +4044,34 @@ html { touch-action: manipulation; }
 /* ===== Settings Tabs ===== */
 .siper-settings-tabs {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+  margin-bottom: 4px;
 }
 .siper-settings-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border-radius: 8px 8px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-bottom: none;
   background: transparent;
   color: var(--color-text-dim);
-  font-size: 13px;
-  cursor: pointer;
   transition: background-color, color 0.15s;
+}
+
+.siper-settings-tab.active {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border-color: var(--color-border);
+  font-weight: 600;
+  box-shadow: 0 -2px 8px var(--shadow-sm);
 }
 .siper-settings-tab:hover {
   background: color-mix(in srgb, var(--color-text) 6%, transparent);
