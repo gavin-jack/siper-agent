@@ -4,9 +4,7 @@
  * 此文件只定义变量和 getter/setter，不处理 WS/流式/导航等逻辑。
  */
 
-// ===== Core Chat State =====
-export let _chatCurrentPage = 'chat';
-export let _chatSessionId = null;
+// ===== Getter/Setter: Core Chat State =====
 export let _chatCurrentAgent = null;
 export let _chatPendingFiles = [];
 export let _isSending = false;
@@ -57,11 +55,12 @@ export let _isConnected = false;
 export function setConnected(val) { _isConnected = val; }
 export let _sessionWaiters = [];
 
-// Streaming sessions (per-session streaming badge)
-export const _streamingSessions = new Set();
+// Streaming sessions (per-session streaming badge) — removed, 0 external refs
+// export const _streamingSessions = new Set();
 
 // ===== Getter/Setter: Core Chat State =====
-export function getChatCurrentPage() { return _chatCurrentPage; }
+let _chatCurrentPage = 'chat';  // internal only, no external refs
+
 export function setCurrentPage(page) { _chatCurrentPage = page; }
 
 export function getChatSessionId() { return _chatSessionId; }
@@ -70,7 +69,6 @@ export function setChatSessionId(sid) { _chatSessionId = sid; }
 export function getChatCurrentAgent() { return _chatCurrentAgent; }
 export function setChatCurrentAgent(agent) { _chatCurrentAgent = agent; }
 
-export function getChatPendingFiles() { return _chatPendingFiles; }
 export function setChatPendingFiles(files) { _chatPendingFiles = files; }
 
 export function getIsSending() { return _isSending; }
@@ -79,34 +77,26 @@ export function setIsSending(val) { _isSending = val; }
 export function getChatAgents() { return _chatAgents; }
 export function setChatAgents(agents) { _chatAgents = agents; }
 
-export function getChatExpandedAgents() { return _chatExpandedAgents; }
 export function setChatExpandedAgents(expanded) { _chatExpandedAgents = expanded; }
 
 export function getChatSidebarExpanded() { return _chatSidebarExpanded; }
 export function setChatSidebarExpanded(v) { _chatSidebarExpanded = v; }
 
 // ===== Getter/Setter: Streaming State =====
-export function getChatStreamAcc() { return _chatStreamAcc; }
 export function setChatStreamAcc(acc) { _chatStreamAcc = acc; }
 
-export function getChatStreamRow() { return _chatStreamRow; }
 export function setChatStreamRow(row) { _chatStreamRow = row; }
 
-export function getChatStreamBubble() { return _chatStreamBubble; }
 export function setChatStreamBubble(bubble) { _chatStreamBubble = bubble; }
 
-export function getThinkingSteps() { return _thinkingSteps; }
 export function setThinkingSteps(v) { _thinkingSteps = v; }
 
-export function getIsThinking() { return _isThinking; }
 export function setIsThinking(val) { _isThinking = val; }
 
 // ===== Getter/Setter: Model Selection =====
-export function getChatCurrentModel() { return _chatCurrentModel; }
 export function setCurrentModel(model) { _chatCurrentModel = model; }
 export function setChatCurrentModel(model) { _chatCurrentModel = model; }
 
-export function getChatModelContextWindow() { return _chatModelContextWindow; }
 export function setModelContextWindow(ctx) { _chatModelContextWindow = ctx; }
 export function setChatModelContextWindow(ctx) { _chatModelContextWindow = ctx; }
 
@@ -126,9 +116,7 @@ export function setChatAgentFiles(files) { _chatAgentFiles = files; }
 export function getChatCurAgentFile() { return _chatCurAgentFile; }
 export function setChatCurAgentFile(type) { _chatCurAgentFile = type; }
 
-// ===== Getter/Setter: Logs State =====
-export function getLogsData() { return _logsData; }
-export function setLogsData(data) { _logsData = data; }
+// ===== Getter/Setter: Logs State (removed — 0 external refs) =====
 
 // ===== Getter/Setter: Context Menu =====
 export function getCtxMenu() { return _ctxMenu; }
@@ -188,7 +176,7 @@ export function updateStreamingBadge(sessionId, active) {
     applyStreamingBadge(sessionId);
 }
 
-export function applyStreamingBadge(sessionId) {
+function applyStreamingBadge(sessionId) {
     const items = document.querySelectorAll('.siper-session-item');
     for (const el of items) {
         if (el.dataset.sessionId === sessionId) {

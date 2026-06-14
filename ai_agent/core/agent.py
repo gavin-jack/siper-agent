@@ -265,11 +265,15 @@ class AIAgent:
             self.logger.debug("正在初始化 AI Agent...")
 
             # Initialize core components
+            self.logger.info("  [init] tool_registry...")
             await self.tool_registry.initialize()
+            self.logger.info("  [init] session_manager...")
             await self.session_manager.initialize()
+            self.logger.info("  [init] skill_loader...")
             await self.skill_loader.initialize()
 
             # Skill system v2: scan registry and build pre-filter index
+            self.logger.info("  [init] skill scan...")
             self.skill_registry.scan()
             self.skill_pre_filter.build_index()
             self.logger.info(

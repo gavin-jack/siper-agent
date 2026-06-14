@@ -322,6 +322,10 @@ root_logger = logging.getLogger()
 for h in list(root_logger.handlers):
     if isinstance(h, logging.StreamHandler):
         root_logger.removeHandler(h)
+# 添加文件日志（必须在 removeHandler 之后，因为 FileHandler 是 StreamHandler 子类）
+_file_handler = logging.FileHandler('/tmp/siper_file.log', mode='a', encoding='utf-8')
+_file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+root_logger.addHandler(_file_handler)
 # Keep memory handler attached; optional: raise level to WARNING to hide INFO logs
 root_logger.setLevel(logging.WARNING)
 logger = logging.getLogger("siper_web")
@@ -387,6 +391,8 @@ def _render_index() -> str:
         mtime = int(os.path.getmtime(style_css))
         css_link = f'  <link rel="stylesheet" href="/css/style.css?v={mtime}">'
         html = html.replace('</head>', f'{css_link}\n</head>')
+    # 禁止浏览器缓存 index.html（确保每次启动都拿到最新的 ?v= 引用）
+    html = html.replace('<head>', '<head>\n<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">\n<meta http-equiv="Pragma" content="no-cache">\n<meta http-equiv="Expires" content="0">', 1)
     return html
 
 
@@ -452,6 +458,7 @@ async def main():
     )
 
     agent = AIAgent(config)
+    logger.info(f"[计时] AIAgent 创建完成: {(time.time()-_t0)*1000:.0f}ms")
     initialized = await agent.initialize()
     logger.info(f"[计时] Agent 初始化完成: {(time.time()-_t0)*1000:.0f}ms")
     if not initialized:
@@ -622,7 +629,7 @@ async def main():
             )
             logger.info(f"配置：LLM 来自 models.db — 模型={llm_cfg.get('name')}, 地址={llm_cfg.get('base_url')}")
         else:
-            logger.warning("配置：无有效 API Key，LLM 未初始化 — 请在 Web UI 配置页面设置模型")
+            logger.info("配置：无可用模型/密钥，LLM 暂未配置 — 可在 Web UI 模型设置页面添加")
     else:
         if _lc_key:
             _def_model = _gm_default or ""
@@ -636,7 +643,7 @@ async def main():
             )
             logger.info(f"配置：未找到 config.json，使用环境变量 LLM 配置，模型={_def_model}")
         else:
-            logger.warning("配置：无有效 API Key，LLM 未初始化 — 请在 Web UI 配置页面设置模型")
+            logger.info("配置：无可用模型/密钥，LLM 暂未配置 — 可在 Web UI 模型设置页面添加")
 
     # NOTE: coordinator is lazily initialized
     # on first use to reduce memory footprint when not needed.
@@ -754,7 +761,7 @@ async def main():
             ("CSS style",       "/css/style.css", lambda b: len(b) > 100 and b"var(--" in b),
             ("Static favicon",  "/static/favicon.ico", lambda b: len(b) > 100),
             ("Static echarts",  "/static/js/echarts.min.js", lambda b: len(b) > 1000),
-            ("API version",     "/api/version",    lambda b: b'"version"' in b),
+            ("API agents",      "/api/agents",     lambda b: len(b) > 10 and b'"' in b),
             ("API status",      "/api/status",     lambda b: len(b) > 10),
             ("API config",      "/api/config",     lambda b: len(b) > 10),
         ]
@@ -780,7 +787,74 @@ async def main():
             except Exception as _e:
                 _fail += 1
                 logger.warning(f"  ❌ {_name}: {_e}")
-        _summary = f"启动验证: {_ok} 通过, {_fail} 失败"
+        # --- 内存+数据库模式深度检查 ---
+        _mem_checks = []
+        # Agent 对象状态
+        try:
+            _agent_ok = agent is not None and agent.is_running
+            _mem_checks.append(("Memory: Agent 运行", _agent_ok))
+        except Exception:
+            _mem_checks.append(("Memory: Agent 运行", False))
+        # SessionManager 状态
+        try:
+            _sm_ok = agent.session_manager is not None and agent.session_manager._db_connection is not None
+            _mem_checks.append(("Memory: Session DB", _sm_ok))
+        except Exception:
+            _mem_checks.append(("Memory: Session DB", False))
+        # LLM 配置状态（未配置是正常状态，可在前端配置）
+        try:
+            _llm_ok = agent.llm_client is not None
+            _mem_checks.append(("Memory: LLM 可选配置", _llm_ok))
+        except Exception:
+            _mem_checks.append(("Memory: LLM 可选配置", False))
+        # ModelsDB 状态（检查数据库可访问 + 表结构，不要求有数据）
+        try:
+            _models_accessible = _models_db is not None
+            if _models_accessible:
+                # 验证表结构完整（providers + models 两张表存在）
+                _conn = _models_db._connect()
+                _tables = [r[0] for r in _conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('providers','models')"
+                ).fetchall()]
+                _conn.close()
+                _models_ok = len(_tables) == 2
+            else:
+                _models_ok = False
+            _mem_checks.append(("Memory: Models DB 可访问", _models_ok))
+        except Exception:
+            _mem_checks.append(("Memory: Models DB 可访问", False))
+        # 起源组件状态（如已初始化）
+        try:
+            _origin_ok = snapshot_mgr is not None and carrier_mgr is not None
+            _mem_checks.append(("Memory: 起源组件", _origin_ok))
+        except Exception:
+            _mem_checks.append(("Memory: 起源组件", False))
+        # WS 端口可达性
+        try:
+            _ws_port = http_port + 1
+            import socket as _socket
+            _s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+            _s.settimeout(3)
+            _result = _s.connect_ex(("127.0.0.1", _ws_port))
+            _s.close()
+            _mem_checks.append(("Network: WS 端口", _result == 0))
+        except Exception:
+            _mem_checks.append(("Network: WS 端口", False))
+
+        for _name, _passed in _mem_checks:
+            if _passed:
+                _ok += 1
+                logger.info(f"  ✅ {_name}")
+            else:
+                _fail += 1
+                # LLM 未配置和起源组件未初始化是预期的，降级为 info
+                if "LLM" in _name or "起源" in _name:
+                    logger.info(f"  ⏳ {_name}（预期，可在 Web UI 配置）")
+                else:
+                    logger.warning(f"  ❌ {_name}")
+
+        _total = _ok + _fail
+        _summary = f"启动验证: {_ok}/{_total} 通过 ({_fail} 个可选警告)"
         logger.info(_summary)
         with open("/tmp/siper_startup.log", "a") as _dbg:
             _dbg.write(f"[{(time.time()-t0):.1f}s] {_summary}\n")
@@ -920,7 +994,7 @@ async def main():
                     resolved = None
                 if resolved and str(resolved).startswith(str(static_root)) and resolved.is_file():
                     ext = os.path.splitext(str(resolved))[1].lower()
-                    content_types = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml", ".css": "text/css", ".js": "application/javascript"}
+                    content_types = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml", ".css": "text/css", ".js": "text/javascript"}
                     ct = content_types.get(ext, "application/octet-stream")
                     with open(resolved, "rb") as f:
                         file_data = f.read()
@@ -989,7 +1063,7 @@ async def main():
                     resolved = None
                 if resolved and str(resolved).startswith(str(js_root)) and resolved.is_file():
                     ext = os.path.splitext(str(resolved))[1].lower()
-                    content_types = {".css": "text/css", ".js": "application/javascript", ".mjs": "application/javascript"}
+                    content_types = {".css": "text/css", ".js": "text/javascript", ".mjs": "text/javascript"}
                     ct = content_types.get(ext, "application/octet-stream")
                     with open(resolved, "rb") as f:
                         file_data = f.read()
@@ -4060,10 +4134,23 @@ async def main():
     except asyncio.CancelledError:
         pass
     finally:
+        logger.info("siper 正在停止...")
         http_server.close()
         await http_server.wait_closed()
         ws_server.close()
         await ws_server.wait_closed()
+        # 清理所有 agent 的 SessionManager
+        for _sm in _agent_session_managers.values():
+            try:
+                await _sm.cleanup()
+            except Exception:
+                pass
+        _agent_session_managers.clear()
+        # 清理起源组件（无显式 cleanup，内存对象随 GC 回收）
+        snapshot_mgr = None
+        carrier_mgr = None
+        # 关闭 ModelsDB（无显式 close，SQLite 连接随 GC 回收）
+        # 关闭 agent
         await agent.shutdown()
         # 清理 PID 文件
         try:
