@@ -484,11 +484,8 @@ async function saveModelsImmediate() {
     const d = await r.json();
     if (!d.success) toast.error(t('settings.saveFailed') + ': ' + (d.error || 'unknown'));
     else {
-      if (typeof loadChatAgents === 'function') {
-        loadChatAgents().then(() => {
-          if (typeof loadChatModels === 'function') loadChatModels();
-        });
-      }
+      // WS agents push handles refresh, just reload models
+      if (typeof loadChatModels === 'function') loadChatModels();
     }
   } catch(e) { toast.error(t('settings.saveFailed') + ': ' + e.message); }
 }

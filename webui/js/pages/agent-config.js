@@ -174,14 +174,8 @@ export function autoSaveAgentModels() {
       const d = await r.json();
       if (d.success) {
         toast.success(t('agent.modelSaved'), 1500);
-        // Refresh chat agents cache and model dropdown
-        if (typeof loadChatAgents === 'function') {
-          loadChatAgents().then(() => {
-            if (typeof loadChatModels === 'function') loadChatModels();
-          });
-        } else if (typeof loadChatModels === 'function') {
-          loadChatModels();
-        }
+        if (typeof refreshConfigAgentPanel === 'function') refreshConfigAgentPanel();
+        if (typeof loadChatModels === 'function') loadChatModels();
       }
       else toast.error(t('settings.saveFailed') + ': ' + (d.error || 'unknown'));
     } catch(e) { toast.error(t('settings.saveFailed') + ': ' + e.message); }
@@ -754,7 +748,6 @@ function confirmDeleteAgent(name) {
           if (data.success) {
             toast.success('已删除');
             if (typeof refreshConfigAgentPanel === 'function') refreshConfigAgentPanel();
-            if (typeof loadChatAgents === 'function') loadChatAgents();
           } else {
             toast.error(data.error || '删除失败');
           }
@@ -788,7 +781,6 @@ export function showAddAgentModal() {
         if (data.success) {
           toast.success('已创建: ' + name);
           if (typeof refreshConfigAgentPanel === 'function') refreshConfigAgentPanel();
-          if (typeof loadChatAgents === 'function') loadChatAgents();
         } else {
           toast.error(data.error || '创建失败');
         }

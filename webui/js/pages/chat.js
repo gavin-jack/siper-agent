@@ -151,7 +151,9 @@ export function renderChatPage(container, skipSidebar) {
     Message.chatLoadSessionMessages(chatSessionId);
   }
   if (!skipSidebar) {
-    if (chatAgents.length === 0) Sidebar.loadChatAgents();
+    if (chatAgents.length === 0) {
+      // WS 推送 agents 后 renderAgentList 会自动渲染，此处无需操作
+    }
     else Sidebar.renderMiddleList();
   }
   Input.loadChatModels();
@@ -897,8 +899,9 @@ window.chatThinkingAddToolStep = Stream.chatThinkingAddToolStep;
 window.chatThinkingAddTextRow = Stream.chatThinkingAddTextRow;
 
 // Sidebar / sessions
-window.loadChatAgents = Sidebar.loadChatAgents;
-window.chatLoadAllSessions = Sidebar.chatLoadAllSessions;
+// loadChatAgents / chatLoadAllSessions removed — WS agents push replaces them
+window.loadChatAgents = function() { /* deprecated: WS agents push handles this */ };
+window.chatLoadAllSessions = function() { /* deprecated: agents include sessions */ };
 window.renderMiddleList = Sidebar.renderMiddleList;
 window.chatToggleAgent = Sidebar.chatToggleAgent;
 window.selectChatSession = Sidebar.selectChatSession;

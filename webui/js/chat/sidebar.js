@@ -14,85 +14,6 @@ import { chatEscapeHtml, chatLoadSessionMessages, chatRenderMarkdown, chatClearM
 import { updateChatHeader } from './input.js';
 import { toast, showInput } from '../components/toast.js';
 
-// ===== Agent Loading =====
-
-export function loadChatAgents() {
-  const midList = document.getElementById('chatMiddleList');
-  if (chatAgents.length > 0) {
-    renderMiddleList();
-    // 后台静默刷新
-    fetch('/api/agents')
-      .then(r => r.json())
-      .then(data => {
-        const agents = (data && data.agents) || (data && data.data && data.data.agents) || [];
-        if (agents.length > 0) {
-          setChatAgents(agents.map(a => ({
-            name: a.name || a.id || '',
-            display_name: a.display_name || a.label || a.name || 'Agent',
-            description: a.description || '',
-            avatar: '/api/avatar?agent=' + encodeURIComponent(a.name),
-            sessions: [],
-            available_models: a.available_models || [],
-            default_chat_model: a.default_chat_model || '',
-            default_vision_model: a.default_vision_model || '',
-          })));
-          renderMiddleList();
-          chatLoadAllSessions();
-        }
-      }).catch(() => {});
-    return Promise.resolve();
-  }
-  if (midList) midList.innerHTML = '<div style="padding:40px;text-align:center;color:var(--color-text-dim)"><div style="font-size:24px;margin-bottom:8px">⏳</div>加载中...</div>';
-  return fetch('/api/agents')
-    .then(r => r.json())
-    .then(data => {
-      const agents = (data && data.agents) || (data && data.data && data.data.agents) || [];
-      if (!Array.isArray(agents)) return;
-      setChatAgents(agents.map(a => ({
-        name: a.name || a.id || '',
-        display_name: a.display_name || a.label || a.name || 'Agent',
-        description: a.description || '',
-        avatar: '/api/avatar?agent=' + encodeURIComponent(a.name),
-        sessions: [],
-        available_models: a.available_models || [],
-        default_chat_model: a.default_chat_model || '',
-        default_vision_model: a.default_vision_model || '',
-      })));
-      renderMiddleList();
-      chatLoadAllSessions();
-    })
-    .catch(() => {
-      const c = document.getElementById('chatMiddleList');
-      if (c) c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-danger);font-size:13px">加载失败</div>';
-    });
-}
-
-export function chatLoadAllSessions() {
-  fetch('/api/sessions')
-    .then(r => r.json())
-    .then(data => {
-      const sessions = (data && data.sessions) || (data && data.data && data.data.sessions) || [];
-      for (const s of sessions) {
-        const agentName = s.agent_name || (chatAgents.length > 0 ? chatAgents[0].name : null);
-        const agent = chatAgents.find(a => a.name === agentName);
-        const target = agent || (chatAgents.length > 0 ? chatAgents[0] : null);
-        if (!target) continue;
-        const existing = target.sessions.find(es => es.session_id === s.session_id);
-        if (existing) {
-          existing.updated_at = s.updated_at;
-          existing.last_message = s.last_message;
-          existing.messages = s.messages;
-          existing.active = s.active;
-          if (s.title) existing.title = s.title;
-        } else {
-          target.sessions.push(s);
-        }
-      }
-      renderMiddleList();
-    })
-    .catch(() => {});
-}
-
 // ===== Unread Badge =====
 
 export function markSessionUnread(sessionId) {
@@ -289,9 +210,8 @@ async function switchToAgent(agentName) {
       setChatCurrentAgent(agent);
       setSelectedAgent(agentName);
     }
-    // 重新加载 agent 列表 + 会话
+    // 等待 WS 推送更新 agents 数据（renderAgentList 会自动渲染）
     await new Promise(r => setTimeout(r, 100)); // 等后端写入
-    loadChatAgents();
     // 清空当前会话，等待用户选择
     setChatSessionId(null);
     // 不调用 chatSwitchPage — 调用方决定切换到哪个页面
@@ -376,7 +296,15 @@ export function selectChatSession(session, agent) {
     // Start wave badge for resumed stream — only if stream is still active (has accumulated text)
     if (typeof updateStreamingBadge === 'function' && _chatStreamAcc) updateStreamingBadge(session.session_id, true);
   }
-  setTimeout(() => { chatLoadSessionMessages(session.session_id); }, 50);
+  // HTTP 兜底：如果 300ms 后消息列表仍为空，走 HTTP 加载
+  // WS messages 推送到达后会在 renderer.js 中渲染，此时消息列表不再为空
+  const _sid = session.session_id;
+  setTimeout(() => {
+    const msgs = document.querySelectorAll('.siper-msg-row');
+    if (msgs.length === 0 && typeof chatLoadSessionMessages === 'function') {
+      chatLoadSessionMessages(_sid);
+    }
+  }, 300);
 }
 
 export function renameChatSession(session, agent) {
@@ -539,123 +467,6 @@ export function deleteChatSessionConfirm(session, agent) {
 // Close context menu on click elsewhere
 document.addEventListener('click', function() { chatHideSessionMenu(); });
 
-// ===== Agent Config =====
-
-var _agentConfigHtmlTemplate = '\
-    <div class="agent-tabs">\
-      <button class="agent-tab active" id="agentTabAbout" onclick="switchConfigAgentPageTab(\'about\')"><span class="tab-icon">👤</span><span data-i18n="agent.tabAbout">关于</span></button>\
-      <button class="agent-tab" id="agentTabFiles" onclick="switchConfigAgentPageTab(\'files\')"><span class="tab-icon">📄</span><span data-i18n="agent.tabFiles">属性文件</span></button>\
-      <button class="agent-tab" id="agentTabMemory" onclick="switchConfigAgentPageTab(\'memory\')"><span class="tab-icon">🧠</span><span data-i18n="agent.tabMemory">记忆</span></button>\
-    </div>\
-    <div class="agent-tab-content" id="agentTabContentAbout">\
-      <div class="agent-settings-grid">\
-        <div class="card card-identity">\
-          <div class="card-body">\
-            <div class="identity-avatar-row">\
-              <div class="identity-avatar-wrap" onclick="document.getElementById(\'avatarFileInput\').click()" title="点击更换头像">\
-                <img id="cfgAvatarPreview" class="avatar-preview-lg">\
-                <div class="avatar-overlay"><span>📷</span></div>\
-                <input type="file" id="avatarFileInput" accept="image/png,image/jpeg,image/gif,image/webp" class="hidden" aria-label="上传头像">\
-              </div>\
-              <div class="identity-fields">\
-                <div class="identity-name-row">\
-                  <input type="text" id="cfgAgentName" class="field-input identity-name-input" value="Siper Agent" aria-label="智能体名称" placeholder="智能体名称">\
-                  <button class="btn-icon identity-icon-btn" id="cfgAgentIconBtn" onclick="toggleIconPicker(event)" title="选择图标">🎭</button>\
-                </div>\
-                <div class="identity-meta-row">\
-                  <span class="identity-hint">点击头像更换 · 自动保存</span>\
-                </div>\
-              </div>\
-            </div>\
-            <div class="field-group"><label class="field-label" data-i18n="agent.defaultModel">默认模型</label><div id="agentDefaultModelSection" style="margin-top:4px"><div class="empty-state" class="js-text-sm">加载中...</div></div></div>\
-            <div class="field-group"><label class="field-label" data-i18n="agent.availableModels">可用模型</label><div id="agentModelListSection" class="js-scroll-list"><div class="empty-state" class="js-text-sm">加载中...</div></div></div>\
-          </div>\        </div>\
-        <div class="card"><div class="card-header"><span class="card-icon">⚡</span><span class="card-title-text" data-i18n="agent.limitsLlm">LLM 调用与会话</span><span id="currentAgentLabelLimits" class="card-subtitle"></span></div><div class="card-body"><div class="field-group"><label class="field-label" data-i18n="agent.llmTimeout">请求超时 (秒)</label><small class="field-hint" data-i18n="agent.llmTimeoutHint">单次 API 调用等待时间</small><input type="number" id="agentCfgLlmTimeout" class="field-input field-input-sm" min="10" max="600" value="120" aria-label="LLM 超时"></div><div class="field-group"><label class="field-label" data-i18n="agent.llmMaxTokens">最大输出 Token</label><small class="field-hint" data-i18n="agent.llmMaxTokensHint">单次回复最大长度</small><input type="number" id="agentCfgLlmMaxTokens" class="field-input field-input-sm" min="256" max="32768" value="8192" aria-label="LLM 最大 Token"></div><div class="field-group"><label class="field-label" data-i18n="agent.llmMaxRetries">最大重试次数</label><small class="field-hint" data-i18n="agent.llmMaxRetriesHint">超时后自动重试轮数</small><input type="number" id="agentCfgLlmMaxRetries" class="field-input field-input-sm" min="0" max="5" value="2" aria-label="LLM 最大重试次数"></div><div class="field-group"><label class="field-label" data-i18n="agent.sessionTimeout">会话超时 (秒)</label><small class="field-hint" data-i18n="agent.sessionTimeoutHint">空闲会话保留时间</small><input type="number" id="agentCfgSessionTimeout" class="field-input field-input-sm" min="60" max="86400" value="3600" aria-label="会话超时"></div><div class="field-group"><label class="field-label" data-i18n="agent.maxHistoryMessages">历史消息加载数</label><small class="field-hint" data-i18n="agent.maxHistoryMessagesHint">每次加载的历史消息条数</small><input type="number" id="agentCfgMaxHistoryMessages" class="field-input field-input-sm" min="10" max="200" value="50" aria-label="最大历史消息数"></div></div></div>\
-        <div class="card"><div class="card-header"><span class="card-icon">🔧</span><span class="card-title-text" data-i18n="agent.limitsTool">工具调用</span></div><div class="card-body"><div class="field-group"><label class="field-label" data-i18n="agent.maxToolRounds">最大工具轮数</label><small class="field-hint" data-i18n="agent.maxToolRoundsHint">单条消息最多工具调用轮次</small><input type="number" id="agentCfgMaxToolRounds" class="field-input field-input-sm" min="1" max="200" value="100" aria-label="最大工具轮次"></div><div class="field-group"><label class="field-label" data-i18n="agent.maxTools">最大并发工具数</label><small class="field-hint" data-i18n="agent.maxToolsHint">同时执行的工具数上限</small><input type="number" id="agentCfgMaxTools" class="field-input field-input-sm" min="1" max="500" value="300" aria-label="最大并发工具数"></div></div></div>\
-      </div>\
-    </div>\
-    <div class="agent-tab-content hidden" id="agentTabContentFiles">\
-      <div class="files-grid">\
-        <div class="card card-editor"><div class="card-header"><span class="card-title-text">soul.md</span></div><div class="card-body"><textarea class="code-editor" id="agentSoulContent" placeholder="（暂无内容）" aria-label="灵魂内容"></textarea></div><div class="card-footer"><button class="btn-sm" onclick="refreshAgentFile(\'soul\')" data-i18n="agent.reset">重置</button><button class="btn-sm primary" onclick="saveAgentFile(\'soul\')">保存</button></div></div>\
-        <div class="card card-editor"><div class="card-header"><span class="card-title-text">agent.md</span></div><div class="card-body"><textarea class="code-editor" id="agentMdContent" placeholder="（暂无内容）" aria-label="配置内容"></textarea></div><div class="card-footer"><button class="btn-sm" onclick="refreshAgentFile(\'config\')" data-i18n="agent.reset">重置</button><button class="btn-sm primary" onclick="saveAgentFile(\'config\')">保存</button></div></div>\
-      </div>\
-    </div>\
-    <div class="agent-tab-content hidden" id="agentTabContentMemory">\
-      <div class="files-grid">\
-        <div class="card card-editor"><div class="card-header"><span class="card-title-text">记忆文件</span></div><div class="card-body"><textarea class="code-editor" id="agentMemoryContent" placeholder="（暂无记忆内容）" aria-label="记忆内容"></textarea></div><div class="card-footer"><button class="btn-sm" onclick="refreshAgentFile(\'memory\')" data-i18n="agent.reset">重置</button><button class="btn-sm primary" onclick="saveAgentFile(\'memory\')">保存</button></div></div>\
-        <div class="card"><div class="card-header"><span class="card-icon">📋</span><span class="card-title-text">记忆 & 技能配置</span></div><div class="card-body"><div class="field-group"><label class="field-label" data-i18n="agent.memoryMaxTokens">记忆最大 Token</label><small class="field-hint" data-i18n="agent.memoryMaxTokensHint">记忆整合到提示词的最大长度</small><input type="number" id="agentCfgMemoryMaxTokens" class="field-input field-input-sm" min="500" max="50000" value="20000" aria-label="记忆最大 Token"></div><div class="field-group"><label class="field-label" data-i18n="agent.skillPreFilterTopK">技能预筛选 Top-K</label><small class="field-hint" data-i18n="agent.skillPreFilterTopKHint">预筛选返回的技能数量</small><input type="number" id="agentCfgSkillPreFilterTopK" class="field-input field-input-sm" min="1" max="20" value="5" aria-label="技能预筛选 Top-K"></div><div class="field-group"><label class="field-label">记忆文件路径</label><input type="text" id="agentCfgMemoryPath" class="field-input" placeholder="agents/{name}/memory.md" readonly aria-label="记忆文件路径"></div></div><div class="card-footer"><button class="btn-sm" onclick="resetAgentLimits()" data-i18n="agent.resetLimits">重置默认</button></div></div>\
-      </div>\
-    </div>';
-
-export function renderAgentPage(container) {
-  container.className = 'siper-content siper-full-content';
-  container.innerHTML = '<div id="chatAgentPage" style="display:flex;flex-direction:column;height:100%;"></div>';
-  loadAgentsForConfig();
-}
-
-function loadAgentsForConfig() {
-  var page = document.getElementById('chatAgentPage');
-  if (!page) return;
-  fetch('/api/agents')
-    .then(r => r.json())
-    .then(data => {
-      setChatAgentData(data);
-      window.agentConfigData = data;
-      var agents = (data && data.agents) || [];
-      var active = (data && data.active) || '';
-      if (!agents.length) { page.innerHTML = '<div class="text-dim" style="padding:40px;text-align:center;">暂无智能体</div>'; return; }
-      var selHtml = '<div class="bg-bg" style="padding:8px 10px;border-bottom:1px solid var(--color-border);flex-shrink:0;"><div class="js-title-sm" class="text-normal">选择智能体</div><div style="display:flex;gap:4px;flex-wrap:wrap;">';
-      for (var i = 0; i < agents.length; i++) {
-        var a = agents[i];
-        var isActive = a.name === active;
-        var btnClass = isActive ? 'siper-btn primary' : 'siper-btn';
-        selHtml += '<button class="' + btnClass + ' onclick="selectChatAgent(\'' + a.name + '\')" class="js-badge">' + chatEscapeHtml(a.display_name || a.name) + (isActive ? ' ●' : '') + '</button>';
-      }
-      selHtml += '</div></div>';
-      page.innerHTML = selHtml + '<div id="chatAgentDetail" class="js-scroll-flex"></div>';
-      if (agents.length > 0) selectChatAgent(agents[0].name);
-    })
-    .catch(() => { page.innerHTML = '<div class="text-danger" style="padding:20px;">加载失败</div>'; });
-}
-
-var _agentConfigInjected = false;  // 标记 template 是否已注入
-var _agentAutoSaveBound = false;  // 防止重复绑定 auto-save 监听器
-
-export function selectChatAgent(name) {
-  setSelectedAgent(name);
-  var agent = chatAgents.find(function(a) { return a.name === name; });
-  if (!agent) return;
-  setAgentConfigName(name);
-  var content = document.getElementById('chatContentArea');
-  var headerName = document.getElementById('chatRightHeaderName');
-  if (!content) return;
-  if (headerName) headerName.innerHTML = '<strong>' + chatEscapeHtml(agent.name) + ' - 设置</strong>';
-
-  // 首次渲染 template，或 DOM 被 chatSwitchPage 清空后重新注入
-  if (!_agentConfigInjected || !document.querySelector('#chatContentArea .agent-tabs')) {
-    content.innerHTML = _agentConfigHtmlTemplate;
-    content.className = 'siper-content siper-full-content';
-    _agentConfigInjected = true;
-  }
-
-  if (!_agentAutoSaveBound && typeof window.attachAgentAutoSaveListeners === 'function') {
-    window.attachAgentAutoSaveListeners();
-    _agentAutoSaveBound = true;
-  }
-  // 动态注入 grid card 间距修复（避免 .card + .card margin-top:8px 影响 grid 布局）
-  if (!document.getElementById('grid-card-fix-style')) {
-    var _style = document.createElement('style');
-    _style.id = 'grid-card-fix-style';
-    _style.textContent = '.agent-settings-grid > .card + .card, .files-grid > .card + .card { margin-top: 0 !important; }';
-    document.head.appendChild(_style);
-  }
-  // 复用 loadAgentsForConfig 已缓存的数据，避免重复 fetch
-  window.currentConfigAgent = name;
-  if (typeof window.selectConfigAgent === 'function') window.selectConfigAgent(name);
-  if (typeof window.loadGlobalModelsForAgent === 'function') window.loadGlobalModelsForAgent();
-}
-
-// Agent config operations moved to agent-config.js — old wcfg-prefixed functions removed
 
 // ===== Window Mounts (for renderer handlers) =====
 window.renderMiddleList = renderMiddleList;

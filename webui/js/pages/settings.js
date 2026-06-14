@@ -304,7 +304,7 @@ export function confirmDeleteGlobalAgent() {
             const detail = document.getElementById('globalAgentCardDetail');
             if (detail) detail.style.display = 'none';
             renderGlobalAgents();
-            if (typeof window.loadChatAgents === 'function') window.loadChatAgents();
+            if (typeof refreshConfigAgentPanel === 'function') refreshConfigAgentPanel();
           } else {
             if (typeof toast !== 'undefined') toast.error(data.error || '删除失败');
           }
@@ -359,7 +359,7 @@ window._agentRename = function(name) {
           const detail = document.getElementById('globalAgentCardDetail');
           if (detail) detail.style.display = 'none';
           renderGlobalAgents();
-          if (typeof window.loadChatAgents === 'function') window.loadChatAgents();
+          if (typeof refreshConfigAgentPanel === 'function') refreshConfigAgentPanel();
         } else {
           if (typeof toast !== 'undefined') toast.error(data.error || '重命名失败');
         }
