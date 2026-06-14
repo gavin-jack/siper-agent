@@ -4,6 +4,26 @@
 
 ---
 
+## v0.1.7 (2026-06-14)
+
+### 新功能 (feat)
+
+- **侧边栏新增"插件"导航项**：index.html 添加 plugins nav-item，i18n 三语言翻译，chat.js + dom.js 注册路由，renderPluginsPageChat 占位
+- **页面加载 loading 状态**：model-settings / skills / token 三个页面数据加载前显示"⏳ 加载中..."占位提示
+- **Tab 样式统一**：siper-settings-tabs / siper-settings-tab 样式改为 agent-tabs 风格（顶部圆角 8px、底部边框、active 状态 surface 背景 + primary 文字 + font-weight 600 + 顶部阴影）
+- **Tab 粘滞置顶**：siper-page-toolbar 添加 position:sticky;top:0;z-index:var(--z-base);background:var(--color-toolbar)
+- **Agent 配置空模型优化**：handleEmptyModels 简化为隐藏整个 .config-section，显示"+添加模型"按钮
+
+### Bug 修复 (fix)
+
+- **siper-settings-tab active 样式覆盖**：删除旧的全局 `.primary, .siper-settings-tab.active` 主色填充规则，补回 hover 过渡效果
+
+### 重构 (refactor)
+
+- handleEmptyModels 从逐个隐藏 select/button/list 改为隐藏整个 .config-section，代码量减少 40%
+
+---
+
 ## v0.1.6 (2026-06-13)
 
 ### 新功能 (feat)

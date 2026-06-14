@@ -7,68 +7,82 @@
 ## 功能
 
 ### 🧠 多模型 LLM
-- OpenAI 兼容接口，支持多 Provider、多模型切换
-- 模型配置 SQLite 持久化（WAL 模式，并发安全）
-- 15 种模型能力标签（chat/reasoning/code/vision/long_context 等）
-- Provider 预设（OpenAI/Anthropic/DeepSeek/Qwen/智谱/MiniMax/Groq/OpenRouter/Ollama 等 12 个）
-- 模型管理：独立页面，搜索/筛选/排序/分组切换，卡片 UI，TTFT/latency 实时测量
-- 模型发现：从 Provider API 批量获取模型列表，支持筛选和批量添加
-- Provider 和模型支持自定义别名（provider_alias / model_alias）
+- **OpenAI 兼容接口**：支持任意 OpenAI API 兼容的 LLM Provider，统一调用链路
+- **多 Provider 管理**：支持同时配置多个 Provider，每个 Provider 独立 base_url / api_key
+- **模型配置 SQLite 持久化**：WAL 模式，并发安全，支持 Provider 和模型自定义别名
+- **15 种模型能力标签**：chat / reasoning / code / vision / long_context / translation / ocr / summarization / sentiment / ner / math / chart / document / function_calling / tts
+- **12 个 Provider 预设**：OpenAI / Anthropic / DeepSeek / Qwen / 智谱 / MiniMax / Groq / OpenRouter / Ollama / Moonshot / LongCat / 自定义
+- **模型管理独立页面**：搜索（名称/能力）/ 筛选（多能力复选）/ 排序（名称/TTFT/延迟/上下文/能力数）/ 分组切换
+- **模型卡片 UI**：左侧能力色块、TTFT 颜色编码（<500ms 蓝 / 500-1500ms 橙 / >1500ms 红）、能力 badge、验证状态
+- **模型发现**：输入 Provider 信息 → 批量获取模型列表 → 筛选 → 批量添加
+- **辅助模型**：预留辅助模型配置入口（代码生成、数据分析等专用模型）
 
 ### 💬 流式响应
-- WebSocket 实时流式输出
-- 流式光标指示（闪烁 ▊）
-- 思考面板（CoT 步骤可视化）
-- 打字指示器（弹性圆点动画）
-- 停止生成（stop_event 机制，防止竞态）
+- **WebSocket 实时流式输出**：token 级流式推送，低延迟
+- **流式光标指示**：闪烁 ▊ 光标，实时反馈生成状态
+- **思考面板（CoT）**：Chain-of-Thought 步骤可视化，支持折叠展开
+- **打字指示器**：弹性圆点动画（scale bounce），提示正在生成
+- **停止生成**：stop_event 机制，防止竞态条件，立即中断 LLM 调用
+- **streaming 重试**：APIConnectionError / JSONDecodeError / 空流自动重试（1s/2s/4s 指数退避）
+- **双层重试架构**：SDK 内置 max_retries=3（网络层）+ 手动 3 次（应用层）
 
 ### 🔧 28 个内置工具
-- **文件操作**：读/写/编辑/搜索/批量操作
-- **代码执行**：Python 沙箱、Shell 命令
-- **网络搜索**：SearXNG 本地实例、DuckDuckGo
-- **浏览器控制**：完整浏览器自动化（导航/点击/输入/截图）
-- **技能系统**：自动加载 SKILL.md、语义预筛选、上下文注入
-- **记忆系统**：跨会话持久化记忆、知识空间管理
-- **图像生成**：AI 图片生成
-- **TTS**：文字转语音
-- **会话管理**：创建/切换/重命名/删除会话
-- **定时任务**：cron 调度
-- **子代理**：delegate_task 并行委派、结果汇总
-- **Web 抓取**：URL 内容提取（Markdown 格式）
-- **Todo 管理**：任务列表持久化
+- **文件操作**：读/写/编辑/搜索/批量操作（read_file / write_file / patch / search_files）
+- **代码执行**：Python 沙箱（execute_code）、Shell 命令（execute_command）
+- **网络搜索**：SearXNG 本地实例、DuckDuckGo（web_search）
+- **浏览器控制**：完整浏览器自动化 — 导航 / 点击 / 输入 / 截图 / 滚动 / 标签页管理（browser_*）
+- **技能系统**：自动加载 SKILL.md、语义预筛选（skill_pre_filter）、上下文注入、技能反馈（skill_feedback）
+- **记忆系统**：跨会话持久化记忆（memory_tool）、知识空间管理、记忆整合模式（追加/插入/替换/禁用）
+- **图像生成**：AI 图片生成（image_gen_tool）
+- **TTS**：文字转语音（tts_tool），支持多种 provider
+- **会话管理**：创建 / 切换 / 重命名 / 删除会话，乐观更新会话列表
+- **定时任务**：cron 调度（cronjob_tool），支持一次性和周期性任务
+- **子代理**：delegate_task 并行委派、结果汇总，支持多代理协作
+- **Web 抓取**：URL 内容提取（web_fetch），自动转换为 Markdown
+- **Todo 管理**：任务列表持久化（todo_tool），支持添加 / 完成 / 取消
+- **会话搜索**：跨会话全文搜索（session_search_tool），FTS5 索引
+- **技能管理**：技能列表 / 详情 / 推荐（skills_list / skills_view）
+- **子代理委派**：delegate_task 支持并行任务、结果汇总
+- **视觉分析**：vision_tool 支持图片理解和分析
 
 ### 🤖 多智能体
-- 独立配置（config.json + soul.md + agent.md）
-- 独立会话（per-agent sessions.db）
-- 独立 SOUL/Agent 定义
-- Agent 切换、新增、删除、头像上传
-- Agent 配置页面：标签页管理、模型选择、技能配置
+- **独立配置**：每个 Agent 拥有 config.json（配置）+ soul.md（人格）+ agent.md（行为指令）
+- **独立会话**：per-agent sessions.db，会话数据完全隔离
+- **独立记忆**：per-agent memory.db，跨会话持久化
+- **Agent CRUD**：创建 / 切换 / 新增 / 删除 / 头像上传
+- **Agent 配置页面**：6 个标签页（关于 / 属性文件 / 记忆 / 限制 / 模型 / 头像）
+- **Agent 限制配置**：超时 / 重试 / max_tokens / 工具轮次 / 工具数量 / 会话超时 / 历史消息数
+- **Agent 模型选择**：默认对话模型 / 默认视觉模型 / 从全局模型加载
 
 ### 🖥️ Web UI
-- **实时聊天**：流式输出、消息气泡入场动画、hover 微交互
-- **模型管理**：独立页面、搜索/筛选/排序、分组/平铺切换、卡片 UI
-- **会话管理**：列表折叠/展开、重命名、未读标记、波浪背景
-- **Token 统计**：echarts 图表（分模型/24小时/每日趋势/效率对比/热力图）
-- **系统设置**：运行时参数、Agent 管理、全局配置
-- **主题系统**：9 种预设 + 自定义主题
-- **技能管理**：技能卡片、搜索筛选
-- **记忆管理**：Markdown 编辑器、知识空间浏览
-- **系统日志**：多级别过滤、分页、自动刷新
-- **Dict Modal**：完整响应数据查看，语法高亮
+- **实时聊天**：WebSocket 流式输出、消息气泡入场动画（slide up + fade in）、hover 微交互
+- **模型管理**：独立页面、搜索/筛选/排序、分组/平铺切换、卡片 UI、验证状态
+- **会话管理**：列表折叠/展开、重命名（双击编辑）、未读标记、波浪背景动画
+- **Token 统计**：echarts 图表 — 分模型 / 24小时趋势 / 每日趋势 / 效率对比 / 热力图
+- **系统设置**：运行时参数（心跳/日志/端口等）、Agent 管理、全局模型配置
+- **主题系统**：9 种预设主题 + 自定义颜色 + 主题模板保存/导入/导出
+- **技能管理**：技能卡片、搜索筛选、技能详情、调用统计
+- **记忆管理**：Markdown 编辑器、记忆整合配置（模式/位置/Token限制/模板）、预览效果
+- **系统日志**：多级别过滤（DEBUG/INFO/WARN/ERROR）、分页、自动刷新
+- **Dict Modal**：完整响应数据查看，语法高亮，搜索/导航
+- **侧边栏**：可折叠、智能体分组、会话列表、未读标记
 - **14 项前端动效**：消息入场、流式光标、弹性按钮、代码块展开、工具调用折叠、Toast 滑入、输入框聚焦光环、页面切换淡入、气泡 hover 上浮、连接状态脉冲、滚动按钮弹性入场、打字指示器弹性圆点、会话列表错开入场、prefers-reduced-motion 支持
+- **三语言 i18n**：中文 / 英文 / 日文，运行时切换
 
 ### 💾 数据持久化
-- SQLite + WAL 模式（会话、记忆、模型配置、技能调用记录）
-- 乐观更新会话列表
-- 快速重启脚本（1 秒重启）
-- sessions.db 防膨胀：tool_call_steps 结果自动截断（≤200 字符）
+- **SQLite + WAL 模式**：会话（sessions.db）、记忆（memory.db）、模型配置（models.db）、技能调用记录（skill_call_log.db）
+- **乐观更新**：会话列表操作后立即更新 UI，后台同步数据库
+- **快速重启**：`siper_restart.sh` 脚本，1 秒完成重启
+- **sessions.db 防膨胀**：tool_call_steps 结果自动截断（≤200 字符），预计新会话 DB 从 ~676MB 降到 <1MB
+- **数据库迁移**：向后兼容的迁移脚本，自动升级旧版数据库
 
 ### 🔒 安全
-- 所有用户输入 HTML 转义（escapeHtml）
-- 路径安全检查（防止路径穿越）
-- WS 消息类型校验（未知类型忽略）
-- API Key 脱敏显示（`****` 掩码）
-- RateLimitError 指数退避重试
+- **HTML 转义**：所有用户输入经 escapeHtml 处理，防止 XSS
+- **路径安全检查**：防止路径穿越攻击（path_safety / url_safety）
+- **WS 消息校验**：未知消息类型静默忽略，防止注入
+- **API Key 脱敏**：前端显示 `***` 掩码，不暴露真实密钥
+- **RateLimitError 重试**：429 错误指数退避重试（1s/2s/4s），避免频繁请求
+- **CORS / 请求大小限制**：HTTP 请求大小限制，防止 DoS
 
 ## 快速开始
 
@@ -138,6 +152,21 @@ siper-agent/
 | `agents/{name}/soul.md` | 智能体人格定义 |
 
 ## 更新日志
+
+### v0.1.7 (2026-06-14)
+
+**新功能**：
+- **侧边栏新增"插件"导航项**：支持后续插件管理功能扩展
+- **页面加载 loading 状态**：模型管理 / 技能 / Token 页面数据加载时显示"⏳ 加载中..."占位提示，不再出现空白闪烁
+- **Tab 样式统一**：模型管理 / 设置 / 监控页面的 tab 样式统一为 agent 设置页风格（顶部圆角、底部边框、active 状态浅色背景+主色文字+阴影）
+- **Tab 粘滞置顶**：带 tab 的页面滚动时，tab 栏固定于页面顶端，不会随内容滚走
+- **Agent 配置空模型优化**：模型数据库为空时，隐藏默认模型/可用模型配置区域，显示"+添加模型"按钮
+
+**Bug 修复**：
+- **siper-settings-tab 样式修复**：修复 active 状态被旧全局主色填充规则覆盖的问题，补回 hover 过渡效果
+
+**重构**：
+- handleEmptyModels 简化为隐藏整个 `.config-section`，代码量减少 40%
 
 ### v0.1.6 (2026-06-13)
 
