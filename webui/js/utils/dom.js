@@ -1,26 +1,8 @@
-// utils/dom.js — 纯 UI 工具函数（已迁移到 core.js/renderer.js 的函数不再保留）
+// utils/dom.js — 纯 UI 工具函数
 
 import { escapeHtml } from './escape.js';
 
 import { t, currentLang } from './i18n.js';
-import { getWs, setWs } from '../core.js';
-import { ensureSessionReady, setIsSending, setChatSessionId, chatSessionId, chatCurrentAgent, chatAgents, chatExpandedAgents, chatModelContextWindow, markSessionReady, setIsThinking, updateStreamingBadge } from '../chat/state.js';
-import { resetSendState, updateSessionPreview } from '../chat/session.js';
-import { chatHandleStreamDelta, chatHandleStreamEnd } from '../chat/stream.js';
-import { chatThinkingClear, chatThinkingHide } from '../chat/thinking.js';
-
-// ===== Clarify Response =====
-// Send user's clarification answer back to the server during tool-call ambiguity
-export function _sendClarifyResponse(sessionId, answer) {
-  // Get ws from core.js
-  const ws = (typeof getWs === 'function') ? getWs() : null;
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({type: 'clarify_response', session_id: sessionId, answer: answer}));
-  }
-  setIsSending(false);
-  const _sb = document.getElementById('chatSendBtn');
-  if (_sb) _sb.disabled = false;
-}
 
 // ===== Logging =====
 export function addLog(level, message, lang) {

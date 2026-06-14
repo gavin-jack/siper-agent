@@ -27,10 +27,6 @@ export function resetSendState() {
 
 // ===== Send Operations =====
 
-export function navigate(page) {
-    send({ type: 'navigate', page });
-}
-
 export function newSession(agent) {
     send({ type: 'new_session', agent: agent || 'default' });
 }

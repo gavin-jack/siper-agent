@@ -32,7 +32,7 @@ import { renderTokenPageChat } from './chat-pages/token.js';
 import { renderSettingsPageChat } from './chat-pages/settings.js';
 import { renderModelSettingsPageChat } from './chat-pages/model-settings.js';
 import { renderLogsPageChat } from './chat-pages/logs.js';
-import { renderMonitorPageChat, switchMonitorTab } from './chat-pages/monitor-page.js';
+import { renderMonitorPageChat, switchMonitorTab } from './chat-pages/monitor.js';
 
 // ===== Page Config =====
 const CHAT_PAGES = {
@@ -188,11 +188,6 @@ window.clearSessionUnread = Sidebar.clearSessionUnread;
 window.selectChatAgent = Sidebar.selectChatAgent;
 
 // Sub-page renderers (for HTML onclick)
-window.renderTasksPage = () => {}; // deprecated, ESM handles it
-window.renderSkillsPage = () => {};
-window.renderTokenPage = () => {};
-window.renderSettingsPage = () => {};
-window.renderLogsPage = () => {};
 window.renderAgentPage = Sidebar.renderAgentPage;
 window.renderMemoryPage = () => {
   const container = document.getElementById('chatContentArea');
@@ -228,33 +223,6 @@ window.renderThemePage = () => {
   if (typeof Theme.showThemeSettings === 'function') Theme.showThemeSettings();
 };
 
-// Sub-page data loaders (legacy names)
-window.loadChatTasks = () => {};
-window.showChatTaskForm = () => {};
-window.hideChatTaskForm = () => {};
-window.saveChatTask = () => {};
-window.toggleChatTask = () => {};
-window.deleteChatTask = () => {};
-window.loadChatSkills = () => {};
-window.loadChatMemory = () => { if (typeof Memory.refreshMemoryPage === 'function') Memory.refreshMemoryPage(); };
-window.saveChatMemory = () => { if (typeof Memory.saveMemoryMd === 'function') Memory.saveMemoryMd(); };
-window.loadChatMemoryConfig = () => { if (typeof Memory.refreshMemoryConfig === 'function') Memory.refreshMemoryConfig(); };
-window.saveChatMemoryConfig = () => { if (typeof Memory.saveMemoryConfig === 'function') Memory.saveMemoryConfig(); };
-window.loadTokenStatsChat = () => {};
-window.loadChatThemeTemplates = () => {};
-window.applyChatTheme = () => {};
-window.loadChatThemeSettings = () => {};
-window.setChatThemeColor = () => {};
-window.chatRemoveModel = () => {}; // mounted by app.js from Settings
-window.chatSaveGlobalModels = () => {}; // mounted by app.js from Settings
-window.chatApplyProviderPreset = () => {}; // mounted by app.js from Settings
-window.chatDiscoverModels = () => {}; // mounted by app.js from Settings
-window.chatAddDiscoveredModel = () => {}; // mounted by app.js from Settings
-window.loadChatLogs = () => {};
-window.chatRenderLogs = () => {};
-window.chatFilterLogs = () => {};
-window.clearChatLogs = () => {};
-
 // Language
 window.toggleChatLangDropdown = Lang.toggleChatLangDropdown;
 window.selectChatLang = Lang.selectChatLang;
@@ -262,10 +230,6 @@ window.selectChatLang = Lang.selectChatLang;
 // Toast
 window.showChatToast = Toast.showChatToast;
 window.chatConfirm = Toast.chatConfirm;
-
-// ECharts (legacy)
-window.renderChatECharts = () => {};
-window.initChatCharts = () => {};
 
 // Copy/Insert
 window.copyChatMsg = copyChatMsg;

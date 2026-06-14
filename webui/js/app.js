@@ -29,7 +29,7 @@ import * as ModelSettings from './pages/model-settings.js';
 
 // Chat (must load before DOMContentLoaded)
 import * as Chat from './pages/chat.js';
-window.chatSwitchPage = Chat.chatSwitchPage;
+// chatSwitchPage 由 pages/chat.js L126 挂载
 
 // ===== Window Global Mounts =====
 // Utils
@@ -91,10 +91,6 @@ window.saveAgentFile = saveAgentFile;
 window.resetAgentLimits = resetAgentLimits;
 window.saveAllChatAgentConfig = saveAllChatAgentConfig;
 window.switchModelTab = switchModelTab;
-// switchMonitorTab 由 pages/chat.js 挂载（L278）
-if (typeof window.switchMonitorTab !== 'function') window.switchMonitorTab = window.switchMonitorTab;
-// confirmDeleteAgent 是 agent-config.js 内部函数，通过 window 挂载（非 ESM export）
-if (typeof window.confirmDeleteAgent === 'function') window.confirmDeleteAgent = window.confirmDeleteAgent;
 window.renderTemplateList = renderTemplateList;
 window.saveThemeTemplate = saveThemeTemplate;
 window.exportTheme = exportTheme;
@@ -129,8 +125,6 @@ import { toggleChatModelDropdown } from './chat/input.js';
 
 // Sidebar / UI
 import { startNewChat } from './chat/sidebar.js';
-window.toggleChatSidebar = toggleChatSidebar;
-window.toggleThemePalette = toggleThemePalette;
 window.toggleChatModelDropdown = toggleChatModelDropdown;
 window.startNewChat = startNewChat;
 
