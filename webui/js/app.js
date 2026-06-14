@@ -75,6 +75,40 @@ window.AgentConfig = AgentConfig;
 window.Settings = Settings;
 window.ModelSettings = ModelSettings;
 
+// Page-specific functions (onclick handlers in index.html)
+import { switchConfigAgentPageTab, switchChatAgentTab, toggleIconPicker, saveAgentFile, resetAgentLimits, saveAllChatAgentConfig } from './pages/agent-config.js';
+import { renderTemplateList, saveThemeTemplate, exportTheme, importTheme, resetTheme } from './pages/theme.js';
+import { addModelFromForm } from './pages/model-settings.js';
+import { switchModelTab } from './pages/chat-pages/model-settings.js';
+import { loadGlobalModelsForAgent } from './components/agent-models.js';
+import { newSession } from './chat/session.js';
+// switchMonitorTab 由 pages/chat.js 挂载到 window（避免浏览器 ESM cache 问题）
+
+window.switchConfigAgentPageTab = switchConfigAgentPageTab;
+window.switchChatAgentTab = switchChatAgentTab;
+window.toggleIconPicker = toggleIconPicker;
+window.saveAgentFile = saveAgentFile;
+window.resetAgentLimits = resetAgentLimits;
+window.saveAllChatAgentConfig = saveAllChatAgentConfig;
+window.switchModelTab = switchModelTab;
+// switchMonitorTab 由 pages/chat.js 挂载（L278）
+if (typeof window.switchMonitorTab !== 'function') window.switchMonitorTab = window.switchMonitorTab;
+// confirmDeleteAgent 是 agent-config.js 内部函数，通过 window 挂载（非 ESM export）
+if (typeof window.confirmDeleteAgent === 'function') window.confirmDeleteAgent = window.confirmDeleteAgent;
+window.renderTemplateList = renderTemplateList;
+window.saveThemeTemplate = saveThemeTemplate;
+window.exportTheme = exportTheme;
+window.importTheme = importTheme;
+window.resetTheme = resetTheme;
+window.addModelFromForm = addModelFromForm;
+window.loadGlobalModelsForAgent = loadGlobalModelsForAgent;
+window.newSession = newSession;
+window.navigateToPage = siPerNavigate;  // alias
+
+// refreshSessions / refreshMemoryPage — 起源架构下由 WS 推送驱动，保留空函数兜底
+window.refreshSessions = () => {};
+window.refreshMemoryPage = () => {};
+
 // Model settings
 window.loadSettingsModels = ModelSettings.loadSettingsModels;
 window.discoverModels = ModelSettings.discoverModels;

@@ -2,7 +2,7 @@
 // 从 pages/chat.js 拆分
 // 包含模型管理和辅助两个 tab
 
-function switchModelTab(tabName) {
+export function switchModelTab(tabName) {
   const tabs = document.querySelectorAll('.siper-settings-tab');
   const contents = document.querySelectorAll('.js-model-settings-tab-content');
   tabs.forEach(t => t.classList.remove('active'));
@@ -13,7 +13,7 @@ function switchModelTab(tabName) {
   if (activeContent) activeContent.style.display = '';
 }
 
-function renderModelSettingsPageChat(container) {
+export function renderModelSettingsPageChat(container) {
   container.className = 'siper-content siper-full-content';
   container.innerHTML = `
 <div class="siper-settings-tabs">

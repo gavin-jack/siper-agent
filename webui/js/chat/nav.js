@@ -2,7 +2,7 @@
  * chat/nav.js — 页面导航
  * 从 core.js 拆出。处理 siPerNavigate 页面切换逻辑。
  */
-import { _chatCurrentPage } from './state.js';
+import { setCurrentPage } from './state.js';
 
 const _CHAT_RENDERED_PAGES = new Set(['chat', 'tasks', 'skills', 'plugins', 'token', 'global-settings', 'model-settings', 'logs', 'monitor']);
 let _currentPage = 'chat';

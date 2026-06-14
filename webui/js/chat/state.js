@@ -55,11 +55,14 @@ export let _isConnected = false;
 export function setConnected(val) { _isConnected = val; }
 export let _sessionWaiters = [];
 
+// Core Chat State — _chatSessionId 是会话 ID 的核心变量
+export let _chatSessionId = null;
+
 // Streaming sessions (per-session streaming badge) — removed, 0 external refs
 // export const _streamingSessions = new Set();
 
 // ===== Getter/Setter: Core Chat State =====
-let _chatCurrentPage = 'chat';  // internal only, no external refs
+export let _chatCurrentPage = 'chat';
 
 export function setCurrentPage(page) { _chatCurrentPage = page; }
 
@@ -203,14 +206,13 @@ export function fmtTokens(n) {
 }
 
 // ===== Legacy Aliases (backward compat — 旧代码从 core.js 导入的名称) =====
-// core.js 之前用 export { _chatSessionId as chatSessionId } 等方式导出
-// 现在 state.js 接管，只保留名称不同的别名（_chatSessionId → chatSessionId 等）
+// 所有变量均在 state.js 中有同名 export let，re-export 供旧代码使用
 export { _chatSessionId as chatSessionId };
+export { _chatCurrentPage as chatCurrentPage };
 export { _chatCurrentAgent as chatCurrentAgent };
 export { _chatAgents as chatAgents };
 export { _chatExpandedAgents as chatExpandedAgents };
 export { _chatCurrentModel as chatCurrentModel };
 export { _chatModelContextWindow as chatModelContextWindow };
-export { _chatCurrentPage as chatCurrentPage };
 export { _chatPendingFiles as chatPendingFiles };
 export { _chatSidebarExpanded as chatSidebarExpanded };

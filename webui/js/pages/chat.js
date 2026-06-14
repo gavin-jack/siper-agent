@@ -32,7 +32,7 @@ import { renderTokenPageChat } from './chat-pages/token.js';
 import { renderSettingsPageChat } from './chat-pages/settings.js';
 import { renderModelSettingsPageChat } from './chat-pages/model-settings.js';
 import { renderLogsPageChat } from './chat-pages/logs.js';
-import { renderMonitorPageChat } from './chat-pages/monitor.js';
+import { renderMonitorPageChat, switchMonitorTab } from './chat-pages/monitor-page.js';
 
 // ===== Page Config =====
 const CHAT_PAGES = {

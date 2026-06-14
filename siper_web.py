@@ -368,14 +368,22 @@ def _render_index() -> str:
             return f'<script src="{js_path}?v={int(os.path.getmtime(full))}"></script>'
         return match.group(0)
     html = _re.sub(r'<script src="(/static/(?:pages|js)/[^"]+)"></script>', _js_mtime, html)
-    # Cache-bust /js/ ESM entry: 每次请求用当前时间戳，确保浏览器永不缓存 ESM。
-    # 旧注释：曾用 max mtime 做版本号，但 mtime 不随内容变化时浏览器会命中缓存。
-    # 时间戳保证每次页面加载都拿到唯一 ?v=，彻底消除 ESM 缓存问题。
-    _cb = str(int(time.time() * 1000))  # 毫秒级时间戳
+    # ESM entry: 路径级 cache-bust（文件名含 mtime，浏览器 ESM 缓存视为不同 URL）
+    _js_entry = PROJECT_ROOT / "webui" / "js" / "app.js"
+    if _js_entry.exists():
+        _cb = str(int(os.path.getmtime(_js_entry)))
+        # 创建/更新符号链接 app-{mtime}.js → app.js
+        _symlink = PROJECT_ROOT / "webui" / "js" / f"app-{_cb}.js"
+        if not _symlink.exists() or os.readlink(str(_symlink)) != "app.js":
+            if _symlink.exists() or _symlink.is_symlink():
+                _symlink.unlink()
+            _symlink.symlink_to("app.js")
+    else:
+        _cb = str(int(time.time() * 1000))
     html = _re.sub(
-        r'<script type="module" src="(/js/[^"]+)"></script>',
-        lambda m: f'<script type="module" src="{m.group(1)}?v={_cb}"></script>',
-        html
+        r'<script type="module" src="(/js/app\.js)"></script>',
+        lambda m: f'<script type="module" src="/js/app-{_cb}.js"></script>',
+        html,
     )
     # Inject cache-busting CSS — single merged style.css
     style_css = PROJECT_ROOT / "webui" / "css" / "style.css"
@@ -749,7 +757,7 @@ async def main():
         _check_url = f"http://127.0.0.1:{http_port}"
         _checks = [
             ("HTTP page",       "/",               lambda b: len(b) > 1000 and b"<!DOCTYPE" in b),
-            ("ESM entry",       "/js/app.js",     lambda b: len(b) > 100 and b"import" in b),
+            ("ESM entry",       "/js/app.js", lambda b: len(b) > 100 and b"import" in b),
             ("CSS style",       "/css/style.css", lambda b: len(b) > 100 and b"var(--" in b),
             ("Static favicon",  "/static/favicon.ico", lambda b: len(b) > 100),
             ("Static echarts",  "/static/js/echarts.min.js", lambda b: len(b) > 1000),
@@ -1064,11 +1072,22 @@ async def main():
                     if ext == ".js":
                         try:
                             import re as _re_local
-                            # 用请求时间戳做版本号，与 index.html 的入口 cache-buster 一致
-                            _js_cb = str(int(time.time() * 1000))
+                            # 用 import 目标文件的 mtime 做稳定版本号
+                            # 关键：?v= 基于被引用文件的 mtime（而非当前文件的 mtime），
+                            # 确保同一子依赖被多个上级引用时 URL 一致，浏览器可正确缓存
+                            def _replace_import(match):
+                                import_path = match.group(1).decode('utf-8')
+                                quote = match.group(2).decode('utf-8')
+                                current_dir = resolved.parent
+                                target = (current_dir / import_path).resolve()
+                                if target.exists():
+                                    ver = str(int(os.path.getmtime(target)))
+                                else:
+                                    ver = str(int(os.path.getmtime(resolved)))
+                                return b"from " + quote.encode() + import_path.encode() + b"?v=" + ver.encode() + quote.encode()
                             file_data = _re_local.sub(
-                                rb'(from\s+["\']\.\.?/[^"\']+\.js)(["\'])',
-                                rb'\1?v=' + _js_cb.encode() + rb'\2',
+                                rb'from\s+["\'](\.\.?/[^"\']+\.js)(["\'])',
+                                _replace_import,
                                 file_data,
                             )
                         except Exception:
