@@ -346,7 +346,7 @@ _jinja_env = jinja2.Environment(
     enable_async=False,
 )
 _version = int(time.time())  # Cache-buster for JS/CSS
-SIPER_VERSION = "v0.6.7"  # Current version — update on release
+SIPER_VERSION = "v1.0.0-origin"  # Current version — update on release
 
 
 def _render_index() -> str:
@@ -394,6 +394,18 @@ def _render_index() -> str:
 agent = None
 start_time = time.time()
 active_tasks = []
+
+# 起源：有状态 UI
+from ai_agent.state.snapshot_manager import SnapshotManager
+from ai_agent.state.carrier import WebUIAdapter, CarrierManager
+from ai_agent.state.protocol import MsgType, make_state_full
+from ai_agent.api.router import Router, ok, api_router, register_routes
+from ai_agent.db.manager import DatabaseManager as _DBMgr
+
+snapshot_mgr = None
+carrier_mgr = None
+api_router = None
+db_mgr = None
 
 import re as _re  # used for _render_index, safe_name
 
@@ -807,183 +819,54 @@ async def main():
                         logger.warning(f"Body preview: {body_str[:200]!r}")
                         pass
 
-            # REST API routes
+            # REST API routes — Router 分发
             resp = None
 
-            if path == "/api/version" and method == "GET":
-                resp = {"version": SIPER_VERSION, "name": "Siper AI Agent"}
-            elif path == "/api/upgrade/check" and method == "GET":
-                resp = api_upgrade_check()
-            elif path == "/api/upgrade" and method == "POST":
-                resp = api_upgrade_execute()
-            # 认证已禁用，跳过 auth guard
-            elif path == "/api/sessions" and method == "GET":
-                resp = api_get_sessions()
-            elif path.startswith("/api/sessions/") and method == "GET":
-                sid = path.split("/")[-1]
-                resp = api_get_session_messages(sid)
-            elif path.startswith("/api/sessions/") and method == "DELETE":
-                sid = path.split("/")[-1]
-                resp = api_delete_session(sid)
-            elif path.startswith("/api/sessions/") and method == "PUT":
-                sid = path.split("/")[-1]
-                resp = api_rename_session(sid, body)
-            elif path == "/api/save-response-dict" and method == "POST":
-                resp = api_save_response_dict(body)
-            elif path == "/api/sessions" and method == "DELETE":
-                resp = api_clear_sessions()
-            elif path == "/api/config" and method == "GET":
-                resp = api_get_config()
-            elif path == "/api/config" and method == "POST":
-                resp = api_update_config(body)
-            elif path == "/api/skills" and method == "GET":
-                resp = api_get_skills()
-            elif path == "/api/skills/preview" and method == "POST":
-                resp = api_skill_preview(body)
-            elif path == "/api/skills/stats" and method == "GET":
-                resp = api_skill_stats()
-            elif path == "/api/agents" and method == "GET":
-                resp = api_get_agents()
-            elif path == "/api/agents" and method == "POST":
-                # Dispatch: switch vs create based on action field
-                if body.get("action") == "create":
-                    resp = api_create_agent(body)
-                else:
-                    resp = api_switch_agent(body)
-            elif path.startswith("/api/agents/") and method == "DELETE":
-                # DELETE /api/agents/{name}
-                name = path.split("/")[3]
-                resp = api_delete_agent(name)
-            elif path.startswith("/api/agents/") and path.endswith("/soul") and method == "GET":
-                name = path.split("/")[3]
-                resp = api_get_agent_soul(name)
-            elif path.startswith("/api/agents/") and path.endswith("/soul") and method == "POST":
-                name = path.split("/")[3]
-                resp = api_save_agent_file(name, "soul", body)
-            elif path.startswith("/api/agents/") and path.endswith("/config") and method == "GET":
-                name = path.split("/")[3]
-                resp = api_get_agent_config(name)
-            elif path.startswith("/api/agents/") and path.endswith("/config") and method == "POST":
-                name = path.split("/")[3]
-                resp = api_save_agent_file(name, "config", body)
-            elif path.startswith("/api/agents/") and path.endswith("/memory") and method == "GET":
-                name = path.split("/")[3]
-                resp = api_get_agent_memory(name)
-            elif path.startswith("/api/agents/") and path.endswith("/memory") and method == "POST":
-                name = path.split("/")[3]
-                resp = api_save_agent_file(name, "memory", body)
-            elif path.startswith("/api/agents/") and path.endswith("/meta") and method == "POST":
-                name = path.split("/")[3]
-                resp = api_save_agent_meta(name, body)
-            elif path.startswith("/api/agents/") and path.endswith("/rename") and method == "POST":
-                name = path.split("/")[3]
-                resp = api_rename_agent(name, body)
-            elif path == "/api/status" and method == "GET":
-                resp = api_get_status()
-            elif path == "/api/memory" and method == "GET":
-                resp = api_get_memory("default")
-            elif path == "/api/memory" and method == "POST":
-                resp = api_write_memory(body, "default")
-            elif path == "/api/memory" and method == "DELETE":
-                resp = api_delete_memory(body, "default")
-            elif path == "/api/memory/config" and method == "GET":
-                resp = api_get_memory_config("default")
-            elif path == "/api/memory/config" and method == "POST":
-                resp = api_save_memory_config(body, "default")
-            elif path == "/api/models/global" and method == "GET":
-                resp = api_get_global_models()
-            elif path == "/api/models/global" and method == "POST":
-                resp = api_save_global_models(body)
-            elif path == "/api/models/discover" and method == "POST":
-                resp = api_discover_models(body)
-            elif path == "/api/providers/rename" and method == "POST":
-                resp = api_rename_provider(body)
-            elif path == "/api/providers/update_name" and method == "POST":
-                resp = api_update_provider_name(body)
-            elif path == "/api/models/reset" and method == "POST":
-                resp = api_reset_models()
-            elif path == "/api/models/test" and method == "POST":
-                resp = await api_test_model(body)
-            elif method == "DELETE" and path.startswith("/api/models/"):
-                # DELETE /api/models/{model_id}?provider=xxx
-                resp = api_delete_model(path, req_headers)
-            elif path == "/api/logs" and method == "GET":
-                resp = api_get_logs(full_path)
-            elif path == "/api/token" and method == "GET":
-                resp = api_get_token_stats()
-            elif path == "/api/upload" and method == "POST":
-                resp = api_upload_file(body, request)
-            elif path == "/api/avatar" and method == "GET":
-                # Serve per-agent avatar
-                avatar_path = None
-                # Check for ?agent= query parameter
-                query_agent = ""
-                if "?" in full_path:
-                    qs = full_path.split("?", 1)[1]
-                    for part in qs.split("&"):
-                        if part.startswith("agent="):
-                            query_agent = part.split("=", 1)[1]
-                # Try query agent first, then active agent
-                target_agents = []
-                if query_agent:
-                    target_agents.append(query_agent)
-                target_agents.append(agent.config.agent_name)
-                for tname in target_agents:
-                    # Try config avatar path (only for active agent)
-                    if tname == agent.config.agent_name and agent.config.avatar:
-                        if agent.config.avatar.startswith("http://") or agent.config.avatar.startswith("https://"):
-                            headers_list = [
-                                "HTTP/1.1 302 Found",
-                                f"Location: {agent.config.avatar}",
-                                "Connection: close",
-                                "",
-                                "",
-                            ]
-                            writer.write("\r\n".join(headers_list).encode("utf-8"))
-                            await writer.drain()
-                            writer.close()
-                            return
-                        candidate = Path(os.path.dirname(__file__)) / agent.config.avatar
-                        if candidate.is_file():
-                            avatar_path = candidate
-                            break
-                    # Try agent dir avatar.webp or avatar.png
-                    if not avatar_path:
-                        for ext in ("webp", "png"):
-                            candidate = Path(os.path.dirname(__file__)) / "agents" / tname / f"avatar.{ext}"
-                            if candidate.is_file():
-                                avatar_path = candidate
-                                break
-                    if avatar_path:
-                        break
-                # Fallback: static default avatar (WebP 优先)
-                if not avatar_path:
-                    avatar_path = Path(os.path.dirname(__file__)) / "webui" / "static" / "default_avatar.webp"
-                if avatar_path and avatar_path.is_file():
-                    av_data = avatar_path.read_bytes()
-                    ct = "image/png"
-                    ext = avatar_path.suffix.lower()
-                    ext_map = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp"}
-                    if ext in ext_map:
-                        ct = ext_map[ext]
-                    headers_list = [
+            # 二进制端点（Router 无法处理原始字节响应）
+            if path == "/api/avatar" and method == "GET":
+                # Avatar 图片服务
+                # Parse query params for agent name
+                from urllib.parse import parse_qs, urlparse as _urlparse
+                _qs = parse_qs(_urlparse(full_path).query)
+                agent_name = _qs.get("agent", ["default"])[0]
+                avatar_path = PROJECT_ROOT / "agents" / agent_name / "avatar.png"
+                if avatar_path.exists():
+                    with open(avatar_path, "rb") as f:
+                        resp_body = f.read()
+                    headers = [
                         "HTTP/1.1 200 OK",
-                        f"Content-Type: {ct}",
-                        f"Content-Length: {len(av_data)}",
-                        "Cache-Control: public, max-age=86400",
+                        "Content-Type: image/png",
+                        f"Content-Length: {len(resp_body)}",
+                        "Cache-Control: public, max-age=3600",
                         "Connection: close",
-                        "",
-                        "",
+                        "", "",
                     ]
-                    writer.write("\r\n".join(headers_list).encode("utf-8") + av_data)
+                    writer.write("\r\n".join(headers).encode("utf-8") + resp_body)
                     await writer.drain()
                     writer.close()
-                    return
                 else:
-                    resp = {"error": "Avatar not found"}
+                    body_404 = b"Not Found"
+                    headers = [
+                        "HTTP/1.1 404 Not Found",
+                        "Content-Type: text/plain",
+                        f"Content-Length: {len(body_404)}",
+                        "Connection: close",
+                        "", "",
+                    ]
+                    writer.write("\r\n".join(headers).encode("utf-8") + body_404)
+                    await writer.drain()
+                    writer.close()
+                return  # skip JSON serialization
 
-            elif path == "/api/avatar/upload" and method == "POST":
-                resp = _handle_avatar_upload(body, agent, raw_request=data)
+            # 文件上传端点（需要 raw_request，Router 无法处理）
+            if path == "/api/avatar/upload" and method == "POST":
+                resp = _handle_avatar_upload(body, agent, request)
+            elif path == "/api/upload" and method == "POST":
+                resp = api_upload_file(body, request)
+            else:
+                # JSON API 端点 — Router 分发
+                from ai_agent.api.router import api_router
+                resp = await api_router.dispatch(method, path, body)
 
             # ===== Static files for /uploads/ path =====
             if path.startswith("/uploads/"):
@@ -3635,6 +3518,68 @@ async def main():
     logger.info(f"Web UI 地址：http://localhost:{port}")
 
     # ===== WebSocket server =====
+    # 起源：初始化有状态 UI
+    # api_router is imported from ai_agent.api.router as a singleton
+    global snapshot_mgr, carrier_mgr, db_mgr, api_router
+    snapshot_mgr = SnapshotManager()
+    carrier_mgr = CarrierManager()
+    db_mgr = _DBMgr(PROJECT_ROOT)
+    api_router = Router(prefix="")
+    logger.info("[起源] SnapshotManager / CarrierManager / Router / DatabaseManager 已初始化")
+
+    # 起源：注册 API 路由（一次性，在 main() 中完成）
+    from ai_agent.api.router import api_router, register_routes as _register_routes
+    _handlers = {
+        "api_upgrade_check": api_upgrade_check,
+        "api_upgrade_execute": api_upgrade_execute,
+        "api_get_sessions": api_get_sessions,
+        "api_get_session_messages": api_get_session_messages,
+        "api_delete_session": api_delete_session,
+        "api_rename_session": api_rename_session,
+        "api_save_response_dict": api_save_response_dict,
+        "api_get_config": api_get_config,
+        "api_update_config": api_update_config,
+        "api_get_skills": api_get_skills,
+        "api_skill_preview": api_skill_preview,
+        "api_skill_stats": api_skill_stats,
+        "api_get_agents": api_get_agents,
+        "api_save_agent_meta": api_save_agent_meta,
+        "api_get_agent_soul": api_get_agent_soul,
+        "api_get_agent_config": api_get_agent_config,
+        "api_get_agent_memory": api_get_agent_memory,
+        "api_save_agent_file": api_save_agent_file,
+        "api_switch_agent": api_switch_agent,
+        "api_create_agent": api_create_agent,
+        "api_delete_agent": api_delete_agent,
+        "api_rename_agent": api_rename_agent,
+        "api_get_status": api_get_status,
+        "api_theme_list_templates": api_theme_list_templates,
+        "api_theme_save": api_theme_save,
+        "api_theme_load": api_theme_load,
+        "api_theme_delete": api_theme_delete,
+        "api_theme_export": api_theme_export,
+        "api_theme_import": api_theme_import,
+        "api_get_memory": api_get_memory,
+        "api_write_memory": api_write_memory,
+        "api_delete_memory": api_delete_memory,
+        "api_get_memory_config": api_get_memory_config,
+        "api_save_memory_config": api_save_memory_config,
+        "api_save_global_models": api_save_global_models,
+        "api_delete_model": api_delete_model,
+        "api_reset_models": api_reset_models,
+        "api_get_global_models": api_get_global_models,
+        "api_rename_provider": api_rename_provider,
+        "api_update_provider_name": api_update_provider_name,
+        "api_discover_models": api_discover_models,
+        "api_test_model": api_test_model,
+        "api_get_token_stats": api_get_token_stats,
+        "api_upload_file": api_upload_file,
+        "api_get_logs": api_get_logs,
+        "_handle_avatar_upload": _handle_avatar_upload,
+    }
+    _register_routes(api_router, agent, snapshot_mgr, carrier_mgr, _handlers)
+    logger.info("[起源] API 路由注册完成")
+
     connections = {}
 
     # Per-connection message queues: conn_id -> asyncio.Queue
@@ -3661,6 +3606,11 @@ async def main():
         sys.stdout.flush()
         connections[conn_id] = ws
         ws._auth_ok = True  # 认证已禁用，直接标记为已认证
+        # 起源：注册载体适配器
+        if snapshot_mgr and carrier_mgr:
+            _adapter = WebUIAdapter(ws)
+            await snapshot_mgr.register(conn_id, _adapter)
+            carrier_mgr.add(conn_id, _adapter)
         # Create per-connection queue
         _msg_queues[conn_id] = asyncio.Queue(maxsize=100)
         _msg_queue_locks[conn_id] = asyncio.Lock()
@@ -3776,6 +3726,11 @@ async def main():
         except Exception:
             pass
         finally:
+            # 起源：注销载体适配器
+            if snapshot_mgr:
+                await snapshot_mgr.unregister(conn_id)
+            if carrier_mgr:
+                carrier_mgr.remove(conn_id)
             _msg_queues.pop(conn_id, None)
             _msg_queue_locks.pop(conn_id, None)
             _stop_events.pop(conn_id, None)
@@ -3883,6 +3838,10 @@ async def main():
 
         selected_model = data.get("model")
 
+        # 起源：更新快照（消息处理开始）
+        if snapshot_mgr:
+            await snapshot_mgr.batch_set([("is_sending", True), ("is_streaming", True)])
+
         # Accumulated streaming response text
         _stream_acc = {"text": ""}
         _stream_delta_sent = False  # Track whether any delta was actually sent
@@ -3901,6 +3860,9 @@ async def main():
                 }))
             except Exception as e:
                 logger.warning(f"[_send_stream_delta] 发送失败: {e}, conn={conn_id}")
+            # 起源：更新快照中的流式文本
+            if snapshot_mgr:
+                await snapshot_mgr.set("stream_text", _stream_acc["text"][-2000:])
 
         async def _ws_send(payload):
             """Send a raw payload to the frontend via WebSocket.
@@ -4051,10 +4013,31 @@ async def main():
         if _se and _se.is_set():
             logger.info(f"生成已被用户停止，跳过发送响应：conn={conn_id}")
             _se.clear()
+            # 起源：更新快照
+            if snapshot_mgr:
+                await snapshot_mgr.batch_set([("is_sending", False), ("is_streaming", False), ("stream_text", "")])
             return
 
         # Reply finished — clear processing event so heartbeat works again
         _processing_events.get(conn_id, asyncio.Event()).clear()
+
+        # 起源：更新快照
+        if snapshot_mgr:
+            await snapshot_mgr.batch_set([
+                ("is_sending", False),
+                ("is_streaming", False),
+                ("stream_text", ""),
+                ("active_session_id", session_id),
+            ])
+            # 同步会话列表
+            from ai_agent.state.session_sync import sync_sessions, sync_agents
+            try:
+                sessions = sync_sessions(snapshot_mgr, agent)
+                await snapshot_mgr.set("sessions", sessions)
+                agents = sync_agents(snapshot_mgr)
+                await snapshot_mgr.set("agents", agents)
+            except Exception as e:
+                logger.warning(f"[起源] sync_sessions failed: {e}")
 
     ws_server = await ws_serve(ws_handler, "0.0.0.0", ws_port, max_size=10 * 1024 * 1024)
     logger.info(f"[计时] WebSocket 服务启动完成: {(time.time()-_t0)*1000:.0f}ms")

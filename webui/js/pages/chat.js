@@ -6,24 +6,20 @@ import { escapeHtml } from '../utils/escape.js';
 import { showDictModal } from '../components/toast.js';
 
 // Chat modules
-import { chatCurrentPage, chatSidebarExpanded, chatAgents, chatSessionId, chatCurrentAgent, setCurrentPage } from '../chat/state.js';
-import * as Stream from '../chat/stream.js';
+import { siPerNavigate } from '../chat/nav.js';
+import { loadSessionHistory, updateCtxFromStreamEnd } from '../chat/session.js';
+import { setCurrentPage, fmtTokens, updateStreamingBadge, chatSidebarExpanded, chatSessionId, chatCurrentAgent, chatAgents } from '../chat/state.js';
 import * as Message from '../chat/message.js';
 import * as Input from '../chat/input.js';
 import * as Sidebar from '../chat/sidebar.js';
+import * as Stream from '../chat/stream.js';
 import * as Lang from '../chat/lang.js';
 import * as Toast from '../chat/toast.js';
 
-// Sub-page ESM modules (for renderMemoryPage / renderThemePage)
-import * as Memory from './memory.js';
-import * as Theme from './theme.js';
-
 // DOM utils
-import { addMsg, appendMeta, debugHighlight, loadRecentSession, navigateToPage } from '../utils/dom.js';
+import { addMsg, appendMeta, debugHighlight } from '../renderer.js';
 import { isSessionUnread } from '../chat/sidebar.js';
 import { updateCtxInfoDisplay } from '../chat/message.js';
-import { fmtTokens } from '../chat/state.js';
-import { updateCtxFromStreamEnd } from '../chat/stream.js';
 import { closeChatModelDropdown, updateChatHeader } from '../chat/input.js';
 
 // ===== Page Config =====
@@ -886,7 +882,8 @@ window.updateChatHeader = Input.updateChatHeader;
 window.addMsg = addMsg;
 window.appendMeta = appendMeta;
 window.debugHighlight = debugHighlight;
-window.loadRecentSession = loadRecentSession;
+window.loadRecentSession = loadSessionHistory;
+window.siPerNavigate = siPerNavigate;
 window.isSessionUnread = isSessionUnread;
 window.chatFmt = fmtTokens;
 window.updateCtxInfoDisplay = updateCtxInfoDisplay;

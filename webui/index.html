@@ -374,7 +374,7 @@
             <option value="ollama">Ollama</option>
           </select>
           <input type="text" id="discoverBaseUrl" placeholder="Base URL" class="siper-search-input">
-          <input type="password" id="discoverApiKey" placeholder="API Key" class="siper-search-input">
+          <form><input type="text" name="username" autocomplete="username" value="" style="display:none" aria-hidden="true"><input type="password" id="discoverApiKey" placeholder="API Key" class="siper-search-input" autocomplete="new-password"></form>
           <button id="discoverBtn" class="btn-sm primary" onclick="window.discoverModels()">获取</button>
         </div>
         <div id="discoverResult"></div>
@@ -394,7 +394,7 @@
           <input type="text" id="newModelName" placeholder="模型名称" class="siper-search-input">
           <input type="text" id="newModelProvider" placeholder="Provider" class="siper-search-input">
           <input type="text" id="newModelBaseUrl" placeholder="Base URL" class="siper-search-input">
-          <input type="password" id="newModelApiKey" placeholder="API Key" class="siper-search-input">
+          <form><input type="text" name="username" autocomplete="username" value="" style="display:none" aria-hidden="true"><input type="password" id="newModelApiKey" placeholder="API Key" class="siper-search-input" autocomplete="new-password"></form>
           <input type="number" id="newModelCtx" placeholder="Ctx" class="siper-search-input"  value="8192">
           <button class="btn-sm primary" onclick="window.addModelFromForm()">添加</button>
         </div>

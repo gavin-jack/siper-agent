@@ -19,8 +19,19 @@ export async function loadSettingsModels() {
   const list = document.getElementById('settingsModelsList');
   if (list) list.innerHTML = '<div class="js-empty-state-lg" style="padding:24px;text-align:center;">⏳ 加载模型数据中...</div>';
   try {
-    const r = await fetch('/api/models/global');
-    const d = await r.json();
+    let d;
+    // 起源：优先从快照 page_cache 获取
+    if (typeof window.__getPageCache === 'function') {
+      const cache = window.__getPageCache('model-settings');
+      if (cache && cache.models) {
+        d = { models: cache.models };
+      }
+    }
+    // 过渡期：HTTP 请求兜底
+    if (!d) {
+      const r = await fetch('/api/models/global');
+      d = await r.json();
+    }
     settingsModelsCache = (d.models || []).map(m => ({
       ...m,
       _ttft: m.ttft ?? m._ttft ?? null,
@@ -203,6 +214,11 @@ export async function editProviderName(baseUrl) {
   const trimmed = newName.trim();
 
   try {
+    // 起源：通过 WS 通知后端
+    if (typeof window.siPerSend === 'function') {
+      window.siPerSend({ type: 'edit_provider_name', base_url: baseUrl, provider: trimmed });
+    }
+    // 过渡期：HTTP 请求
     const r = await fetch('/api/providers/update_name', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -231,7 +247,11 @@ export async function removeSettingsModel(idx) {
   const m = settingsModelsCache[idx];
   if (!m) return;
   confirmDeleteModel(m.name, async () => {
-    // 1. Delete from backend DB first
+    // 起源：通过 WS 通知后端
+    if (typeof window.siPerSend === 'function') {
+      window.siPerSend({ type: 'delete_model', id: m.id || m.name, provider: m.provider });
+    }
+    // 过渡期：HTTP 请求
     try {
       const r = await fetch(`/api/models/${encodeURIComponent(m.id || m.name)}?provider=${encodeURIComponent(m.provider || '')}`, { method: 'DELETE' });
       const d = await r.json();
@@ -269,6 +289,11 @@ export async function discoverModels() {
   if (resultEl) resultEl.innerHTML = '<div class="settings-empty-msg">⏳ 正在获取模型列表...</div>';
 
   try {
+    // 起源：通过 WS 通知后端
+    if (typeof window.siPerSend === 'function') {
+      window.siPerSend({ type: 'discover_models', base_url: baseUrl, api_key: apiKey });
+    }
+    // 过渡期：HTTP 请求
     const r = await fetch('/api/models/discover', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -446,12 +471,15 @@ async function saveModelsImmediate() {
       json_mode: m.json_mode || null,
     }));
     const defaultModel = settingsModelsCache.find(m => m._isDefault || m.is_default);
+    // 起源：通过 WS 通知后端
+    if (typeof window.siPerSend === 'function') {
+      window.siPerSend({ type: 'save_models', models: modelsToSave });
+    }
+    // 过渡期：HTTP 请求
     const r = await fetch('/api/models/global', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        models: modelsToSave,
-      }),
+      body: JSON.stringify({ models: modelsToSave }),
     });
     const d = await r.json();
     if (!d.success) toast.error(t('settings.saveFailed') + ': ' + (d.error || 'unknown'));
@@ -516,6 +544,11 @@ export function resetSettingsModels() {
     danger: true,
     okText: '确认清除',
     onConfirm: async () => {
+      // 起源：通过 WS 通知后端
+      if (typeof window.siPerSend === 'function') {
+        window.siPerSend({ type: 'reset_models' });
+      }
+      // 过渡期：HTTP 请求
       try {
         const r = await fetch('/api/models/reset', { method: 'POST' });
         const d = await r.json();
@@ -887,6 +920,7 @@ export async function verifyAllModels() {
 
 // Event delegation for model name marquee (settings page only)
 document.addEventListener('mouseenter', (e) => {
+  if (!e.target || typeof e.target.closest !== 'function') return;
   const nameEl = e.target.closest('.siper-models-grid .siper-model-name, #discoverResult .siper-model-name');
   if (!nameEl || nameEl._marqueeTimer) return;
   if (nameEl.scrollWidth <= nameEl.clientWidth + 1) return;
@@ -901,6 +935,7 @@ document.addEventListener('mouseenter', (e) => {
 }, true);
 
 document.addEventListener('mouseleave', (e) => {
+  if (!e.target || typeof e.target.closest !== 'function') return;
   const nameEl = e.target.closest('.siper-models-grid .siper-model-name, #discoverResult .siper-model-name');
   if (!nameEl) return;
   if (nameEl._marqueeTimer) {
@@ -983,6 +1018,7 @@ async function _handleVerify(idx) {
 
 // Event delegation for caps marquee scroll in model cards
 document.addEventListener('mouseenter', (e) => {
+  if (!e.target || typeof e.target.closest !== 'function') return;
   const scrollEl = e.target.closest('.model-caps-scroll');
   if (!scrollEl || scrollEl._marqueeTimer) return;
   const inner = scrollEl.querySelector('.model-caps-inner');
@@ -999,6 +1035,7 @@ document.addEventListener('mouseenter', (e) => {
 }, true);
 
 document.addEventListener('mouseleave', (e) => {
+  if (!e.target || typeof e.target.closest !== 'function') return;
   const scrollEl = e.target.closest('.model-caps-scroll');
   if (!scrollEl) return;
   const inner = scrollEl.querySelector('.model-caps-inner');

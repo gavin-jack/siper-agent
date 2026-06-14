@@ -1,18 +1,20 @@
 // chat/input.js — 输入框、文件上传、模型选择
+import { getWs, setWs } from '../core.js';
 import {
   chatSessionId, chatCurrentAgent, chatCurrentPage, chatPendingFiles,
   chatCurrentModel, chatModelContextWindow, chatAgents,
   setCurrentModel, setModelContextWindow, setChatCurrentModel, setChatModelContextWindow, setIsSending, setChatPendingFiles,
   updateStreamingBadge,
-  getWs,
   getIsSending,
   ensureSessionReady,
   setIsThinking,
-  updateSessionPreview
-} from './state.js';
+  fmtTokens,
+  markSessionReady,
+  setChatSessionId,
+} from '../chat/state.js';
+import { resetSendState, updateSessionPreview } from '../chat/session.js';
 import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js';
-import { fmtTokens } from './state.js';
-import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow } from './stream.js';
+import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js';
 import { toast } from '../components/toast.js';
 
 // ===== File Upload & Preview =====
@@ -310,7 +312,7 @@ export function updateChatHeader() {
   headerName.innerHTML = '<span class="chat-header-text">' + esc(sessionTitle) + ' @ <strong>' + esc(agentDisplay) + '</strong>' + (capBadges ? ' : ' + capBadges : '') + '</span>';
 }
 
-// Session readiness — uses state.js ensureSessionReady() via import
+// Session readiness — uses core.js ensureSessionReady() via import
 
 export async function chatSendMessage() {
   const input = document.getElementById('chatInput');

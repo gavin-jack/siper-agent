@@ -67,9 +67,18 @@ export async function refreshTokenStats() {
   const stats = document.getElementById('chatTokenStats') || document.getElementById('TokenStats');
   if (stats) stats.innerHTML = '<div class="js-empty-state-lg" style="padding:24px;text-align:center;">⏳ 加载 Token 数据中...</div>';
   try {
-    const r = await fetch('/api/token');
-    if (!r.ok) return;
-    const data = await r.json();
+    // 起源：优先从快照 page_cache 获取数据
+    let data = null;
+    if (typeof window.__getPageCache === 'function') {
+      const cache = window.__getPageCache('token');
+      if (cache && cache.stats) data = cache;
+    }
+    // 过渡期：HTTP 请求兜底
+    if (!data) {
+      const r = await fetch('/api/token');
+      if (!r.ok) return;
+      data = await r.json();
+    }
 
     function el(id) { return document.getElementById('chat' + id.charAt(0).toUpperCase() + id.slice(1)) || document.getElementById(id); }
 

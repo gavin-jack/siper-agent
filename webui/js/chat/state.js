@@ -1,220 +1,228 @@
-// chat/state.js — 聊天模块共享状态
-// 所有模块级变量集中管理，其他模块通过 import 使用（ES module live binding）
+/**
+ * chat/state.js — 聊天模块共享状态 + getter/setter
+ * 从 core.js 拆出，core.js 保留这些变量的引用。
+ * 此文件只定义变量和 getter/setter，不处理 WS/流式/导航等逻辑。
+ */
 
 // ===== Core Chat State =====
-export let chatCurrentPage = 'chat';
-export let chatSessionId = null;
-export let chatCurrentAgent = null;
-export let chatPendingFiles = [];
-export let isSending = false;
-export let chatAgents = [];
-export let chatExpandedAgents = {};
-export let chatSidebarExpanded = true;
+export let _chatCurrentPage = 'chat';
+export let _chatSessionId = null;
+export let _chatCurrentAgent = null;
+export let _chatPendingFiles = [];
+export let _isSending = false;
+export let _chatAgents = [];
+export let _chatExpandedAgents = {};
+export let _chatSidebarExpanded = true;
 
-// ===== Per-Session Streaming State =====
-// Each entry: { acc: string, row: HTMLElement|null, bubble: HTMLElement|null, thinkingSteps: array, thinking: bool }
-export const _streamState = new Map();
-
-// Legacy aliases for current session (kept for backward compat with core.js)
+// Legacy aliases (被旧代码直接引用)
 export let _chatStreamAcc = '';
 export let _chatStreamRow = null;
 export let _chatStreamBubble = null;
 export let _thinkingSteps = [];
 export let _isThinking = false;
 
-// ===== Unread session badge =====
+// Per-Session Streaming State
+export const _streamState = new Map();
+
+// Unread session badge
 export const _unreadSessions = new Set();
 
-// ===== Model Selection =====
-export let chatCurrentModel = '';
-export let chatModelContextWindow = 8192;
+// Model Selection
+export let _chatCurrentModel = '';
+export let _chatModelContextWindow = 8192;
 
-// ===== ECharts instances =====
+// ECharts instances
 export let _chatChartModel = null;
 export let _chatChartDate = null;
 export let _chatChartHourly = null;
 
-// ===== Agent Config State =====
-export var _chatAgentData = null;
-export var _chatSelectedAgent = null;
-export var _agentConfigName = null;
-export var _chatAgentFiles = { soul: '', config: '' };
-export var _chatCurAgentFile = 'soul';
+// Agent Config State
+export let _chatAgentData = null;
+export let _chatSelectedAgent = null;
+export let _agentConfigName = null;
+export let _chatAgentFiles = { soul: '', config: '' };
+export let _chatCurAgentFile = 'soul';
 
-// ===== Logs State =====
+// Logs State
 export let _logsData = [];
 
-// ===== Context Menu =====
-export var _ctxMenu = null;
+// Context Menu
+export let _ctxMenu = null;
 
-// ===== Session Readiness (prevents sending before session_created) =====
-let _sessionReady = false;
-let _sessionWaiters = [];
-export function markSessionReady() {
-  _sessionReady = true;
-  const w = _sessionWaiters.splice(0);
-  w.forEach(r => r());
-}
-export function resetSessionReady() {
-  _sessionReady = false;
-  _sessionWaiters = [];
-}
-export function ensureSessionReady() {
-  if (_sessionReady && chatSessionId) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Session ready timeout')), 10000);
-    _sessionWaiters.push(() => { clearTimeout(timer); resolve(); });
-  });
-}
-let _ws = null;
-export function getWs() { return _ws; }
-export function setWs(val) { _ws = val; }
+// Session Readiness
+export let _sessionReady = false;
 
-// ===== Helpers =====
-export function _getStreamState(sessionId) {
-  if (!_streamState.has(sessionId)) {
-    _streamState.set(sessionId, { acc: '', row: null, bubble: null, thinkingSteps: [], thinking: false });
-  }
-  return _streamState.get(sessionId);
-}
+// Connection State
+export let _isConnected = false;
+export function setConnected(val) { _isConnected = val; }
+export let _sessionWaiters = [];
 
-export function _syncStreamFromCurrent() {
-  const sid = chatSessionId;
-  if (!sid) { _chatStreamAcc = ''; _chatStreamRow = null; _chatStreamBubble = null; return; }
-  const s = _getStreamState(sid);
-  _chatStreamAcc = s.acc; _chatStreamRow = s.row; _chatStreamBubble = s.bubble;
-  _thinkingSteps = s.thinkingSteps || [];
-  _isThinking = s.thinking || false;
-}
-
-export function _syncStreamToCurrent() {
-  const sid = chatSessionId;
-  if (!sid) return;
-  const s = _getStreamState(sid);
-  s.acc = _chatStreamAcc; s.row = _chatStreamRow; s.bubble = _chatStreamBubble;
-  s.thinkingSteps = _thinkingSteps || [];
-  s.thinking = _isThinking || false;
-}
-
-// ===== Setters (去重：保留语义更清晰的命名) =====
-export function setCurrentPage(page) { chatCurrentPage = page; }
-export function setCurrentModel(model) { chatCurrentModel = model; }
-export function setChatCurrentModel(model) { chatCurrentModel = model; }
-export function setModelContextWindow(ctx) { chatModelContextWindow = ctx; }
-export function setChatModelContextWindow(ctx) { chatModelContextWindow = ctx; }
-export function setChatAgents(agents) { chatAgents = agents; }
-export function setChatExpandedAgents(expanded) { chatExpandedAgents = expanded; }
-export function setChatSessionId(sid) { chatSessionId = sid; }
-export function setChatCurrentAgent(agent) { chatCurrentAgent = agent; }
-export function setChatPendingFiles(files) { chatPendingFiles = files; }
-export function setIsSending(val) { isSending = val; }
-export function getIsSending() { return isSending; }
-export function setChatAgentData(data) { _chatAgentData = data; }
-export function setSelectedAgent(name) { _chatSelectedAgent = name; }
-export function setAgentConfigName(name) { _agentConfigName = name; }
-export function setChatAgentFiles(files) { _chatAgentFiles = files; }
-export function setChatCurAgentFile(type) { _chatCurAgentFile = type; }
-export function setIsThinking(val) { _isThinking = val; }
-export function setCtxMenu(menu) { _ctxMenu = menu; }
-export function setChatStreamAcc(acc) { _chatStreamAcc = acc; }
-export function setChatStreamRow(row) { _chatStreamRow = row; }
-export function setChatStreamBubble(bubble) { _chatStreamBubble = bubble; }
-
-// Per-session streaming state — 独立于选中状态，跨会话/跨 agent 保持
+// Streaming sessions (per-session streaming badge)
 export const _streamingSessions = new Set();
 
-export function updateStreamingBadge(sessionId, active) {
-  if (active) _streamingSessions.add(sessionId);
-  else _streamingSessions.delete(sessionId);
-  _applyStreamingBadge(sessionId);
-}
+// ===== Getter/Setter: Core Chat State =====
+export function getChatCurrentPage() { return _chatCurrentPage; }
+export function setCurrentPage(page) { _chatCurrentPage = page; }
 
-function _applyStreamingBadge(sessionId) {
-  const items = document.querySelectorAll('.siper-session-item');
-  for (const el of items) {
-    if (el.dataset.sessionId === sessionId) {
-      if (_streamingSessions.has(sessionId)) el.classList.add('streaming');
-      else el.classList.remove('streaming');
-    }
-  }
-}
+export function getChatSessionId() { return _chatSessionId; }
+export function setChatSessionId(sid) { _chatSessionId = sid; }
 
-// Re-apply all streaming badges — call after renderMiddleList rebuilds DOM
-export function reapplyAllStreamingBadges() {
-  const items = document.querySelectorAll('.siper-session-item');
-  for (const el of items) {
-    const sid = el.dataset.sessionId;
-    if (sid && _streamingSessions.has(sid)) el.classList.add('streaming');
-  }
-}
+export function getChatCurrentAgent() { return _chatCurrentAgent; }
+export function setChatCurrentAgent(agent) { _chatCurrentAgent = agent; }
+
+export function getChatPendingFiles() { return _chatPendingFiles; }
+export function setChatPendingFiles(files) { _chatPendingFiles = files; }
+
+export function getIsSending() { return _isSending; }
+export function setIsSending(val) { _isSending = val; }
+
+export function getChatAgents() { return _chatAgents; }
+export function setChatAgents(agents) { _chatAgents = agents; }
+
+export function getChatExpandedAgents() { return _chatExpandedAgents; }
+export function setChatExpandedAgents(expanded) { _chatExpandedAgents = expanded; }
+
+export function getChatSidebarExpanded() { return _chatSidebarExpanded; }
+export function setChatSidebarExpanded(v) { _chatSidebarExpanded = v; }
+
+// ===== Getter/Setter: Streaming State =====
+export function getChatStreamAcc() { return _chatStreamAcc; }
+export function setChatStreamAcc(acc) { _chatStreamAcc = acc; }
+
+export function getChatStreamRow() { return _chatStreamRow; }
+export function setChatStreamRow(row) { _chatStreamRow = row; }
+
+export function getChatStreamBubble() { return _chatStreamBubble; }
+export function setChatStreamBubble(bubble) { _chatStreamBubble = bubble; }
+
+export function getThinkingSteps() { return _thinkingSteps; }
+export function setThinkingSteps(v) { _thinkingSteps = v; }
+
+export function getIsThinking() { return _isThinking; }
+export function setIsThinking(val) { _isThinking = val; }
+
+// ===== Getter/Setter: Model Selection =====
+export function getChatCurrentModel() { return _chatCurrentModel; }
+export function setCurrentModel(model) { _chatCurrentModel = model; }
+export function setChatCurrentModel(model) { _chatCurrentModel = model; }
+
+export function getChatModelContextWindow() { return _chatModelContextWindow; }
+export function setModelContextWindow(ctx) { _chatModelContextWindow = ctx; }
+export function setChatModelContextWindow(ctx) { _chatModelContextWindow = ctx; }
+
+// ===== Getter/Setter: Agent Config State =====
+export function getChatAgentData() { return _chatAgentData; }
+export function setChatAgentData(data) { _chatAgentData = data; }
+
+export function getChatSelectedAgent() { return _chatSelectedAgent; }
+export function setSelectedAgent(name) { _chatSelectedAgent = name; }
+
+export function getAgentConfigName() { return _agentConfigName; }
+export function setAgentConfigName(name) { _agentConfigName = name; }
+
+export function getChatAgentFiles() { return _chatAgentFiles; }
+export function setChatAgentFiles(files) { _chatAgentFiles = files; }
+
+export function getChatCurAgentFile() { return _chatCurAgentFile; }
+export function setChatCurAgentFile(type) { _chatCurAgentFile = type; }
+
+// ===== Getter/Setter: Logs State =====
+export function getLogsData() { return _logsData; }
 export function setLogsData(data) { _logsData = data; }
 
-/**
- * 统一更新会话列表中指定 session 的 last_message / updated_at 和 DOM preview
- * @param {string} sessionId - 会话 ID
- * @param {string} [text] - 最后消息文本（用于 last_message 预览）
- * @param {string} [updatedAt] - ISO 时间戳（优先使用，fallback 到 new Date()）
- */
-export function updateSessionPreview(sessionId, text, updatedAt) {
-  if (!sessionId || !chatCurrentAgent) return;
-  const _agent = chatAgents.find(a => a.name === chatCurrentAgent.name);
-  if (!_agent) return;
-  const _sess = _agent.sessions.find(s => s.session_id === sessionId);
-  if (!_sess) return;
-  if (text !== undefined) {
-    _sess.last_message = text.replace(/\n/g, ' ').substring(0, 60);
-  }
-  if (updatedAt !== undefined) {
-    _sess.updated_at = updatedAt;
-  } else if (text !== undefined) {
-    _sess.updated_at = new Date().toISOString();
-  }
-  // 只更新对应 session item 的 DOM，不重新渲染整个中栏
-  const container = document.getElementById('chatMiddleList');
-  if (container) {
-    const items = container.querySelectorAll('.siper-session-item');
-    for (const item of items) {
-      if (item.dataset.sessionId === sessionId) {
-        if (text !== undefined) {
-          const preview = item.querySelector('.siper-session-preview');
-          if (preview) preview.textContent = _sess.last_message;
-        }
-        if (updatedAt !== undefined) {
-          const timeEl = item.querySelector('.siper-session-time');
-          if (timeEl && updatedAt) {
-            timeEl.textContent = new Date(updatedAt).toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
-          }
-        }
-        break;
-      }
+// ===== Getter/Setter: Context Menu =====
+export function getCtxMenu() { return _ctxMenu; }
+export function setCtxMenu(menu) { _ctxMenu = menu; }
+
+// ===== Getter/Setter: WebSocket =====
+// ws 变量保留在 core.js 中（connectWS/send 需要它）
+
+// ===== Session Readiness =====
+export function markSessionReady() {
+    _sessionReady = true;
+    const w = _sessionWaiters.splice(0);
+    w.forEach(r => r());
+}
+export function resetSessionReady() {
+    _sessionReady = false;
+    _sessionWaiters = [];
+}
+export function ensureSessionReady() {
+    if (_sessionReady && _chatSessionId) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Session ready timeout')), 10000);
+        _sessionWaiters.push(() => { clearTimeout(timer); resolve(); });
+    });
+}
+
+// ===== Per-Session Streaming Helpers =====
+export function getStreamState(sessionId) {
+    if (!_streamState.has(sessionId)) {
+        _streamState.set(sessionId, { acc: '', row: null, bubble: null, thinkingSteps: [], thinking: false });
     }
-  }
-  // 触发中栏重新排序（updated_at 变化后 DOM 顺序需刷新）
-  if (updatedAt !== undefined && typeof renderMiddleList === 'function') {
-    renderMiddleList();
-  }
+    return _streamState.get(sessionId);
+}
+
+export function syncStreamFromCurrent() {
+    const sid = _chatSessionId;
+    if (!sid) { _chatStreamAcc = ''; _chatStreamRow = null; _chatStreamBubble = null; return; }
+    const s = getStreamState(sid);
+    _chatStreamAcc = s.acc; _chatStreamRow = s.row; _chatStreamBubble = s.bubble;
+    _thinkingSteps = s.thinkingSteps || [];
+    _isThinking = s.thinking || false;
+}
+
+export function syncStreamToCurrent() {
+    const sid = _chatSessionId;
+    if (!sid) return;
+    const s = getStreamState(sid);
+    s.acc = _chatStreamAcc; s.row = _chatStreamRow; s.bubble = _chatStreamBubble;
+    s.thinkingSteps = _thinkingSteps || [];
+    s.thinking = _isThinking || false;
+}
+
+// ===== Streaming Badge =====
+export function updateStreamingBadge(sessionId, active) {
+    if (active) _streamingSessions.add(sessionId);
+    else _streamingSessions.delete(sessionId);
+    applyStreamingBadge(sessionId);
+}
+
+export function applyStreamingBadge(sessionId) {
+    const items = document.querySelectorAll('.siper-session-item');
+    for (const el of items) {
+        if (el.dataset.sessionId === sessionId) {
+            if (_streamingSessions.has(sessionId)) el.classList.add('streaming');
+            else el.classList.remove('streaming');
+        }
+    }
+}
+
+export function reapplyAllStreamingBadges() {
+    const items = document.querySelectorAll('.siper-session-item');
+    for (const el of items) {
+        const sid = el.dataset.sessionId;
+        if (sid && _streamingSessions.has(sid)) el.classList.add('streaming');
+    }
 }
 
 // ===== Token Formatting =====
 export function fmtTokens(n) {
-  if (n == null) return '--';
-  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-  return String(n);
+    if (n == null) return '--';
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(n);
 }
 
-// ===== Thinking Panel =====
-export function chatThinkingHide() {
-  const panel = document.getElementById('chatThinkingPanel');
-  if (panel) panel.classList.remove('open');
-}
-
-// ===== Send State Reset =====
-export function resetSendState() {
-  setIsSending(false);
-  const sb = document.getElementById('chatSendBtn');
-  if (sb) sb.disabled = false;
-  const stb = document.getElementById('chatStopBtn');
-  if (stb) stb.classList.add('hidden');
-  chatThinkingHide();
-}
+// ===== Legacy Aliases (backward compat — 旧代码从 core.js 导入的名称) =====
+// core.js 之前用 export { _chatSessionId as chatSessionId } 等方式导出
+// 现在 state.js 接管，只保留名称不同的别名（_chatSessionId → chatSessionId 等）
+export { _chatSessionId as chatSessionId };
+export { _chatCurrentAgent as chatCurrentAgent };
+export { _chatAgents as chatAgents };
+export { _chatExpandedAgents as chatExpandedAgents };
+export { _chatCurrentModel as chatCurrentModel };
+export { _chatModelContextWindow as chatModelContextWindow };
+export { _chatCurrentPage as chatCurrentPage };
+export { _chatPendingFiles as chatPendingFiles };
+export { _chatSidebarExpanded as chatSidebarExpanded };

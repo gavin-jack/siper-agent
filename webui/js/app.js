@@ -1,12 +1,13 @@
 // app.js — ESM 入口
-// Phase 1-5: utils + components + chat + pages + CSS
-// CSS is loaded via <link> tags injected by siper_web.py, not via ESM import
-// 2026-05-19: token page color fix — force ESM cache invalidation
+// 起源：有状态 UI（先加载，确保 WS 连接最早建立）
+import { connectWS, setConnected } from './core.js';
+import { registerAllHandlers } from './renderer.js';
 
 // Utils
 import { escapeHtml } from './utils/escape.js';
 import { LANG, t, applyLang, selectLang } from './utils/i18n.js';
-import { navigateToPage, connectWS, setConnected, addLog, updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js';
+import { addLog, updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js';
+import { siPerNavigate } from './chat/nav.js';
 import { apiGet, apiPost } from './utils/api.js';
 import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js';
 
@@ -15,39 +16,38 @@ import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmD
 import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js';
 import * as AgentModels from './components/agent-models.js';
 
-// Pages (Phase 2)
+// Pages
 import * as Skills from './pages/skills.js';
 import * as Memory from './pages/memory.js';
 import * as Logs from './pages/logs.js';
 import * as Token from './pages/token.js';
-
-// Pages (Phase 3)
 import * as Sessions from './pages/sessions.js';
 import * as Theme from './pages/theme.js';
 import * as AgentConfig from './pages/agent-config.js';
 import * as Settings from './pages/settings.js';
 import * as ModelSettings from './pages/model-settings.js';
-// tasks.js removed — task/cron feature deleted
 
-// Pages (Phase 4)
+// Chat (must load before DOMContentLoaded)
 import * as Chat from './pages/chat.js';
 window.chatSwitchPage = Chat.chatSwitchPage;
 
-// 挂载到 window（过渡期，后续逐步消除）
+// ===== Window Global Mounts =====
+// Utils
 window.escapeHtml = escapeHtml;
-window.LANG = LANG;
 window.t = t;
 window.applyLang = applyLang;
 window.selectLang = selectLang;
-window.selectChatLang = selectChatLang;
-window.toggleChatLangDropdown = toggleChatLangDropdown;
-window.navigateToPage = navigateToPage;
-window.connectWS = connectWS;
-window.setConnected = setConnected;
+window.siPerNavigate = siPerNavigate;
 window.addLog = addLog;
+window.updateThemePaletteTrigger = updateThemePaletteTrigger;
+window.toggleChatSidebar = toggleChatSidebar;
+window.toggleThemePalette = toggleThemePalette;
 window.apiGet = apiGet;
 window.apiPost = apiPost;
+window.toggleChatLangDropdown = toggleChatLangDropdown;
+window.selectChatLang = selectChatLang;
 
+// Components
 window.toast = toast;
 window.showConfirm = showConfirm;
 window.cancelConfirm = cancelConfirm;
@@ -57,96 +57,32 @@ window.confirmDeleteModel = confirmDeleteModel;
 window.showInput = showInput;
 window.cancelInput = cancelInput;
 window.execInput = execInput;
+window.openImageLightbox = openImageLightbox;
 window.testModel = testModel;
 window.verifyGlobalModel = verifyGlobalModel;
 window.verifyChatModel = verifyChatModel;
+window.initModelTestDelegation = initModelTestDelegation;
+window.AgentModels = AgentModels;
 
-// Phase 2 pages
-window.refreshSkills = Skills.refreshSkills;
-window.renderSkillCard = Skills.renderSkillCard;
-window.previewSkillFilter = Skills.previewSkillFilter;
-window.populateMemoryAgentSelector = Memory.populateMemoryAgentSelector;
-window.onMemoryAgentChange = Memory.onMemoryAgentChange;
-window.refreshMemoryPage = Memory.refreshMemoryPage;
-window.saveMemoryMd = Memory.saveMemoryMd;
-window.refreshMemoryConfig = Memory.refreshMemoryConfig;
-window.saveMemoryConfig = Memory.saveMemoryConfig;
-window.updateMemoryPreview = Memory.updateMemoryPreview;
-window.resetMemoryConfig = Memory.resetMemoryConfig;
-window.refreshLogs = Logs.refreshLogs;
-window.renderLogLevelFilters = Logs.renderLogLevelFilters;
-window.toggleLogLevel = Logs.toggleLogLevel;
-window.renderLogSourceOptions = Logs.renderLogSourceOptions;
-window.applyLogFilters = Logs.applyLogFilters;
-window.applyLogLogsDebounced = Logs.applyLogLogsDebounced;
-window.applyChatLogLevelFilter = Logs.applyChatLogLevelFilter;
-window.renderLogPagination = Logs.renderLogPagination;
-window.gotoLogPage = Logs.gotoLogPage;
-window.toggleAutoRefresh = Logs.toggleAutoRefresh;
-window.clearLogs = Logs.clearLogs;
-window.refreshTokenStats = Token.refreshTokenStats;
-window._resizeCharts = Token._resizeCharts;
+// Pages
+window.Skills = Skills;
+window.Memory = Memory;
+window.Logs = Logs;
+window.Token = Token;
+window.Sessions = Sessions;
+window.Theme = Theme;
+window.AgentConfig = AgentConfig;
+window.Settings = Settings;
+window.ModelSettings = ModelSettings;
 
-// Phase 3 pages
-window.refreshSessions = Sessions.refreshSessions;
-window.formatTime = Sessions.formatTime;
-window.switchSession = Sessions.switchSession;
-window.loadSessionHistory = Sessions.loadSessionHistory;
-window.previewSession = Sessions.previewSession;
-window.newSession = Sessions.newSession;
-window.saveThemeToStorage = Theme.saveThemeToStorage;
-window.showThemeSettings = Theme.showThemeSettings;
-window.renderSizeSettings = Theme.renderSizeSettings;
-window.renderTemplateList = Theme.renderTemplateList;
-window.saveThemeTemplate = Theme.saveThemeTemplate;
-window.loadThemeTemplate = Theme.loadThemeTemplate;
-window.deleteThemeTemplate = Theme.deleteThemeTemplate;
-window.exportSingleTemplate = Theme.exportSingleTemplate;
-window.applyThemePreset = Theme.applyThemePreset;
-window.applyThemeValue = Theme.applyThemeValue;
-window.resetTheme = Theme.resetTheme;
-window.exportTheme = Theme.exportTheme;
-window.importTheme = Theme.importTheme;
-window.loadAgentSettings = AgentConfig.loadAgentSettings;
-window.loadGlobalModelsForAgent = AgentConfig.loadGlobalModelsForAgent;
-window.renderAgentModelSection = AgentConfig.renderAgentModelSection;
-window.renderAgentModelsForAgent = AgentConfig.renderAgentModelsForAgent;
-window.saveAgentSettings = AgentConfig.saveAgentSettings;
-window.autoSaveAgentModels = AgentConfig.autoSaveAgentModels;
-window.refreshConfigAgentPanel = AgentConfig.refreshConfigAgentPanel;
-window.selectConfigAgent = AgentConfig.selectConfigAgent;
-window.switchConfigAgentPageTab = AgentConfig.switchConfigAgentPageTab;
-window.refreshAgentFile = AgentConfig.refreshAgentFile;
-window.loadAgentMemoryContent = AgentConfig.loadAgentMemoryContent;
-window.saveAgentFile = AgentConfig.saveAgentFile;
-window.uploadAgentAvatar = AgentConfig.uploadAgentAvatar;
-window.triggerAgentAutoSave = AgentConfig.triggerAgentAutoSave;
-window.attachAgentAutoSaveListeners = AgentConfig.attachAgentAutoSaveListeners;
-window.resetAgentLimits = AgentConfig.resetAgentLimits;
-window.toggleIconPicker = AgentConfig.toggleIconPicker;
-window.selectAgentIcon = AgentConfig.selectAgentIcon;
-window.switchChatAgentTab = AgentConfig.switchChatAgentTab;
-window.switchChatAgentFile = AgentConfig.switchChatAgentFile;
-window.saveChatAgentFile = AgentConfig.saveChatAgentFile;
-window.loadChatAgentFilesForAgent = AgentConfig.loadChatAgentFilesForAgent;
-window.saveAllChatAgentConfig = AgentConfig.saveAllChatAgentConfig;
-window.refreshGlobalSettings = Settings.refreshGlobalSettings;
-window.autoSaveRuntimeSettings = Settings.autoSaveRuntimeSettings;
-window.saveMetaConfig = Settings.saveMetaConfig;
-window.loadMetaConfig = Settings.loadMetaConfig;
-window.resetSystemParams = Settings.resetSystemParams;
-window.switchSettingsTab = Settings.switchSettingsTab;
-window.renderGlobalAgents = Settings.renderGlobalAgents;
-window.onGlobalAgentSelect = Settings.onGlobalAgentSelect;
-window.confirmDeleteGlobalAgent = Settings.confirmDeleteGlobalAgent;
-// Model settings (independent page)
+// Model settings
 window.loadSettingsModels = ModelSettings.loadSettingsModels;
-window.renderSettingsModelsList = ModelSettings.renderSettingsModelsList;
-window.removeSettingsModel = ModelSettings.removeSettingsModel;
-window.autoSaveModels = ModelSettings.autoSaveModels;
-window.resetSettingsModels = ModelSettings.resetSettingsModels;
-window.copyModelName = ModelSettings.copyModelName;
 window.discoverModels = ModelSettings.discoverModels;
+window.addCustomModel = ModelSettings.addCustomModel;
+window.addModelGroup = ModelSettings.addModelGroup;
+window.saveSettingsModels = ModelSettings.saveSettingsModels;
+window.deleteSettingsModel = ModelSettings.deleteSettingsModel;
+window.saveAllModels = ModelSettings.saveAllModels;
 window.applyProviderPreset = ModelSettings.applyProviderPreset;
 window.addDiscoveredModel = ModelSettings.addDiscoveredModel;
 window.addAllDiscoveredModels = ModelSettings.addAllDiscoveredModels;
@@ -164,7 +100,10 @@ window.toggleThemePalette = toggleThemePalette;
 window.toggleChatModelDropdown = toggleChatModelDropdown;
 window.startNewChat = startNewChat;
 
-// Hash-based SPA routing — runs after ESM module is fully loaded
+// ===== 注册所有 renderer handlers（起源核心） =====
+registerAllHandlers();
+
+// ===== Hash-based SPA routing =====
 function initRouter() {
   try {
     const saved = localStorage.getItem('siper_theme');
@@ -176,11 +115,10 @@ function initRouter() {
   const rawHash = location.hash.replace('#/', '').replace('#', '');
   const pageToShow = rawHash && rawHash !== 'chat' ? rawHash : null;
   if (pageToShow) {
-    if (typeof window.navigateToPage === 'function') {
-      window.navigateToPage(pageToShow, true);
+    if (typeof window.siPerNavigate === 'function') {
+      window.siPerNavigate(pageToShow, true);
     }
   } else {
-    // Show chat page (three-column layout is always in DOM)
     const chatPage = document.getElementById('page-chat');
     if (chatPage) chatPage.style.display = 'flex';
     if (typeof window.chatSwitchPage === 'function') window.chatSwitchPage('chat');
@@ -190,7 +128,7 @@ function initRouter() {
   if (window.mermaid) {
     mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose', fontFamily: 'inherit' });
   }
-  // Init model test delegation (verify button click handler)
+  // Init model test delegation
   if (typeof initModelTestDelegation === 'function') {
     initModelTestDelegation(
       typeof verifyChatModel === 'function' ? verifyChatModel : null,
@@ -201,7 +139,7 @@ function initRouter() {
   if (typeof connectWS === 'function') connectWS();
 }
 
-// ===== Error Diagnostics — capture all JS errors for debugging =====
+// ===== Error Diagnostics =====
 window.__siper_errors = [];
 const _origConsoleError = console.error;
 console.error = function(...args) {
@@ -215,8 +153,7 @@ window.addEventListener('unhandledrejection', function(e) {
   window.__siper_errors.push({ type: 'unhandledrejection', msg: String(e.reason), time: Date.now() });
 });
 
-// ===== Keyboard Accessibility: Enter/Space triggers onclick buttons =====
-// P0 fix: all [onclick] buttons must be keyboard-accessible (WCAG 2.1)
+// ===== Keyboard Accessibility =====
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Enter' && e.key !== ' ') return;
   var btn = e.target.closest('button[onclick], [role="button"][onclick]');
@@ -225,11 +162,18 @@ document.addEventListener('keydown', function(e) {
   btn.click();
 });
 
-// ESM modules are deferred by default — DOM is ready when this executes
-try {
-  initRouter();
-} catch(e) {
-  console.error('[app.js] initRouter failed:', e.message);
-  // Show visible error when page init fails
-  document.body.innerHTML = '<div class="js-error-lg">⚠️ 页面初始化失败: ' + e.message + '<br><br><button onclick="location.reload()" class="js-btn-lg">重试</button></div>';
+// ===== Boot =====
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _safeInitRouter);
+} else {
+  _safeInitRouter();
+}
+
+function _safeInitRouter() {
+  try {
+    initRouter();
+  } catch(e) {
+    console.error('[app.js] initRouter failed:', e.message);
+    document.body.innerHTML = '<div class="js-error-lg">⚠️ 页面初始化失败: ' + e.message + '<br><br><button onclick="location.reload()" class="js-btn-lg">重试</button></div>';
+  }
 }

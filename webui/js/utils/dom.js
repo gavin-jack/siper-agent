@@ -1,117 +1,19 @@
-// utils/dom.js — 全局 DOM 操作
-// 从 core.js 迁移
+// utils/dom.js — 纯 UI 工具函数（已迁移到 core.js/renderer.js 的函数不再保留）
 
 import { escapeHtml } from './escape.js';
-import { toast } from '../components/toast.js';
+
 import { t, currentLang } from './i18n.js';
-import { setWs, setIsSending, setChatSessionId, chatSessionId, chatCurrentAgent, chatAgents, chatExpandedAgents, chatModelContextWindow, markSessionReady, setIsThinking, updateStreamingBadge, updateSessionPreview, resetSendState } from '../chat/state.js';
-import { chatHandleStreamDelta, chatHandleStreamEnd, chatHandleToolProgress, chatThinkingClear } from '../chat/stream.js';
-import { chatThinkingHide } from '../chat/state.js';
-
-// Pages rendered inside #page-chat three-column layout (migrated from core.js)
-const _CHAT_RENDERED_PAGES = new Set(['chat','tasks','skills','plugins','token','global-settings','model-settings','logs','monitor']);
-let currentPage = 'chat';
-let currentSession = null;  // null until first WS connection or session load
-let ws = null;  // WebSocket connection — set by connectWS(), used by _sendClarifyResponse
-let wsConnId = null;  // WS connection ID, set by server 'connected' message
-let _audioCtx = null;  // Web Audio context — lazily initialized by playReplySound()
-
-export function navigateToPage(page, skipHash) {
-  if (!page) return;
-
-  // Chat-family pages (rendered inside #page-chat three-column layout)
-  if (_CHAT_RENDERED_PAGES.has(page)) {
-    // Show chat page, hide dynamic page container
-    const chatPage = document.getElementById('page-chat');
-    const dynamicPage = document.getElementById('page-dynamic');
-    if (chatPage) chatPage.style.display = 'flex';
-    if (dynamicPage) dynamicPage.style.display = 'none';
-    currentPage = page;
-    if (typeof window.chatSwitchPage === 'function') {
-      window.chatSwitchPage(page, true); // true = fromNavigate, skip hash update
-    }
-    return;
-  }
-
-  // Standalone pages (rendered into #page-dynamic)
-  const chatPage = document.getElementById('page-chat');
-  const dynamicPage = document.getElementById('page-dynamic');
-  if (chatPage) chatPage.style.display = 'none';
-  if (dynamicPage) {
-    dynamicPage.style.display = 'flex';
-    dynamicPage.innerHTML = ''; // Clear previous page
-  }
-  currentPage = page;
-  if (!skipHash) location.hash = '#/' + page;
-
-  // Clone template DOM into #page-dynamic (templates are in hidden #tpl-* divs)
-  const tplMap = {
-    'sessions': 'tpl-sessions',
-    'memory': 'tpl-memory',
-    'agent-config': 'tpl-agent-config',
-    'theme-settings': 'tpl-theme-settings',
-    'model-settings': 'tpl-model-settings',
-  };
-  const tplId = tplMap[page];
-  if (tplId) {
-    const tpl = document.getElementById(tplId);
-    if (tpl && dynamicPage) {
-      const clone = tpl.cloneNode(true);
-      clone.style.display = '';
-      clone.removeAttribute('id');
-      dynamicPage.appendChild(clone);
-    }
-  }
-
-  // cloneNode(true) does not clone HTML event handler attributes (onchange, onclick, etc.)
-  // Re-bind them manually after cloning
-  if (page === 'agent-config') {
-    const avatarInput = dynamicPage.querySelector('#avatarFileInput');
-    if (avatarInput && typeof window.uploadAgentAvatar === 'function') {
-      avatarInput.addEventListener('change', window.uploadAgentAvatar);
-    }
-    // Re-bind avatar image click to trigger file input (cloneNode loses onclick)
-    const avatarImg = dynamicPage.querySelector('#cfgAgentAvatar');
-    if (avatarImg) {
-      avatarImg.addEventListener('click', function() {
-        const inp = document.getElementById('avatarFileInput');
-        if (inp) inp.click();
-      });
-    }
-  }
-
-  // Page-specific init — render standalone pages into #page-dynamic
-  if (page === 'sessions') {
-    if (typeof window.refreshSessions === 'function') window.refreshSessions();
-  }
-  if (page === 'memory') {
-    if (typeof window.populateMemoryAgentSelector === 'function') {
-      window.populateMemoryAgentSelector();
-    }
-    if (typeof window.refreshMemoryPage === 'function') {
-      window.refreshMemoryPage();
-    }
-  }
-  if (page === 'agent-config') {
-    setChatSessionId(null);
-    if (typeof window.refreshConfigAgentPanel === 'function') window.refreshConfigAgentPanel();
-    if (typeof window.loadAgentSettings === 'function') window.loadAgentSettings();
-    if (typeof window.renderMiddleList === 'function') window.renderMiddleList();
-  }
-  if (page === 'theme-settings') {
-    if (typeof window.showThemeSettings === 'function') window.showThemeSettings();
-  }
-  if (page === 'models') {
-    if (typeof window.refreshModelsPage === 'function') window.refreshModelsPage();
-  }
-  if (page === 'file-browser') {
-    if (typeof window.refreshFileList === 'function') window.refreshFileList();
-  }
-}
+import { getWs, setWs } from '../core.js';
+import { ensureSessionReady, setIsSending, setChatSessionId, chatSessionId, chatCurrentAgent, chatAgents, chatExpandedAgents, chatModelContextWindow, markSessionReady, setIsThinking, updateStreamingBadge } from '../chat/state.js';
+import { resetSendState, updateSessionPreview } from '../chat/session.js';
+import { chatHandleStreamDelta, chatHandleStreamEnd } from '../chat/stream.js';
+import { chatThinkingClear, chatThinkingHide } from '../chat/thinking.js';
 
 // ===== Clarify Response =====
 // Send user's clarification answer back to the server during tool-call ambiguity
 export function _sendClarifyResponse(sessionId, answer) {
+  // Get ws from core.js
+  const ws = (typeof getWs === 'function') ? getWs() : null;
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({type: 'clarify_response', session_id: sessionId, answer: answer}));
   }
@@ -120,652 +22,7 @@ export function _sendClarifyResponse(sessionId, answer) {
   if (_sb) _sb.disabled = false;
 }
 
-export function connectWS() {
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsPort = parseInt(location.port) + 1;
-  const wsUrl = `${proto}//${location.hostname}:${wsPort}`;
-  ws = new WebSocket(wsUrl);
-  setWs(ws);
-
-  ws.onopen = () => {
-    setConnected(true);
-    addLog('info', t('log.wsConnected'), currentLang);
-  };
-  ws.onclose = (e) => {
-    setConnected(false);
-    const _te = document.getElementById('typing');
-    if (_te) _te.className = 'typing';
-    // Reset send state on disconnect
-    resetSendState();
-    addLog('warn', t('chat.disconnected'), currentLang);
-    setTimeout(connectWS, 3000);
-  };
-  ws.onerror = () => {};
-  // ===== Streaming state (aggregated: all deltas → single bubble) =====
-  let _streamAcc = '';
-  let _streamBubble = null;
-  let _streamBubbleWrap = null;
-  let _streamRow = null;
-  let _streamRawData = null;
-  let _tool_call_steps = [];
-
-  ws.onmessage = (e) => {
-    try {
-      const d = JSON.parse(e.data);
-      if (d.type === 'stream_delta') {
-        // Route to chat page — chatHandleStreamDelta will handle per-session state
-        if (currentPage === 'chat' && typeof chatHandleStreamDelta === 'function') {
-          chatHandleStreamDelta(d.delta || '', d.session_id || null);
-          return;
-        }
-        _streamAcc += d.delta || '';
-        const chatEl = document.getElementById('chatMessages');
-        if (!chatEl) return;
-        if (!_streamBubble) {
-          _streamRow = document.createElement('div');
-          _streamRow.className = 'siper-msg-row agent siper-stream-row';
-          const avatarWrap = document.createElement('div');
-          avatarWrap.className = 'siper-msg-avatar-wrap';
-          const agentName = (typeof chatCurrentAgent !== 'undefined' && chatCurrentAgent && chatCurrentAgent.name) ? chatCurrentAgent.name : '';
-          avatarWrap.innerHTML = agentName
-            ? `<img class="msg-avatar-img" src="/api/avatar?agent=${encodeURIComponent(agentName)}" alt="Agent" onerror="this.src='/static/default_avatar_256.png'">`
-            : getAvatarHtml('agent');
-          _streamBubbleWrap = document.createElement('div');
-          _streamBubbleWrap.className = 'siper-bubble agent-bubble';
-          _streamBubble = document.createElement('div');
-          _streamBubble.className = 'siper-msg-body';
-          _streamBubbleWrap.appendChild(_streamBubble);
-          _streamRow.appendChild(avatarWrap);
-          _streamRow.appendChild(_streamBubbleWrap);
-          chatEl.appendChild(_streamRow);
-        }
-        // Throttled markdown render for non-chat stream deltas
-        _streamBubble.textContent = '';
-        _streamBubble.appendChild(renderMarkdown(_streamAcc));
-      } else if (d.type === 'stream_end') {
-        const _endData = d.data || {};
-        const _replySid = _endData.session_id || null;
-        // Route to chat page — chatHandleStreamEnd handles all rendering
-        if (currentPage === 'chat' && typeof chatHandleStreamEnd === 'function') {
-          chatHandleStreamEnd(_endData, _replySid);
-          if (typeof playReplySound === 'function') playReplySound();
-          if (_replySid && _replySid !== chatSessionId) {
-            if (typeof markSessionUnread === 'function') markSessionUnread(_replySid);
-          }
-          if (chatSessionId && chatCurrentAgent) {
-            updateSessionPreview(chatSessionId, _chatStreamAcc || '', _endData.server_time);
-          }
-          if (_endData.message_id) {
-            fetch('/api/save-response-dict', {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({ message_id: _endData.message_id, response_dict: _endData })
-            }).catch(() => {});
-          }
-        }
-        if (chatSessionId) updateStreamingBadge(chatSessionId, false);
-        // Clean up stream DOM state (chatHandleStreamEnd already updated content)
-        if (_streamRow) {
-          _streamRow.remove();
-          _streamRow = null;
-          _streamBubble = null;
-          _streamBubbleWrap = null;
-        }
-        _streamAcc = '';
-        _tool_call_steps = [];
-        resetSendState();
-        // Render attachments on the last streamed message
-        if (_attachments.length > 0) {
-          try {
-            const chatEl = document.getElementById('chatMessages');
-            if (chatEl) {
-              const rows = chatEl.querySelectorAll('.msg-row.agent');
-              if (rows.length > 0) {
-                const lastRow = rows[rows.length - 1];
-                const bubble = lastRow.querySelector('.siper-msg-body');
-                if (bubble) {
-                  let attHtml = '<div class="msg-attachments">';
-                  for (const att of _attachments) {
-                    if (att.category === 'image' || att.type === 'image') {
-                      const src = att.url || att.data || '';
-                      const alt = escapeHtml(att.name || att.filename || 'image');
-                      attHtml += `<img src="${src}" class="chat-image" alt="${alt}" onclick="window.open(this.src)">`;
-                    } else {
-                      const icon = FILE_ICONS[att.category] || FILE_ICONS.other;
-                      const name = escapeHtml(att.name || att.filename || att.url || 'file');
-                      attHtml += `<div class="chat-file-ref">${icon} ${name}</div>`;
-                    }
-                  }
-                  attHtml += '</div>';
-                  const attWrap = document.createElement('div');
-                  attWrap.innerHTML = attHtml;
-                  bubble.appendChild(attWrap);
-                }
-              }
-            }
-          } catch(e) {}
-        }
-        // Render TTS audio bar on the last agent message
-        renderTtsAudioBars(_tool_call_steps);
-        // Debug: append raw data block to the last agent bubble
-        if (_streamRawData) {
-          try {
-            const cfg = getMetaConfig();
-            if (cfg.showDebug) {
-              const chatEl = document.getElementById('chatMessages');
-              if (chatEl) {
-                const rows = chatEl.querySelectorAll('.msg-row.agent');
-                if (rows.length > 0) {
-                  const lastRow = rows[rows.length - 1];
-                  const bubble = lastRow.querySelector('.siper-msg-body');
-                  if (bubble) {
-                    const dbg = document.createElement('div');
-                    dbg.className = 'msg-debug-block';
-                    // Header with copy button
-                    const hdr = document.createElement('div');
-                    hdr.className = 'msg-debug-header';
-                    const title = document.createElement('span');
-                    title.className = 'msg-debug-title';
-                    title.textContent = '🔍 Response';
-                    hdr.appendChild(title);
-                    let rawJson = '';
-                    try { rawJson = JSON.stringify(_streamRawData, null, 2); } catch(e) { rawJson = String(_streamRawData); }
-                    const copyBtn = document.createElement('button');
-                    copyBtn.className = 'msg-debug-copy';
-                    copyBtn.textContent = '📋';
-                    copyBtn.title = '复制 JSON';
-                    copyBtn.addEventListener('click', () => {
-                      navigator.clipboard.writeText(rawJson).then(() => {
-                        copyBtn.textContent = '✓';
-                        setTimeout(() => copyBtn.textContent = '📋', 1500);
-                      });
-                    });
-                    hdr.appendChild(copyBtn);
-                    dbg.appendChild(hdr);
-                    // Highlighted pre
-                    const pre = document.createElement('pre');
-                    pre.className = 'msg-debug-pre';
-                    pre.innerHTML = debugHighlight(rawJson);
-                    dbg.appendChild(pre);
-                    bubble.appendChild(dbg);
-                  }
-                }
-              }
-            }
-          } catch(e) {}
-          _streamRawData = null;
-        }
-        // Update token usage
-        if (_usage) {
-          tokenHistory.push({
-            time: new Date().toLocaleTimeString(),
-            model: _model || '',
-            prompt: _usage.prompt_tokens || 0,
-            completion: _usage.completion_tokens || 0,
-            total: _usage.total_tokens || 0
-          });
-          if (tokenHistory.length > 50) tokenHistory.shift();
-          if (currentPage === 'token') refreshTokenStats();
-        }
-        // Hide typing indicator after all rendering is complete
-        const _te = document.getElementById('typing');
-        if (_te) _te.className = 'typing';
-        // Clear tool progress panel
-        const _tt = document.getElementById('typingTools');
-        if (_tt) _tt.innerHTML = '';
-      } else if (d.type === 'clarify_request') {
-        // LLM is asking the user a clarification question
-        const _cq = d.question || '';
-        const _cOpts = d.options || null;
-        const _cCtx = d.context || '';
-        const _cSess = d.session_id || chatSessionId || '';
-        // Show typing indicator with question
-        const _te = document.getElementById('typing');
-        if (_te) {
-          _te.className = 'typing visible';
-          _te.innerHTML = '<span class="typing-text">🤔 ' + escapeHtml(_cq) + '</span>';
-        }
-        // Build clarify UI
-        const _cw = document.createElement('div');
-        _cw.className = 'clarify-wrap';
-        _cw.id = 'clarifyWrap';
-        if (_cCtx) {
-          const _ctxEl = document.createElement('div');
-          _ctxEl.className = 'clarify-context';
-          _ctxEl.textContent = _cCtx;
-          _cw.appendChild(_ctxEl);
-        }
-        const _qEl = document.createElement('div');
-        _qEl.className = 'clarify-question';
-        _qEl.textContent = _cq;
-        _cw.appendChild(_qEl);
-        if (_cOpts && _cOpts.length > 0) {
-          const _opts = document.createElement('div');
-          _opts.className = 'clarify-options';
-          _cOpts.forEach((opt, _idx) => {
-            const _btn = document.createElement('button');
-            _btn.className = 'clarify-option-btn';
-            _btn.textContent = (_idx + 1) + '. ' + opt;
-            _btn.addEventListener('click', () => {
-              _sendClarifyResponse(_cSess, opt);
-              _cw.remove();
-              if (_te) _te.className = 'typing';
-            });
-            _opts.appendChild(_btn);
-          });
-          _cw.appendChild(_opts);
-        } else {
-          const _iw = document.createElement('div');
-          _iw.className = 'clarify-input-wrap';
-          const _inp = document.createElement('input');
-          _inp.type = 'text';
-          _inp.className = 'clarify-input';
-          _inp.placeholder = '输入你的回答...';
-          _inp.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && _inp.value.trim()) {
-              _sendClarifyResponse(_cSess, _inp.value.trim());
-              _cw.remove();
-              if (_te) _te.className = 'typing';
-            }
-          });
-          const _sb = document.createElement('button');
-          _sb.className = 'clarify-send-btn';
-          _sb.textContent = '发送';
-          _sb.addEventListener('click', () => {
-            if (_inp.value.trim()) {
-              _sendClarifyResponse(_cSess, _inp.value.trim());
-              _cw.remove();
-              if (_te) _te.className = 'typing';
-            }
-          });
-          _iw.appendChild(_inp);
-          _iw.appendChild(_sb);
-          _cw.appendChild(_iw);
-          setTimeout(() => _inp.focus(), 100);
-        }
-        const _cm = document.getElementById('chatMessages');
-        if (_cm) { _cm.appendChild(_cw); _cm.scrollTop = _cm.scrollHeight; }
-        setIsSending(true);
-        const _sbtn = document.getElementById('chatSendBtn');
-        if (_sbtn) _sbtn.disabled = true;
-      } else if (d.type === 'connected') {
-        wsConnId = d.connection_id;
-        if (!currentSession) {
-          currentSession = d.session_id || wsConnId;
-        }
-        if (d.session_id) setChatSessionId(d.session_id);
-        addLog('info', t('log.connection') + ': ' + d.connection_id, currentLang);
-        markSessionReady();
-        // Don't auto-load recent session on connect — history loading is heavy
-        // (100 messages, renderMarkdown each) and blocks the main thread.
-        // User can click a session in the sidebar to load history manually.
-        // loadRecentSession();
-      } else if (d.type === 'session_created') {
-        console.log('[WS] session_created received:', d.session_id, 'agent:', d.agent);
-        currentSession = d.session_id;
-        addLog('info', '新会话已创建：' + d.session_id, currentLang);
-        setChatSessionId(d.session_id);
-        markSessionReady();
-        const agentName = d.agent || 'default';
-        const agent = chatAgents.find(a => a.name === agentName);
-        if (agent) {
-          // 查找乐观更新插入的占位会话（new_ 开头）
-          const placeholder = agent.sessions.find(s => s.session_id.startsWith('new_'));
-          if (placeholder) {
-            // 用真实 session_id 替换占位
-            placeholder.session_id = d.session_id;
-            // 更新中栏 DOM 中对应的 data-session-id
-            const container = document.getElementById('chatMiddleList');
-            if (container) {
-              const items = container.querySelectorAll('.siper-session-item');
-              for (const item of items) {
-                if (item.dataset.sessionId && item.dataset.sessionId.startsWith('new_')) {
-                  item.dataset.sessionId = d.session_id;
-                  item.onclick = (e) => { e.stopPropagation(); selectChatSession(placeholder, agent); };
-                  break;
-                }
-              }
-            }
-          } else if (!agent.sessions.find(s => s.session_id === d.session_id)) {
-            agent.sessions.unshift({
-              session_id: d.session_id,
-              last_message: '',
-              created_at: new Date().toISOString(),
-              agent_name: agentName,
-            });
-          }
-          chatExpandedAgents[agentName] = true;
-          // 更新中栏 DOM session_id（startNewChat 已调用 selectChatSession 渲染右栏）
-          if (placeholder) {
-            const container = document.getElementById('chatMiddleList');
-            if (container) {
-              const items = container.querySelectorAll('.siper-session-item');
-              for (const item of items) {
-                if (item.dataset.sessionId && item.dataset.sessionId.startsWith('new_')) {
-                  item.dataset.sessionId = d.session_id;
-                  item.onclick = (e) => { e.stopPropagation(); selectChatSession(placeholder, agent); };
-                  break;
-                }
-              }
-            }
-          }
-        }
-      } else if (d.type === 'tool_progress') {
-        // Route to chat thinking panel if active and message belongs to current session
-        if (currentPage === 'chat' && typeof chatHandleToolProgress === 'function') {
-          if (!d.session_id || !chatSessionId || d.session_id === chatSessionId) {
-            chatHandleToolProgress(d);
-          }
-        }
-        // Clear any streamed text from the first LLM call when tool execution starts,
-        // so that only the final response after tool execution is shown in the bubble.
-        if (d.status === 'running') {
-          _streamAcc = '';
-          if (_streamBubble) _streamBubble.textContent = '';
-        }
-        // Show tool execution progress inside the typing indicator area
-        const typingTools = document.getElementById('typingTools');
-        if (typingTools) {
-          const toolName = d.tool_name || 'unknown';
-          const status = d.status || 'running';
-          const callId = d.call_id || toolName;
-          // Find existing step by call_id (unique per invocation, not merged by name)
-          let step = typingTools.querySelector('[data-call-id="' + callId + '"]');
-          if (!step) {
-            step = document.createElement('div');
-            step.setAttribute('data-call-id', callId);
-            step.setAttribute('data-tool', toolName);
-            typingTools.appendChild(step);
-            // Keep only the latest 10 tool steps
-            while (typingTools.children.length > 10) {
-              typingTools.removeChild(typingTools.firstChild);
-            }
-          }
-          step.className = 'typing-tool-step';
-          const icon = status === 'completed' ? '✓' : status === 'failed' ? '✗' : '⟳';
-          const statusClass = status === 'completed' ? 'tool-step-done' : status === 'failed' ? 'tool-step-error' : 'tool-step-running';
-          // Build param summary from info (no truncation)
-          let paramSummary = '';
-          if (d.info && d.info.parameters) {
-            const params = d.info.parameters;
-            if (toolName === 'web_search' && params.query) {
-              paramSummary = '("' + params.query + '")';
-            } else if (toolName === 'web_extract' && params.urls) {
-              paramSummary = '(' + (Array.isArray(params.urls) ? params.urls.length : 1) + ' urls)';
-            } else if (toolName === 'execute_code') {
-              paramSummary = '(code)';
-            } else if (toolName === 'read_file' && params.path) {
-              paramSummary = '("' + params.path + '")';
-            } else if (toolName === 'write_file' && params.path) {
-              paramSummary = '("' + params.path + '")';
-            } else if (toolName === 'patch' && params.path) {
-              paramSummary = '("' + params.path + '")';
-            } else if (toolName === 'skill_view' && params.name) {
-              paramSummary = '("' + params.name + '")';
-            } else {
-              paramSummary = '(' + Object.keys(params).join(', ') + ')';
-            }
-          }
-          // Result summary for completed (no truncation)
-          let resultSummary = '';
-          if (status === 'completed' && d.info) {
-            if (toolName === 'web_search' && d.info.metadata && d.info.metadata.count) {
-              resultSummary = ' → ' + d.info.metadata.count + ' results';
-            } else if (d.info.result && typeof d.info.result === 'string') {
-              const r = d.info.result.replace(/\n/g, ' ');
-              resultSummary = ' → ' + r;
-            }
-          }
-          step.innerHTML = '<span class="tool-step-icon ' + statusClass + '">' + icon + '</span>' +
-            '<span class="tool-step-name">' + escapeHtml(toolName + paramSummary) + '</span>' +
-            '<span class="tool-step-result-summary">' + escapeHtml(resultSummary) + '</span>';
-          // Auto-scroll chat to keep typing area visible
-          const chatEl = document.getElementById('chatMessages');
-          if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
-        }
-      } else if (d.type === 'stopped') {
-        if (typeof chatHandleStopped === 'function') {
-          chatHandleStopped();
-          return;
-        }
-        // Fallback if chatHandleStopped not available yet
-        resetSendState();
-        if (chatSessionId) updateStreamingBadge(chatSessionId, false);
-        const _te = document.getElementById('typing');
-        if (_te) _te.className = 'typing';
-        const _tt = document.getElementById('typingTools');
-        if (_tt) _tt.innerHTML = '';
-        if (_streamBubble && _streamRow && _streamBubbleWrap) {
-          // Ensure final MD render of accumulated text
-          _streamBubble.textContent = '';
-          _streamBubble.appendChild(renderMarkdown(_streamAcc));
-          // Add action buttons
-          try {
-            const actions = document.createElement('div');
-            actions.className = 'msg-actions-below';
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'msg-action-btn';
-            copyBtn.innerHTML = '📋';
-            copyBtn.title = '复制内容';
-            copyBtn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              navigator.clipboard.writeText(_streamAcc).then(() => {
-                copyBtn.innerHTML = '✓';
-                setTimeout(() => copyBtn.innerHTML = '📋', 1500);
-              });
-            });
-            actions.appendChild(copyBtn);
-            const insertBtn = document.createElement('button');
-            insertBtn.className = 'msg-action-btn';
-            insertBtn.innerHTML = '↩';
-            insertBtn.title = '填入输入框';
-            insertBtn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              const input = document.getElementById('chatInput');
-              if (input) {
-                input.value = _streamAcc;
-                input.style.height = 'auto';
-                input.style.height = Math.min(input.scrollHeight, 262) + 'px';
-                input.focus();
-              }
-            });
-            actions.appendChild(insertBtn);
-            _streamRow.appendChild(actions);
-          } catch(e) {}
-        }
-        // Reset streaming state
-        _streamAcc = '';
-        _streamBubble = null;
-        _streamBubbleWrap = null;
-        _streamRow = null;
-      } else if (d.type === 'response') {
-        setIsSending(false);
-        const _replySid = d.session_id || null;
-        // Route to chat page if active
-        if (currentPage === 'chat') {
-          resetSendState();
-          chatThinkingClear();
-          setIsThinking(false);
-          if (chatSessionId) updateStreamingBadge(chatSessionId, false);
-          const _data = d.data || {};
-          const _content = _data.response || _data.content || '';
-          const _success = _data.success !== false;
-          const _agentName = (typeof chatCurrentAgent !== 'undefined' && chatCurrentAgent && chatCurrentAgent.name) ? chatCurrentAgent.name : null;
-          if (!_success) {
-            chatAddMessage(_content || '服务暂时没有响应，请重试', true, null, null, null, _agentName, null);
-          } else if (!_content.trim() && !_data.attachments && !_data.tool_call_steps?.length) {
-            // Empty response with no tool calls — skip
-          } else if (!_content.trim() && _data.tool_call_steps?.length) {
-            // Tool-calls-only response with no text — show tool summary
-            chatAddMessage('', true, _data, null, null, _agentName, null);
-          } else {
-            const meta = {
-              usage: _data.usage,
-              model: _data.model,
-              tools_used: _data.tool_calls_executed,
-              tool_call_steps: _data.tool_call_steps || [],
-              skills_active: _data.skills_active,
-              skills_used: _data.skills_used || [],
-              skills_recommended: _data.skills_recommended || [],
-              processing_time_ms: _data.processing_time_ms,
-              _raw: _data,
-            };
-            if (_data.attachments) meta.attachments = _data.attachments;
-            chatAddMessage(_content, true, meta, null, null, _agentName, _data.message_id || null);
-          }
-          // Play notification sound
-          if (typeof playReplySound === 'function') playReplySound();
-          // Mark unread if reply belongs to a different session
-          if (_replySid && _replySid !== chatSessionId) {
-            if (typeof markSessionUnread === 'function') markSessionUnread(_replySid);
-          }
-          // Update session preview
-          if (chatSessionId && chatCurrentAgent) {
-            updateSessionPreview(chatSessionId, _content, _data.server_time);
-          }
-          return;
-        }
-        resetSendState();
-        chatThinkingClear();
-        setIsThinking(false);
-        if (chatSessionId) updateStreamingBadge(chatSessionId, false);
-        if (d.session_id) currentSession = d.session_id;
-        const _data = d.data || {};
-        const _content = _data.response || _data.content || '';
-        const _success = _data.success !== false;
-        const _usage = _data.usage;
-        const _tools_used = _data.tool_calls_executed;
-        const _tool_call_steps = _data.tool_call_steps || [];
-        const _skills_active = _data.skills_active;
-        const _skills_used = _data.skills_used || [];
-        const _skills_recommended = _data.skills_recommended || [];
-        const _processing_time_ms = _data.processing_time_ms;
-        const _model = _data.model;
-        const _prompt_context = _data.prompt_context;
-        if (!_success) {
-          if (typeof chatAddMessage === 'function') {
-            chatAddMessage(_content || '服务暂时没有响应，请重试', true, null, null, null, null, null);
-          }
-        } else if (!_content.trim() && !_data.attachments) {
-          // Empty response with no attachments — skip rendering (air bubble fix)
-        } else {
-          const meta = {
-            usage: _usage,
-            model: _data.model,
-            tools_used: _tools_used,
-            tool_call_steps: _tool_call_steps,
-            skills_active: _skills_active,
-            skills_used: _skills_used,
-            processing_time_ms: _processing_time_ms,
-            _raw: _data,
-          };
-          if (_data.attachments) meta.attachments = _data.attachments;
-          const agentName = (typeof chatCurrentAgent !== 'undefined' && chatCurrentAgent && chatCurrentAgent.name) ? chatCurrentAgent.name : null;
-          if (typeof chatAddMessage === 'function') {
-            chatAddMessage(_content, true, meta, null, null, agentName, _data.message_id || null);
-          }
-        }
-        playReplySound();
-        // Render TTS audio bar for non-streaming response
-        renderTtsAudioBars(_tool_call_steps);
-        if (_usage) {
-          tokenHistory.push({
-            time: new Date().toLocaleTimeString(),
-            model: _model || '',
-            prompt: _usage.prompt_tokens || 0,
-            completion: _usage.completion_tokens || 0,
-            total: _usage.total_tokens || 0
-          });
-          if (tokenHistory.length > 50) tokenHistory.shift();
-          if (currentPage === 'token') refreshTokenStats();
-        }
-        if (_prompt_context) {
-          try {
-            const chatEl = document.getElementById('chatMessages');
-            if (chatEl) {
-              const rows = chatEl.querySelectorAll('.msg-row.user');
-              if (rows.length > 0) {
-                rows[rows.length - 1].setAttribute('data-prompt-context', _prompt_context);
-              }
-            }
-          } catch(e) {}
-        }
-        // Hide typing indicator after all rendering is complete
-        const _te2 = document.getElementById('typing');
-        if (_te2) _te2.className = 'typing';
-      } else if (d.type === 'error') {
-        resetSendState();
-        // Route to chat page if active
-        if (currentPage === 'chat') {
-          chatThinkingClear();
-          setIsThinking(false);
-          if (chatSessionId) updateStreamingBadge(chatSessionId, false);
-          chatAddMessage(d.message || '服务暂时没有响应，请重试', true, null, null, null, null, null);
-          return;
-        }
-        const _te = document.getElementById('typing');
-        if (_te) _te.className = 'typing';
-        const _tt = document.getElementById('typingTools');
-        if (_tt) _tt.innerHTML = '';
-        chatThinkingClear();
-        setIsThinking(false);
-        // Reset streaming state on error
-        _streamAcc = '';
-        _streamBubble = null;
-        _streamBubbleWrap = null;
-        _streamRow = null;
-        addMsg(t('chat.error') + d.message, 'error');
-        addLog('error', d.message, currentLang);
-      }
-    } catch (err) {
-      // Ensure isSending is reset on any unhandled error
-      resetSendState();
-      const _te = document.getElementById('typing');
-      if (_te) _te.className = 'typing';
-      console.error('[ws.onmessage] unhandled error:', err);
-    }
-  };
-}
-
-export function setConnected(connected) {
-  // No-op: status display removed with old sidebar
-}
-
-export async function loadRecentSession() {
-  try {
-    const r = await fetch('/api/sessions');
-    const data = await r.json();
-    if (!data.sessions || !data.sessions.length) return;
-    const sorted = data.sessions
-      .filter(s => s.active === true && s.messages > 0)
-      .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
-    if (!sorted.length) return;
-    const latest = sorted[0];
-    // Only switch UI to chat page if user is already on chat page
-    // On non-chat pages (logs, sessions, etc.) just update currentSession silently
-    if (currentPage === 'chat') {
-      // Don't overwrite chat if user already has real messages displayed
-      const chatEl = document.getElementById('chatMessages');
-      if (chatEl && chatEl.querySelectorAll('.siper-msg-row').length > 0) return;
-      // Show loading state
-      if (chatEl) chatEl.innerHTML = '<div class="msg-loading">加载历史消息中...</div>';
-      currentSession = latest.session_id;
-      // Old sidebar nav-item highlight removed — chat sidebar handled by page-chat.js
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-      document.getElementById('page-chat').classList.add('active');
-      // Use chat page's own message renderer (chatAddMessage) instead of
-      // page-sessions.js's loadSessionHistory which calls core.js's stub addMsg
-      if (typeof chatLoadSessionMessages === 'function') {
-        chatLoadSessionMessages(currentSession);
-      } else {
-        await loadSessionHistory(currentSession);
-      }
-    } else {
-      currentSession = latest.session_id;
-    }
-  } catch(e) { console.error('loadRecentSession error:', e); }
-}
-
+// ===== Logging =====
 export function addLog(level, message, lang) {
   const list = document.getElementById('logsList');
   if (!list) return;
@@ -777,6 +34,65 @@ export function addLog(level, message, lang) {
   list.scrollTop = list.scrollHeight;
 }
 
+// ===== Sidebar =====
+export function toggleChatSidebar() {
+  const sidebar = document.getElementById('chatSidebar');
+  if (!sidebar) return;
+  sidebar.classList.toggle('expanded');
+  const expanded = sidebar.classList.contains('expanded');
+  try { localStorage.setItem('siper_sidebar_expanded', expanded ? '1' : '0'); } catch(e) {}
+  const labels = sidebar.querySelectorAll('.siper-nav-item-label');
+  labels.forEach(l => { l.style.display = expanded ? '' : 'none'; });
+  const brand = sidebar.querySelector('.siper-sidebar-brand');
+  if (brand) brand.style.display = expanded ? '' : 'none';
+}
+
+// ===== Avatar =====
+export function getAvatarHtml(cls) {
+  if (cls === 'agent') {
+    return `<img class="msg-avatar-img" src="${typeof agentAvatarUrl !== 'undefined' ? agentAvatarUrl : '/static/default_avatar.webp'}" alt="Agent" onerror="this.src='/static/default_avatar_256.png'">`;
+  } else if (cls === 'user') {
+    return `<div class="msg-avatar">👤</div>`;
+  }
+  return '';
+}
+
+// ===== Notification Sound =====
+let _audioCtx = null;  // Web Audio context — lazily initialized by playReplySound()
+
+export function playReplySound() {
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _audioCtx;
+    const now = ctx.currentTime;
+    // Two-tone chime: C5 -> E5
+    [523.25, 659.25].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.15, now + i * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * 0.12);
+      osc.stop(now + i * 0.12 + 0.4);
+    });
+  } catch(e) {}
+}
+
+// ===== Language =====
+export function selectChatLangAndSave(lang) {
+  if (lang) {
+    localStorage.setItem('siper_lang', lang);
+    location.reload();
+  } else {
+    const menu = document.getElementById('chatLangMenu');
+    if (menu) menu.classList.toggle('show');
+  }
+}
+
+// ===== Theme Sidebar =====
 export function applySidebarTheme(presetKey) {
   const presets = {
     light: {
@@ -864,16 +180,26 @@ export function applySidebarTheme(presetKey) {
   const preset = presets[presetKey];
   if (!preset) return;
   Object.keys(preset).forEach(k => document.documentElement.style.setProperty(k, preset[k]));
-  // Save to localStorage
   const saved = {};
   Object.keys(preset).forEach(k => saved[k] = preset[k]);
   saved._preset = presetKey;
   localStorage.setItem('siper_theme', JSON.stringify(saved));
-  // Sync theme palette trigger
   updateThemePaletteTrigger(presetKey);
-  // Notify ECharts to re-render with new theme
   document.documentElement.dispatchEvent(new CustomEvent('siper-theme-changed'));
 }
+
+// ===== Theme Palette UI =====
+const PALETTE_PRESETS = {
+  light: { label: '清新绿', bg: '#c8ebe5', accent: '#2d9e8a', sidebar: '#b8ddd6' },
+  dark: { label: '暗夜', bg: '#0d1117', accent: '#58a6ff', sidebar: '#161b22' },
+  sunset: { label: '日落', bg: '#fefae0', accent: '#e63946', sidebar: '#faedcd' },
+  forest: { label: '森林', bg: '#1b4332', accent: '#40916c', sidebar: '#0b2618' },
+  rose: { label: '玫瑰', bg: '#fff0f3', accent: '#e85d75', sidebar: '#ffe3e8' },
+  midnight: { label: '午夜', bg: '#0a0a1a', accent: '#7b2ff7', sidebar: '#12122a' },
+  sakura: { label: '樱花', bg: '#fff5f8', accent: '#ff69b4', sidebar: '#ffe8f0' },
+  slate: { label: '石板', bg: '#1e293b', accent: '#475569', sidebar: '#0f172a' },
+  black: { label: '纯黑', bg: '#000000', accent: '#3b82f6', sidebar: '#0a0a0a' },
+};
 
 export function updateThemePaletteTrigger(presetKey) {
   const trigger = document.getElementById('themePaletteTrigger');
@@ -912,7 +238,6 @@ export function toggleThemePalette() {
     closeThemePalette();
   } else {
     buildThemePaletteMenu();
-    // Highlight current
     let currentKey = '';
     try { currentKey = JSON.parse(localStorage.getItem('siper_theme') || '{}')._preset || ''; } catch(e) {}
     menu.querySelectorAll('.theme-palette-item').forEach(item => {
@@ -926,83 +251,3 @@ export function closeThemePalette() {
   const menu = document.getElementById('themePaletteMenu');
   if (menu) menu.classList.remove('open');
 }
-
-export function getAvatarHtml(cls) {
-  if (cls === 'agent') {
-    return `<img class="msg-avatar-img" src="${typeof agentAvatarUrl !== 'undefined' ? agentAvatarUrl : '/static/default_avatar.webp'}" alt="Agent" onerror="this.src='/static/default_avatar_256.png'">`;
-  } else if (cls === 'user') {
-    return `<div class="msg-avatar">👤</div>`;
-  }
-  return '';
-}
-
-export function debugHighlight(json) {
-  // Legacy stub — not used in chat mode
-  try { return escapeHtml(JSON.stringify(json, null, 2)); } catch(e) { return escapeHtml(String(json)); }
-}
-
-export function playReplySound() {
-  try {
-    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const ctx = _audioCtx;
-    const now = ctx.currentTime;
-    // Two-tone chime: C5 -> E5
-    [523.25, 659.25].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.15, now + i * 0.12);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.4);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now + i * 0.12);
-      osc.stop(now + i * 0.12 + 0.4);
-    });
-  } catch(e) {}
-}
-
-export function selectChatLangAndSave(lang) {
-  if (lang) {
-    localStorage.setItem('siper_lang', lang);
-    location.reload();
-  } else {
-    const menu = document.getElementById('chatLangMenu');
-    if (menu) menu.classList.toggle('show');
-  }
-}
-
-// Legacy stubs — kept for backward compat (sessions.js / chat.js import these)
-// Delegates to chatAddMessage from message.js
-export function addMsg(content, role, meta) {
-  if (typeof window.chatAddMessage === 'function') {
-    window.chatAddMessage(content, role || 'assistant', meta);
-  }
-}
-export function appendMeta(container, meta, messageId) {
-  // Legacy no-op — meta rendering is now handled by chatAddMessage
-}
-
-// ===== Sidebar =====
-export function toggleChatSidebar() {
-  const sidebar = document.getElementById('chatSidebar');
-  if (!sidebar) return;
-  sidebar.classList.toggle('expanded');
-  const expanded = sidebar.classList.contains('expanded');
-  try { localStorage.setItem('siper_sidebar_expanded', expanded ? '1' : '0'); } catch(e) {}
-  // Toggle icon-only vs expanded label visibility
-  const labels = sidebar.querySelectorAll('.siper-nav-item-label');
-  labels.forEach(l => { l.style.display = expanded ? '' : 'none'; });
-  const brand = sidebar.querySelector('.siper-sidebar-brand');
-  if (brand) brand.style.display = expanded ? '' : 'none';
-}
-
-// ===== Theme Palette (wrapper for HTML onclick) =====
-// toggleThemePalette is already exported at line 924
-
-// ===== Image Lightbox（已由 toast.js 统一提供）=====
-// closeImageLightbox 由 toast.js 通过 window.closeImageLightbox 提供
-// 此处不再重复定义，app.js 从 toast.js import 并挂载到 window
-
-// toggleChatModelDropdown 已迁移到 chat/input.js
-

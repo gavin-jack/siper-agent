@@ -197,9 +197,9 @@ export function initModelTestDelegation(verifyChatModelFn, verifyGlobalModelFn) 
     var idx = parseInt(btn.dataset.idx);
     var grid = btn.closest('.siper-models-grid');
     if (grid) {
-      if (typeof verifyChatModelFn === 'function') verifyChatModelFn(idx);
+        if (typeof verifyChatModelFn === 'function') verifyChatModelFn(idx);
     } else {
-      if (typeof verifyGlobalModelFn === 'function') verifyGlobalModelFn(idx);
+        if (typeof verifyGlobalModelFn === 'function') verifyGlobalModelFn(idx);
     }
   });
 }

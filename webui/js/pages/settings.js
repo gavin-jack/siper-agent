@@ -1,6 +1,6 @@
 // pages/settings.js — 全局设置（系统参数 + Agent管理）
-// 模型管理已拆出到 model-settings.js
-// 从 pages/page-settings.js 迁移
+// 起源版：删除所有 fetch 调用，数据由后端快照 page_cache 提供
+// 过渡期：保留 HTTP 请求作为兜底
 
 import { t } from '../utils/i18n.js';
 import { escapeHtml } from '../utils/escape.js';
@@ -37,6 +37,11 @@ export function autoSaveSystemParams() {
       port: parseInt(document.getElementById('sysPort').value) || 9724,
       log_level: document.getElementById('sysLogLevel').value || 'INFO',
     };
+    // 起源：通过 WS 通知后端
+    if (typeof window.siPerSend === 'function') {
+      window.siPerSend({ type: 'save_config', system });
+    }
+    // 过渡期：HTTP 请求
     try {
       const r = await fetch('/api/config', {
         method: 'POST',
@@ -57,35 +62,44 @@ export function autoSaveSystemParams() {
 
 // ===== Refresh / Load Settings =====
 
-export async function refreshGlobalSettings() {
-  try {
-    const r = await fetch('/api/config');
-    const data = await r.json();
+export function refreshGlobalSettings() {
+  // 起源：从快照 page_cache 获取
+  if (typeof window.__getPageCache === 'function') {
+    const cache = window.__getPageCache('settings');
+    if (cache && cache.config) {
+      _applySettingsData(cache.config);
+      return;
+    }
+  }
+  // 过渡期：HTTP 请求
+  fetch('/api/config').then(r => r.json()).then(data => {
     settingsCache = data;
-    // Fill runtime settings (now in agent-config page)
-    if (document.getElementById('cfgMaxTools')) {
-      document.getElementById('cfgMaxTools').value = data.max_tools || 30;
-      document.getElementById('cfgMaxToolRounds').value = data.max_tool_rounds || 100;
-      document.getElementById('cfgSessionTimeout').value = data.session_timeout || 3600;
-      document.getElementById('cfgAgentName').value = data.agent_name || 'Siper Agent';
-      document.getElementById('cfgIcon').value = data.icon || '🎭';
-      document.getElementById('cfgAvatar').value = data.avatar || '';
-    }
-    // Fill system parameters
-    const sys = data.system || {};
-    if (document.getElementById('sysWsHeartbeatTimeout')) {
-      document.getElementById('sysWsHeartbeatTimeout').value = sys.ws_heartbeat_timeout || 300;
-      document.getElementById('sysSessionListLimit').value = sys.session_list_limit || 50;
-      document.getElementById('sysLogBufferSize').value = sys.log_buffer_size || 2000;
-      document.getElementById('sysTokenUsageMax').value = sys.token_usage_max || 500;
-      document.getElementById('sysCtxWindowDefault').value = sys.context_window_default || 8192;
-      if (document.getElementById('sysPort')) document.getElementById('sysPort').value = sys.port || 9724;
-      if (document.getElementById('sysLogLevel')) document.getElementById('sysLogLevel').value = sys.log_level || 'INFO';
-    }
-    if (toast) toast.info(t('settings.refreshed'), 1500);
-  } catch(e) {
+    _applySettingsData(data);
+  }).catch(e => {
     console.error('refreshGlobalSettings error:', e);
     if (toast) toast.error(t('settings.refreshFailed'));
+  });
+}
+
+function _applySettingsData(data) {
+  settingsCache = data;
+  if (document.getElementById('cfgMaxTools')) {
+    document.getElementById('cfgMaxTools').value = data.max_tools || 30;
+    document.getElementById('cfgMaxToolRounds').value = data.max_tool_rounds || 100;
+    document.getElementById('cfgSessionTimeout').value = data.session_timeout || 3600;
+    document.getElementById('cfgAgentName').value = data.agent_name || 'Siper Agent';
+    document.getElementById('cfgIcon').value = data.icon || '🎭';
+    document.getElementById('cfgAvatar').value = data.avatar || '';
+  }
+  const sys = data.system || {};
+  if (document.getElementById('sysWsHeartbeatTimeout')) {
+    document.getElementById('sysWsHeartbeatTimeout').value = sys.ws_heartbeat_timeout || 300;
+    document.getElementById('sysSessionListLimit').value = sys.session_list_limit || 50;
+    document.getElementById('sysLogBufferSize').value = sys.log_buffer_size || 2000;
+    document.getElementById('sysTokenUsageMax').value = sys.token_usage_max || 500;
+    document.getElementById('sysCtxWindowDefault').value = sys.context_window_default || 8192;
+    if (document.getElementById('sysPort')) document.getElementById('sysPort').value = sys.port || 9724;
+    if (document.getElementById('sysLogLevel')) document.getElementById('sysLogLevel').value = sys.log_level || 'INFO';
   }
 }
 
@@ -165,57 +179,70 @@ export function switchSettingsTab(tab) {
   }
 }
 
-// ===== Agent Management (Global Settings Tab) =====
-// Agent 增删完全基于文件系统，不写入全局配置文件
-// 卡片模式 + 详情面板：点击卡片展开详情，支持重命名、编辑文件
+// ===== Agent Management =====
 
-let _agentListCache = []; // cache agent list for detail panel
+let _agentListCache = [];
 
 export function renderGlobalAgents() {
   const grid = document.getElementById('globalAgentCards');
   if (!grid) return;
   grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--text-dim);font-size:13px">加载中…</div>';
-  fetch('/api/agents').then(r => r.json()).then(data => {
-    const agents = data.agents || data || [];
-    _agentListCache = agents;
-    if (agents.length === 0) {
-      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-dim);font-size:13px">暂无智能体<br><span style="font-size:12px">点击右上角「+ 新增智能体」创建</span></div>';
+  
+  // 起源：从快照 page_cache 获取
+  if (typeof window.__getPageCache === 'function') {
+    const cache = window.__getPageCache('settings');
+    if (cache && cache.agents) {
+      _renderAgentCards(cache.agents);
       return;
     }
-    grid.innerHTML = '';
-    agents.forEach(a => {
-      const card = document.createElement('div');
-      card.className = 'agent-card' + (a.is_active ? ' agent-card-active' : '');
-      card.dataset.name = a.name;
-      const avatarHtml = a.avatar
-        ? '<img src="/' + escapeHtml(a.avatar) + '" class="agent-card-avatar" alt="">'
-        : '<div class="agent-card-avatar agent-card-avatar-placeholder">' + escapeHtml(a.icon || '🎭') + '</div>';
-      const badges = [];
-      if (a.is_active) badges.push('<span class="agent-card-badge badge-current">当前</span>');
-      if (a.has_soul) badges.push('<span class="agent-card-badge badge-ok">Soul</span>');
-      if (a.has_config) badges.push('<span class="agent-card-badge badge-ok">Config</span>');
-      const modelCount = (a.available_models || []).length;
-      card.innerHTML =
-        '<div class="agent-card-header">' +
-          avatarHtml +
-          '<div class="agent-card-info">' +
-            '<div class="agent-card-name">' + escapeHtml(a.display_name || a.name) + '</div>' +
-            '<div class="agent-card-dir"><code>agents/' + escapeHtml(a.name) + '/</code></div>' +
-          '</div>' +
-          '<div class="agent-card-actions">' +
-            '<button class="agent-card-btn" onclick="window._agentCardSelect(\'' + escapeHtml(a.name) + '\')" title="详情">ℹ</button>' +
-            '<button class="agent-card-btn danger" onclick="window._agentCardDelete(\'' + escapeHtml(a.name) + '\')" title="删除">✕</button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="agent-card-badges">' + badges.join('') + '</div>' +
-        '<div class="agent-card-meta">' +
-          '<span>🎭 ' + escapeHtml(a.icon || '🎭') + '</span>' +
-          '<span>📦 ' + modelCount + ' 个模型</span>' +
-        '</div>';
-      grid.appendChild(card);
-    });
+  }
+  // 过渡期：HTTP 请求
+  fetch('/api/agents').then(r => r.json()).then(data => {
+    _renderAgentCards(data.agents || data || []);
   }).catch(() => {
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--danger);font-size:13px">加载失败</div>';
+  });
+}
+
+function _renderAgentCards(agents) {
+  _agentListCache = agents;
+  const grid = document.getElementById('globalAgentCards');
+  if (!grid) return;
+  if (agents.length === 0) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-dim);font-size:13px">暂无智能体<br><span style="font-size:12px">点击右上角「+ 新增智能体」创建</span></div>';
+    return;
+  }
+  grid.innerHTML = '';
+  agents.forEach(a => {
+    const card = document.createElement('div');
+    card.className = 'agent-card' + (a.is_active ? ' agent-card-active' : '');
+    card.dataset.name = a.name;
+    const avatarHtml = a.avatar
+      ? '<img src="/' + escapeHtml(a.avatar) + '" class="agent-card-avatar" alt="">'
+      : '<div class="agent-card-avatar agent-card-avatar-placeholder">' + escapeHtml(a.icon || '🎭') + '</div>';
+    const badges = [];
+    if (a.is_active) badges.push('<span class="agent-card-badge badge-current">当前</span>');
+    if (a.has_soul) badges.push('<span class="agent-card-badge badge-ok">Soul</span>');
+    if (a.has_config) badges.push('<span class="agent-card-badge badge-ok">Config</span>');
+    const modelCount = (a.available_models || []).length;
+    card.innerHTML =
+      '<div class="agent-card-header">' +
+        avatarHtml +
+        '<div class="agent-card-info">' +
+          '<div class="agent-card-name">' + escapeHtml(a.display_name || a.name) + '</div>' +
+          '<div class="agent-card-dir"><code>agents/' + escapeHtml(a.name) + '/</code></div>' +
+        '</div>' +
+        '<div class="agent-card-actions">' +
+          '<button class="agent-card-btn" onclick="window._agentCardSelect(\'' + escapeHtml(a.name) + '\')" title="详情">ℹ</button>' +
+          '<button class="agent-card-btn danger" onclick="window._agentCardDelete(\'' + escapeHtml(a.name) + '\')" title="删除">✕</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="agent-card-badges">' + badges.join('') + '</div>' +
+      '<div class="agent-card-meta">' +
+        '<span>🎭 ' + escapeHtml(a.icon || '🎭') + '</span>' +
+        '<span>📦 ' + modelCount + ' 个模型</span>' +
+      '</div>';
+    grid.appendChild(card);
   });
 }
 
@@ -263,6 +290,11 @@ export function confirmDeleteGlobalAgent() {
     onConfirm: () => {
       const _btn = document.querySelector('.siper-confirm-ok');
       if (_btn) { _btn.disabled = true; _btn.textContent = '删除中...'; }
+      // 起源：通过 WS 通知后端
+      if (typeof window.siPerSend === 'function') {
+        window.siPerSend({ type: 'delete_agent', name });
+      }
+      // 过渡期：HTTP 请求
       fetch('/api/agents/' + name, { method: 'DELETE' })
         .then(r => r.json())
         .then(data => {
@@ -305,13 +337,18 @@ window._agentCardDelete = function(name) {
   if (typeof window.confirmDeleteGlobalAgent === 'function') window.confirmDeleteGlobalAgent();
 };
 
-// Rename agent (folder rename)
+// Rename agent
 window._agentRename = function(name) {
   if (typeof window.showRenameModal !== 'function') return;
   window.showRenameModal({
     title: '重命名智能体',
     currentName: name,
     onConfirm: (newName) => {
+      // 起源：通过 WS 通知后端
+      if (typeof window.siPerSend === 'function') {
+        window.siPerSend({ type: 'rename_agent', name, new_name: newName });
+      }
+      // 过渡期：HTTP 请求
       fetch('/api/agents/' + name + '/rename', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -331,7 +368,7 @@ window._agentRename = function(name) {
   });
 };
 
-// Edit agent file (soul.md or agent.md)
+// Edit agent file
 let _agentEditName = '', _agentEditType = '';
 window._agentEditFile = function(name, type) {
   _agentEditName = name;
@@ -344,6 +381,7 @@ window._agentEditFile = function(name, type) {
   title.textContent = (type === 'soul' ? 'Soul.md' : 'Agent.md') + ' — ' + name;
   area.disabled = true;
   area.value = '加载中…';
+  // 过渡期：HTTP 请求
   fetch('/api/agents/' + name + '/' + (type === 'soul' ? 'soul' : 'config'))
     .then(r => r.json())
     .then(data => {
@@ -357,6 +395,11 @@ window._agentSaveFile = function() {
   const area = document.getElementById('agentFileEditorArea');
   if (!area || !_agentEditName || !_agentEditType) return;
   const content = area.value;
+  // 起源：通过 WS 通知后端
+  if (typeof window.siPerSend === 'function') {
+    window.siPerSend({ type: 'save_agent_file', name: _agentEditName, type: _agentEditType, content });
+  }
+  // 过渡期：HTTP 请求
   fetch('/api/agents/' + _agentEditName + '/' + (_agentEditType === 'soul' ? 'soul' : 'config'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -375,3 +418,15 @@ window._agentCloseEditor = function() {
   const editor = document.getElementById('agentFileEditor');
   if (editor) editor.style.display = 'none';
 };
+
+// 向后兼容
+window.switchSettingsTab = switchSettingsTab;
+window.renderGlobalAgents = renderGlobalAgents;
+window.onGlobalAgentSelect = onGlobalAgentSelect;
+window.confirmDeleteGlobalAgent = confirmDeleteGlobalAgent;
+window.refreshGlobalSettings = refreshGlobalSettings;
+window.autoSaveSystemParams = autoSaveSystemParams;
+window.resetSystemParams = resetSystemParams;
+window.saveMetaConfig = saveMetaConfig;
+window.loadMetaConfig = loadMetaConfig;
+window.attachSettingsAutoSaveListeners = attachSettingsAutoSaveListeners;

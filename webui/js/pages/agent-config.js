@@ -40,8 +40,12 @@ export async function loadAgentSettings() {
         document.getElementById('agentCfgMaxTools').value = agentMaxTools;
       } else {
         try {
-          const gr = await fetch('/api/config');
-          const gd = await gr.json();
+          let gd;
+          if (typeof window.__getPageCache === 'function') {
+            const cache = window.__getPageCache('agent-config');
+            if (cache?.config) gd = cache.config;
+          }
+          if (!gd) { const gr = await fetch('/api/config'); gd = await gr.json(); }
           document.getElementById('agentCfgMaxTools').value = gd.max_tools || 10;
         } catch(e) { document.getElementById('agentCfgMaxTools').value = 10; }
       }
@@ -49,8 +53,12 @@ export async function loadAgentSettings() {
         document.getElementById('agentCfgSessionTimeout').value = agentSessionTimeout;
       } else {
         try {
-          const gr = await fetch('/api/config');
-          const gd = await gr.json();
+          let gd;
+          if (typeof window.__getPageCache === 'function') {
+            const cache = window.__getPageCache('agent-config');
+            if (cache?.config) gd = cache.config;
+          }
+          if (!gd) { const gr = await fetch('/api/config'); gd = await gr.json(); }
           document.getElementById('agentCfgSessionTimeout').value = gd.session_timeout || 3600;
         } catch(e) { document.getElementById('agentCfgSessionTimeout').value = 3600; }
       }
@@ -58,8 +66,12 @@ export async function loadAgentSettings() {
         document.getElementById('agentCfgMaxToolRounds').value = agentMaxToolRounds;
       } else {
         try {
-          const gr = await fetch('/api/config');
-          const gd = await gr.json();
+          let gd;
+          if (typeof window.__getPageCache === 'function') {
+            const cache = window.__getPageCache('agent-config');
+            if (cache?.config) gd = cache.config;
+          }
+          if (!gd) { const gr = await fetch('/api/config'); gd = await gr.json(); }
           document.getElementById('agentCfgMaxToolRounds').value = gd.max_tool_rounds || 100;
         } catch(e) { document.getElementById('agentCfgMaxToolRounds').value = 100; }
       }
@@ -78,8 +90,12 @@ export async function loadAgentSettings() {
   // If no agent selected yet, fall back to global config for defaults
   if (!currentConfigAgent) {
     try {
-      const r = await fetch('/api/config');
-      const d = await r.json();
+      let d;
+      if (typeof window.__getPageCache === 'function') {
+        const cache = window.__getPageCache('agent-config');
+        if (cache?.config) d = cache.config;
+      }
+      if (!d) { const r = await fetch('/api/config'); d = await r.json(); }
       document.getElementById('agentCfgMaxTools').value = d.max_tools || 10;
       document.getElementById('agentCfgSessionTimeout').value = d.session_timeout || 3600;
     } catch(e) {}
@@ -247,7 +263,13 @@ export function handleEmptyModels() {
 export async function selectConfigAgent(name) {
   // agentConfigData 可能尚未加载（sidebar 切换 agent 时 refreshConfigAgentPanel 异步未完成）
   if (!agentConfigData || !agentConfigData.agents || agentConfigData.agents.length === 0) {
-    try { const r = await fetch('/api/agents'); agentConfigData = await r.json(); } catch(e) {}
+    try {
+      if (typeof window.__getPageCache === 'function') {
+        const cache = window.__getPageCache('agent-config');
+        if (cache?.agents) agentConfigData = { agents: cache.agents };
+      }
+      if (!agentConfigData) { const r = await fetch('/api/agents'); agentConfigData = await r.json(); }
+    } catch(e) {}
   }
   const agents = (agentConfigData && agentConfigData.agents) || [];
   const agent = agents.find(a => a.name === name);
@@ -439,7 +461,12 @@ export async function uploadAgentAvatar() {
   fd.append('file', file);
   fd.append('agent', currentConfigAgent);
   try {
-    const r = await fetch('/api/avatar/upload', { method: 'POST', body: fd });
+    // 起源：通过 WS 通知后端
+  if (typeof window.siPerSend === 'function') {
+    window.siPerSend({ type: 'upload_avatar', agent: currentConfigAgent });
+  }
+  // 过渡期：HTTP 请求
+  const r = await fetch('/api/avatar/upload', { method: 'POST', body: fd });
     const d = await r.json();
     if (d.success) {
       document.getElementById('cfgAgentAvatar').value = d.path;
@@ -716,6 +743,11 @@ function confirmDeleteAgent(name) {
     danger: true,
     okText: '确认删除',
     onConfirm: function() {
+      // 起源：通过 WS 通知后端
+      if (typeof window.siPerSend === 'function') {
+        window.siPerSend({ type: 'delete_agent', name });
+      }
+      // 过渡期：HTTP 请求
       fetch('/api/agents/' + name, { method: 'DELETE' })
         .then(function(r) { return r.json(); })
         .then(function(data) {

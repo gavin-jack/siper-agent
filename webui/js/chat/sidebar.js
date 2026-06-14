@@ -1,13 +1,13 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
+import { getWs } from '../core.js';
 import {
   chatSessionId, chatCurrentAgent, chatAgents, chatExpandedAgents,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
-  _syncStreamFromCurrent, _syncStreamToCurrent,
   _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile,
   _ctxMenu,
   setChatAgents, setChatSessionId, setChatCurrentAgent, setSelectedAgent, setAgentConfigName,
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu, setChatExpandedAgents,
-  setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, getWs, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges
+  setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges
 } from './state.js';
 import { chatEscapeHtml, chatLoadSessionMessages, chatRenderMarkdown, chatClearMessages } from './message.js';
 import { updateChatHeader } from './input.js';

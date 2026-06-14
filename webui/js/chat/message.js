@@ -1,13 +1,16 @@
 // chat/message.js — 消息渲染与管理
+import { getWs } from '../core.js';
 import {
   chatSessionId, chatCurrentAgent, chatExpandedAgents,
   chatCurrentModel, chatModelContextWindow,
   _chatStreamAcc, _chatStreamRow, _chatStreamBubble,
-  _syncStreamFromCurrent, _syncStreamToCurrent,
-  _unreadSessions, chatAgents, setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending,
-  getWs,
-  fmtTokens, resetSendState
-} from './state.js';
+  setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending,
+  fmtTokens,
+  markSessionReady,
+  syncStreamFromCurrent, syncStreamToCurrent,
+} from '../chat/state.js';
+import { resetSendState } from '../chat/session.js';
+import { chatThinkingHide } from '../chat/thinking.js';
 import { toast } from '../components/toast.js';
 
 // ===== Markdown & HTML Helpers =====
@@ -360,5 +363,3 @@ export function updateCtxInfoDisplay() {
 }
 
 // ===== ECharts =====
-
-export { _chatStreamAcc, _chatStreamRow, _chatStreamBubble, fmtTokens };
