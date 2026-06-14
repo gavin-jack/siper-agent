@@ -29,40 +29,6 @@ export function toggleChatSidebar() {
   if (brand) brand.style.display = expanded ? '' : 'none';
 }
 
-// ===== Avatar =====
-export function getAvatarHtml(cls) {
-  if (cls === 'agent') {
-    return `<img class="msg-avatar-img" src="${typeof agentAvatarUrl !== 'undefined' ? agentAvatarUrl : '/static/default_avatar.webp'}" alt="Agent" onerror="this.src='/static/default_avatar_256.png'">`;
-  } else if (cls === 'user') {
-    return `<div class="msg-avatar">👤</div>`;
-  }
-  return '';
-}
-
-// ===== Notification Sound =====
-let _audioCtx = null;  // Web Audio context — lazily initialized by playReplySound()
-
-export function playReplySound() {
-  try {
-    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const ctx = _audioCtx;
-    const now = ctx.currentTime;
-    // Two-tone chime: C5 -> E5
-    [523.25, 659.25].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.15, now + i * 0.12);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.4);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now + i * 0.12);
-      osc.stop(now + i * 0.12 + 0.4);
-    });
-  } catch(e) {}
-}
-
 // ===== Language =====
 export function selectChatLangAndSave(lang) {
   if (lang) {

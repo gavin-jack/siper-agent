@@ -12,7 +12,7 @@ import {
     setIsThinking, updateStreamingBadge,
 } from './state.js';
 import { chatEscapeHtml, chatRenderMarkdown, buildMetaHtml, updateCtxInfoDisplay } from './message.js';
-import { updateCtxFromStreamEnd, updateSessionPreview, resetSendState } from './session.js';
+import { updateCtxFromStreamEnd, resetSendState } from './session.js';
 import { chatThinkingHide, chatThinkingClear, chatThinkingAddTextRow, chatThinkingShow } from './thinking.js';
 import { _showNewMsgIndicator, _hideNewMsgIndicator } from './badge.js';
 import { renderFull, applyDelta } from '../renderer.js';
@@ -211,13 +211,9 @@ export function finalizeStream(data, streamSessionId) {
     syncStreamToCurrent();
     resetSendState();
     _hideNewMsgIndicator();
-
-    // 使用后端 server_time 更新会话预览
-    if (_chatSessionId && _chatCurrentAgent) {
-        const resp = (data && data.response) || text || '';
-        updateSessionPreview(_chatSessionId, resp, data && data.server_time);
-    }
     chatThinkingHide();
+    // 起源：侧边栏更新由 agents delta 自动处理（sync_agents → renderAgentList → renderMiddleList）
+    // 不再需要 updateSessionPreview 旧链路
 }
 
 /**
@@ -251,9 +247,7 @@ export function handleStopped() {
     _hideNewMsgIndicator();
     chatThinkingHide();
     if (_chatSessionId && typeof updateStreamingBadge === 'function') updateStreamingBadge(_chatSessionId, false);
-    if (_chatSessionId && _chatCurrentAgent) {
-        updateSessionPreview(_chatSessionId, undefined, new Date().toISOString());
-    }
+    // 起源：侧边栏更新由 agents delta 自动处理
 }
 
 /**

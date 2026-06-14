@@ -151,14 +151,11 @@ window.closeChatModelDropdown = Input.closeChatModelDropdown;
 window.loadChatModels = Input.loadChatModels;
 window.updateChatHeader = Input.updateChatHeader;
 
-// DOM utils
+// DOM utils (referenced by other JS files)
 window.addMsg = addMsg;
 window.appendMeta = appendMeta;
 window.debugHighlight = debugHighlight;
-window.loadRecentSession = loadSessionHistory;
 window.siPerNavigate = siPerNavigate;
-window.isSessionUnread = isSessionUnread;
-window.chatFmt = fmtTokens;
 window.updateCtxInfoDisplay = updateCtxInfoDisplay;
 window.updateCtxFromStreamEnd = updateCtxFromStreamEnd;
 
@@ -186,42 +183,6 @@ window.copyChatSessionId = Sidebar.copyChatSessionId;
 window.markSessionUnread = Sidebar.markSessionUnread;
 window.clearSessionUnread = Sidebar.clearSessionUnread;
 window.selectChatAgent = Sidebar.selectChatAgent;
-
-// Sub-page renderers (for HTML onclick)
-window.renderAgentPage = Sidebar.renderAgentPage;
-window.renderMemoryPage = () => {
-  const container = document.getElementById('chatContentArea');
-  if (!container) return;
-  container.className = 'siper-content siper-full-content';
-  container.innerHTML = `
-    <div class="siper-page-toolbar">
-      <button class="siper-btn primary" onclick="window.saveMemoryMd()">保存记忆</button>
-      <button class="siper-btn" onclick="window.refreshMemoryPage()">刷新</button>
-    </div>
-    <div id="memoryPageContent"></div>
-  `;
-  if (typeof Memory.populateMemoryAgentSelector === 'function') {
-    Memory.populateMemoryAgentSelector().then(() => {
-      if (typeof Memory.refreshMemoryPage === 'function') Memory.refreshMemoryPage();
-    });
-  }
-};
-window.renderThemePage = () => {
-  const container = document.getElementById('chatContentArea');
-  if (!container) return;
-  container.className = 'siper-content siper-full-content';
-  container.innerHTML = `
-    <div class="siper-form-card">
-      <div class="siper-form-title">主题色</div>
-      <div id="chatThemeColors" class="js-theme-colors"></div>
-    </div>
-    <div class="siper-form-card">
-      <div class="siper-form-title">主题模板</div>
-      <div id="chatThemeTemplates"></div>
-    </div>
-  `;
-  if (typeof Theme.showThemeSettings === 'function') Theme.showThemeSettings();
-};
 
 // Language
 window.toggleChatLangDropdown = Lang.toggleChatLangDropdown;

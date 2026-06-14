@@ -15,7 +15,8 @@
  */
 import { renderFull, applyDelta } from './renderer.js';
 import { appendStream, finalizeStream, handleStopped } from './chat/stream.js';
-import { setConnected } from './chat/state.js';
+import { setConnected, getStreamState } from './chat/state.js';
+import { setIsThinking, setThinkingSteps } from './chat/state.js';
 
 let ws = null;
 let _ver = 0;
@@ -87,6 +88,24 @@ function dispatch(msg) {
         case 'tool_progress':
             if (typeof window.__onToolProgress === 'function') {
                 window.__onToolProgress(msg);
+            }
+            // 起源：工具调用时更新思考状态
+            {
+                const sid = msg.session_id || '';
+                const ss = getStreamState(sid);
+                const steps = ss.thinkingSteps;
+                // 避免重复添加同一 call_id
+                const exists = steps.some(s => s.callId === msg.call_id);
+                if (!exists) {
+                    steps.push({
+                        callId: msg.call_id || msg.tool_name,
+                        toolName: msg.tool_name,
+                        status: msg.status,
+                        info: msg.info || {},
+                    });
+                    setThinkingSteps(steps);
+                    setIsThinking(true);
+                }
             }
             break;
         case 'toast':

@@ -4128,6 +4128,14 @@ async def main():
                 await snapshot_mgr.set("agents", agents)
             except Exception as e:
                 logger.warning(f"[起源] sync_sessions failed: {e}")
+            # 同步 messages 到快照（起源链路）
+            try:
+                active_s = agent.session_manager.active_sessions.get(session_id)
+                if active_s and active_s.messages:
+                    await snapshot_mgr.set_messages(active_s.messages)
+                    logger.info(f"[起源] synced {len(active_s.messages)} messages for {session_id}")
+            except Exception as e:
+                logger.warning(f"[起源] sync_messages failed: {e}")
 
     ws_server = await ws_serve(ws_handler, "0.0.0.0", ws_port, max_size=10 * 1024 * 1024)
     logger.info(f"[计时] WebSocket 服务启动完成: {(time.time()-_t0)*1000:.0f}ms")

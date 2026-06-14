@@ -4,15 +4,14 @@
  * 此文件只定义变量和 getter/setter，不处理 WS/流式/导航等逻辑。
  */
 
-// ===== Getter/Setter: Core Chat State =====
+// ===== Core Chat State =====
 export let _chatCurrentAgent = null;
-export let _chatPendingFiles = [];
 export let _isSending = false;
 export let _chatAgents = [];
 export let _chatExpandedAgents = {};
 export let _chatSidebarExpanded = true;
 
-// Legacy aliases (被旧代码直接引用)
+// Streaming State
 export let _chatStreamAcc = '';
 export let _chatStreamRow = null;
 export let _chatStreamBubble = null;
@@ -29,20 +28,12 @@ export const _unreadSessions = new Set();
 export let _chatCurrentModel = '';
 export let _chatModelContextWindow = 8192;
 
-// ECharts instances
-export let _chatChartModel = null;
-export let _chatChartDate = null;
-export let _chatChartHourly = null;
-
 // Agent Config State
 export let _chatAgentData = null;
 export let _chatSelectedAgent = null;
 export let _agentConfigName = null;
 export let _chatAgentFiles = { soul: '', config: '' };
 export let _chatCurAgentFile = 'soul';
-
-// Logs State
-export let _logsData = [];
 
 // Context Menu
 export let _ctxMenu = null;
@@ -71,8 +62,6 @@ export function setChatSessionId(sid) { _chatSessionId = sid; }
 
 export function getChatCurrentAgent() { return _chatCurrentAgent; }
 export function setChatCurrentAgent(agent) { _chatCurrentAgent = agent; }
-
-export function setChatPendingFiles(files) { _chatPendingFiles = files; }
 
 export function getIsSending() { return _isSending; }
 export function setIsSending(val) { _isSending = val; }
@@ -214,5 +203,4 @@ export { _chatAgents as chatAgents };
 export { _chatExpandedAgents as chatExpandedAgents };
 export { _chatCurrentModel as chatCurrentModel };
 export { _chatModelContextWindow as chatModelContextWindow };
-export { _chatPendingFiles as chatPendingFiles };
 export { _chatSidebarExpanded as chatSidebarExpanded };

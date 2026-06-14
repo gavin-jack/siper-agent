@@ -1,9 +1,9 @@
 // chat/input.js — 输入框、文件上传、模型选择
 import { getWs, setWs } from '../core.js';
 import {
-  chatSessionId, chatCurrentAgent, chatCurrentPage, chatPendingFiles,
+  chatSessionId, chatCurrentAgent, chatCurrentPage,
   chatCurrentModel, chatModelContextWindow, chatAgents,
-  setCurrentModel, setModelContextWindow, setChatCurrentModel, setChatModelContextWindow, setIsSending, setChatPendingFiles,
+  setCurrentModel, setModelContextWindow, setChatCurrentModel, setChatModelContextWindow, setIsSending,
   updateStreamingBadge,
   getIsSending,
   ensureSessionReady,
@@ -369,7 +369,6 @@ export async function chatSendMessage() {
     ws.send(JSON.stringify(payload));
   }
   input.value = '';
-  setChatPendingFiles([]);
   renderChatFilePreviews();
   _adjustInputHeight(input);
 }
