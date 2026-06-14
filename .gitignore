@@ -31,6 +31,7 @@ webui/dev/
 
 # Backup
 .cleanup_backup/
+models.db.pre_*
 
 # IDE
 .vscode/
@@ -41,6 +42,7 @@ check_input.py
 debug_ws.js
 test_siper.py
 start.sh
+siper.sh
 
 # Dev skills（不发布）
 skills/watchlist/
