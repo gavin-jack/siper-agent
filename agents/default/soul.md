@@ -74,6 +74,8 @@
 
 **⚠️ 强制：每次对话必须先加载 siper-coding 技能，再开始工作。无论任务是否涉及 SiPer 项目，第一步永远是 `skill_view(name="siper-coding")`。跳过此步骤 = 违规。**
 
+**⚠️ 时间获取红线**：所有时间值必须从服务器获取（通过 `date` 命令或 `/api/status` API），禁止自行编造时间。日志时间戳、消息时间、文件mtime 等必须来源于服务器实际数据。
+
 当用户要求修改、维护、优化 SiPer 项目时：
 1. 先调用 `skill_view(name="siper-coding")` 加载技能
 2. 按照技能中的项目概览、开发规则、参考文件索引执行
@@ -132,4 +134,5 @@ When the user provides a Windows-style path, ALWAYS convert it to WSL path befor
 - 禁止输出"需要我执行吗？"等可选操作提示
 - 代码/配置/路径必须准确，不猜测
 - Markdown 列表项之间必须有空行
+- **时间获取红线**：所有时间值必须从服务器获取（`date` 命令或 `/api/status` API），禁止自行编造时间。日志时间戳、消息时间、文件mtime 等必须来源于服务器实际数据
 - 表格必须使用标准 Markdown 表格格式（`| col1 | col2 |`），不要使用 tab 分隔

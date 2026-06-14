@@ -367,24 +367,16 @@ def _render_index() -> str:
         if full.exists():
             return f'<script src="{js_path}?v={int(os.path.getmtime(full))}"></script>'
         return match.group(0)
-    def _esm_mtime(match: _re.Match) -> str:
-        js_path = match.group(1).split("?")[0]
-        full = PROJECT_ROOT / "webui" / js_path.lstrip("/")
-        if full.exists():
-            return f'<script type="module" src="{js_path}?v={int(os.path.getmtime(full))}"></script>'
-        return match.group(0)
     html = _re.sub(r'<script src="(/static/(?:pages|js)/[^"]+)"></script>', _js_mtime, html)
-    # Cache-bust /js/ ESM entry; use max mtime of all /js/ JS files so any
-    # dependency change invalidates the browser cache for the whole module tree.
-    js_dir = PROJECT_ROOT / "webui" / "js"
-    if js_dir.exists():
-        all_mtimes = [int(os.path.getmtime(f)) for f in js_dir.rglob("*.js")]
-        src_version = max(all_mtimes) if all_mtimes else 0
-        html = _re.sub(
-            r'<script type="module" src="(/js/[^"]+)"></script>',
-            lambda m: f'<script type="module" src="{m.group(1)}?v={src_version}"></script>',
-            html
-        )
+    # Cache-bust /js/ ESM entry: 每次请求用当前时间戳，确保浏览器永不缓存 ESM。
+    # 旧注释：曾用 max mtime 做版本号，但 mtime 不随内容变化时浏览器会命中缓存。
+    # 时间戳保证每次页面加载都拿到唯一 ?v=，彻底消除 ESM 缓存问题。
+    _cb = str(int(time.time() * 1000))  # 毫秒级时间戳
+    html = _re.sub(
+        r'<script type="module" src="(/js/[^"]+)"></script>',
+        lambda m: f'<script type="module" src="{m.group(1)}?v={_cb}"></script>',
+        html
+    )
     # Inject cache-busting CSS — single merged style.css
     style_css = PROJECT_ROOT / "webui" / "css" / "style.css"
     if style_css.exists():
@@ -1068,17 +1060,15 @@ async def main():
                     with open(resolved, "rb") as f:
                         file_data = f.read()
                     # Rewrite ESM import paths to add cache-buster ?v= so that
-                    # transitive dependencies (e.g. agent-models.js) are not
-                    # served from browser cache when the file changes.
+                    # transitive dependencies are not served from browser cache.
                     if ext == ".js":
                         try:
                             import re as _re_local
-                            js_dir = PROJECT_ROOT / "webui" / "js"
-                            all_mtimes = [int(os.path.getmtime(f)) for f in js_dir.rglob("*.js")]
-                            src_version = max(all_mtimes) if all_mtimes else 0
+                            # 用请求时间戳做版本号，与 index.html 的入口 cache-buster 一致
+                            _js_cb = str(int(time.time() * 1000))
                             file_data = _re_local.sub(
                                 rb'(from\s+["\']\.\.?/[^"\']+\.js)(["\'])',
-                                rb'\1?v=' + str(src_version).encode() + rb'\2',
+                                rb'\1?v=' + _js_cb.encode() + rb'\2',
                                 file_data,
                             )
                         except Exception:
