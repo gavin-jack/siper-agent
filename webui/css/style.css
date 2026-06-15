@@ -2330,7 +2330,7 @@ html { touch-action: manipulation; }
   background: var(--color-surface);
 }
 
-/* Chat header */
+/* Chat header — 仅 chat 页面 */
 .siper-chat-header {
   display: flex;
   align-items: center;
@@ -2342,6 +2342,29 @@ html { touch-action: manipulation; }
   overflow: hidden;
 }
 .siper-chat-header-name {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  gap: 0;
+}
+
+/* Page header — 独立页面（tools/directory/monitor 等） */
+.siper-page-header {
+  display: flex;
+  align-items: center;
+  height: 52px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 16px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.siper-page-header-name {
   flex: 1;
   font-size: 16px;
   font-weight: 600;
@@ -2391,6 +2414,26 @@ html { touch-action: manipulation; }
   background: var(--color-surface);
   color: var(--color-text);
 }
+
+/* Page header button — 独立页面 header 中的操作按钮 */
+.siper-page-header-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 4px;
+  color: var(--color-text-dim);
+}
+.siper-page-header-btn-text {
+  font-size: 13px;
+  padding: 4px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
 /* Messages area */
 .siper-messages {
   flex: 1;

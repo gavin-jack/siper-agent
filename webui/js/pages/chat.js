@@ -114,8 +114,8 @@ if (chatSidebarExpanded) {
   if (sidebar) sidebar.classList.add('expanded');
 }
 
-// 独立页面列表 — 使用 siper-page 容器而非 siper-chat
-const STANDALONE_PAGES = new Set(['tools', 'directory', 'monitor']);
+// siper-chat 仅 chat 页面使用，其余均为独立页面（siper-page）
+const CHAT_PAGE_ONLY = new Set(['chat']);
 
 // ===== Page Switching =====
 export function chatSwitchPage(page, fromNavigate) {
@@ -131,21 +131,31 @@ export function chatSwitchPage(page, fromNavigate) {
     el.classList[el.dataset.page === page ? 'add' : 'remove']('active');
   });
 
-  // 动态切换右栏容器 class：独立页面用 siper-page，对话家族用 siper-chat
+  // 动态切换右栏容器 class：仅 chat 用 siper-chat，其余用 siper-page
   const right = document.getElementById('chatRight');
+  const header = document.getElementById('chatRightHeader');
+  const isChat = CHAT_PAGE_ONLY.has(page);
   if (right) {
-    const isStandalone = STANDALONE_PAGES.has(page);
-    right.classList[isStandalone ? 'remove' : 'add']('siper-chat');
-    right.classList[isStandalone ? 'add' : 'remove']('siper-page');
+    right.classList[isChat ? 'add' : 'remove']('siper-chat');
+    right.classList[isChat ? 'remove' : 'add']('siper-page');
+  }
+  if (header) {
+    header.classList[isChat ? 'add' : 'remove']('siper-chat-header');
+    header.classList[isChat ? 'remove' : 'add']('siper-page-header');
   }
 
   const headerName = document.getElementById('chatRightHeaderName');
-  if (headerName) headerName.textContent = CHAT_PAGES[page].title;
+  if (headerName) {
+    headerName.textContent = CHAT_PAGES[page].title;
+    headerName.classList[isChat ? 'add' : 'remove']('siper-chat-header-name');
+    headerName.classList[isChat ? 'remove' : 'add']('siper-page-header-name');
+  }
 
-  const header = document.getElementById('chatRightHeader');
   if (header) {
-    const oldBtn = header.querySelector('.siper-chat-header-btn');
-    if (oldBtn) oldBtn.remove();
+    const oldChatBtn = header.querySelector('.siper-chat-header-btn');
+    if (oldChatBtn) oldChatBtn.remove();
+    const oldPageBtn = header.querySelector('.siper-page-header-btn');
+    if (oldPageBtn) oldPageBtn.remove();
   }
 
   const content = document.getElementById('chatContentArea');

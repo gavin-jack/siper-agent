@@ -132,11 +132,11 @@ export function renderModelSettingsPageChat(container) {
     <div id="auxiliaryModelsContainer"></div>
   </div>
 </div>`;
-  // Add reset button to chat header
+  // Add reset button to page header
   const header = document.getElementById('chatRightHeader');
-  if (header && !header.querySelector('.siper-chat-header-btn')) {
+  if (header && !header.querySelector('.siper-page-header-btn')) {
     const btn = document.createElement('button');
-    btn.className = 'siper-chat-header-btn siper-chat-header-btn-text';
+    btn.className = 'siper-page-header-btn siper-page-header-btn-text';
     btn.textContent = '重置';
     btn.onclick = () => { if (typeof window.resetSettingsModels === 'function') window.resetSettingsModels(); };
     header.appendChild(btn);
