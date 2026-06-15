@@ -59,4 +59,4 @@ export function updateCtxFromStreamEnd(usage) {
     if (typeof updateCtxInfoDisplay === 'function') updateCtxInfoDisplay();
 }
 
-export { _chatSessionId as chatSessionId, _chatCurrentAgent as chatCurrentAgent, _isSending as isSending };
+export { _isSending as isSending };

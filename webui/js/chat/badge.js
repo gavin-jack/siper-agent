@@ -2,7 +2,7 @@
  * chat/badge.js — 流式徽章 + 新消息指示器 + 未读标记
  * 从 core.js 拆出。
  */
-import { _unreadSessions, updateStreamingBadge, reapplyAllStreamingBadges } from './state.js';
+import { _unreadSessions } from './state.js';
 
 // ===== New Message Indicator =====
 
@@ -27,23 +27,7 @@ export function _hideNewMsgIndicator() {
     if (btn) btn.remove();
 }
 
-// ===== Unread Badge =====
+// ===== Unread Badge (未读标记功能已移至 sidebar.js) =====
+// markSessionUnread / clearSessionUnread / isSessionUnread 定义在 chat/sidebar.js
 
-export function markSessionUnread(sessionId) {
-    if (!sessionId) return;
-    _unreadSessions.add(sessionId);
-    if (typeof renderMiddleList === 'function') renderMiddleList();
-}
 
-export function clearSessionUnread(sessionId) {
-    if (!sessionId) return;
-    _unreadSessions.delete(sessionId);
-    if (typeof renderMiddleList === 'function') renderMiddleList();
-}
-
-export function isSessionUnread(sessionId) {
-    return _unreadSessions.has(sessionId);
-}
-
-// Re-export for backward compat
-export { updateStreamingBadge, reapplyAllStreamingBadges };

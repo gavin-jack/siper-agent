@@ -10,7 +10,7 @@ import {
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
 } from './state.js';
-import { chatEscapeHtml, chatLoadSessionMessages, chatRenderMarkdown, chatClearMessages } from './message.js';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages } from './message.js';
 import { updateChatHeader } from './input.js';
 import { toast, showInput } from '../components/toast.js';
 

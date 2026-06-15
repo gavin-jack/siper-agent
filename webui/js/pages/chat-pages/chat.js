@@ -62,7 +62,6 @@ export function renderChatPage(container, skipSidebar) {
   }
   if (showInput) {
     setTimeout(() => Input.bindChatInput(), 0);
-    Message.chatLoadSessionMessages(chatSessionId);
   }
   if (!skipSidebar) {
     if (chatAgents.length === 0) {
