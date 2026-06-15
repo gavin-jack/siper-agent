@@ -39,11 +39,9 @@ import { renderToolsPage } from './chat-pages/tools.js';
 function renderDirectoryPageChat(container) {
   container.className = 'siper-content siper-full-content';
   container.innerHTML = `
-<div class="siper-page-toolbar">
-  <div class="page-header"><h3>📁 项目目录</h3></div>
-  <div class="js-flex-shrink-0">
-    <button class="siper-btn" id="dirRefreshBtn" onclick="window._dirRefresh()">刷新</button>
-  </div>
+<div class="page-header">
+  <h3>📁 项目目录</h3>
+  <button class="siper-btn" id="dirRefreshBtn" onclick="window._dirRefresh()">刷新</button>
 </div>
 <div class="page-body">
   <div id="dirTree" class="siper-dir-tree">加载中...</div>
@@ -116,6 +114,9 @@ if (chatSidebarExpanded) {
   if (sidebar) sidebar.classList.add('expanded');
 }
 
+// 独立页面列表 — 使用 siper-page 容器而非 siper-chat
+const STANDALONE_PAGES = new Set(['tools', 'directory', 'monitor']);
+
 // ===== Page Switching =====
 export function chatSwitchPage(page, fromNavigate) {
   if (!CHAT_PAGES[page]) return;
@@ -129,6 +130,14 @@ export function chatSwitchPage(page, fromNavigate) {
   document.querySelectorAll('.siper-nav-item').forEach(el => {
     el.classList[el.dataset.page === page ? 'add' : 'remove']('active');
   });
+
+  // 动态切换右栏容器 class：独立页面用 siper-page，对话家族用 siper-chat
+  const right = document.getElementById('chatRight');
+  if (right) {
+    const isStandalone = STANDALONE_PAGES.has(page);
+    right.classList[isStandalone ? 'remove' : 'add']('siper-chat');
+    right.classList[isStandalone ? 'add' : 'remove']('siper-page');
+  }
 
   const headerName = document.getElementById('chatRightHeaderName');
   if (headerName) headerName.textContent = CHAT_PAGES[page].title;

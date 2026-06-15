@@ -6,11 +6,9 @@ import { escapeHtml } from '../utils/escape.js';
 export function renderDirectoryPageChat(container) {
   container.className = 'siper-content siper-full-content';
   container.innerHTML = `
-<div class="siper-page-toolbar">
-  <div class="page-header"><h3>📁 项目目录</h3></div>
-  <div class="js-flex-shrink-0">
-    <button class="siper-btn" id="dirRefreshBtn" onclick="window._dirRefresh()">刷新</button>
-  </div>
+<div class="page-header">
+  <h3>📁 项目目录</h3>
+  <button class="siper-btn" id="dirRefreshBtn" onclick="window._dirRefresh()">刷新</button>
 </div>
 <div class="page-body">
   <div id="dirTree" class="siper-dir-tree">加载中...</div>
