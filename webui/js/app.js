@@ -257,6 +257,13 @@ const PAGE_RENDER_FN = {
 const _pageCache = {};
 
 async function navigateToPage(page) {
+  // Chat 页面 — 直接显示 #page-chat
+  if (page === 'chat') {
+    document.getElementById('page-chat').style.display = 'flex';
+    document.getElementById('page-standalone').style.display = 'none';
+    return;
+  }
+
   const container = document.getElementById('page-standalone');
   container.style.display = 'flex';
   document.getElementById('page-chat').style.display = 'none';
