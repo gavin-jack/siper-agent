@@ -899,17 +899,27 @@ async def main():
             # 二进制端点（Router 无法处理原始字节响应）
             if path == "/api/avatar" and method == "GET":
                 # Avatar 图片服务
-                # Parse query params for agent name
                 from urllib.parse import parse_qs, urlparse as _urlparse
                 _qs = parse_qs(_urlparse(full_path).query)
                 agent_name = _qs.get("agent", ["default"])[0]
-                avatar_path = PROJECT_ROOT / "agents" / agent_name / "avatar.png"
-                if avatar_path.exists():
+                # 安全校验：只允许合法 agent 目录名（字母/数字/下划线/连字符）
+                import re as _re
+                if not _re.match(r'^[a-zA-Z0-9_-]+$', agent_name):
+                    agent_name = "default"
+                # 查找 avatar 文件（支持 .webp 和 .png）
+                avatar_path = None
+                for ext in (".webp", ".png", ".jpg", ".jpeg"):
+                    p = PROJECT_ROOT / "agents" / agent_name / f"avatar{ext}"
+                    if p.exists():
+                        avatar_path = p
+                        break
+                if avatar_path:
                     with open(avatar_path, "rb") as f:
                         resp_body = f.read()
+                    ct = "image/webp" if avatar_path.suffix == ".webp" else "image/png"
                     headers = [
                         "HTTP/1.1 200 OK",
-                        "Content-Type: image/png",
+                        f"Content-Type: {ct}",
                         f"Content-Length: {len(resp_body)}",
                         "Cache-Control: public, max-age=3600",
                         "Connection: close",
