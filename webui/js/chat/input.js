@@ -12,7 +12,7 @@ import {
   markSessionReady,
   setChatSessionId,
 } from '../chat/state.js';
-import { resetSendState, updateSessionPreview } from '../chat/session.js';
+import { resetSendState } from '../chat/session.js';
 import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js';
 import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js';
 import { toast } from '../components/toast.js';
