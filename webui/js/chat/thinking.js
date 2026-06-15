@@ -77,11 +77,12 @@ export function chatThinkingAddTextRow(text) {
     else _thinkingSteps.push({ type: 'text', text });
 }
 
-// 需要 escapeHtml — 从 message.js 导入会有循环依赖，改用内联
+// 注意：chatEscapeHtml 在 message.js 中定义，thinking.js 使用内联版本避免循环依赖
 function chatEscapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
 }
 
-export { chatEscapeHtml as chatEscapeHtml_thinking };
+// thinking.js 的 chatEscapeHtml 是内联版本，避免循环依赖
+// export { chatEscapeHtml as chatEscapeHtml_thinking }; // 无引用，已删除

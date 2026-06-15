@@ -118,15 +118,6 @@ export function finalizeStream(data, streamSessionId) {
 
     if (data && data.usage) updateCtxFromStreamEnd(data.usage);
 
-    // 保存 response dict 到 sessions.db
-    if (data && data.message_id) {
-        fetch('/api/save-response-dict', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ message_id: data.message_id, response_dict: data })
-        }).catch(() => {});
-    }
-
     // 复用流式 DOM，直接更新内容
     if (_chatStreamRow) {
         _chatStreamRow.classList.remove('siper-stream-row');
@@ -218,7 +209,6 @@ export function finalizeStream(data, streamSessionId) {
 
 /**
  * 处理 stopped 消息
- * 对应 core.js 的 chatHandleStopped()
  */
 export function handleStopped() {
     syncStreamFromCurrent();
@@ -250,24 +240,4 @@ export function handleStopped() {
     // 起源：侧边栏更新由 agents delta 自动处理
 }
 
-/**
- * 处理 stream_delta 的旧入口（core.js dispatch 转发）
- * 保持向后兼容
- */
-export function chatHandleStreamDelta(delta, streamSessionId) {
-    appendStream(delta, streamSessionId);
-}
 
-/**
- * 处理 stream_end 的旧入口（core.js dispatch 转发）
- */
-export function chatHandleStreamEnd(data, streamSessionId) {
-    finalizeStream(data, streamSessionId);
-}
-
-/**
- * 处理 stopped 的旧入口
- */
-export function chatHandleStopped() {
-    handleStopped();
-}

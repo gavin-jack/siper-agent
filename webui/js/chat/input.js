@@ -335,10 +335,6 @@ export async function chatSendMessage() {
   const stopBtn = document.getElementById('chatStopBtn');
   if (stopBtn) { stopBtn.classList.remove('hidden'); stopBtn.classList.add('btn-pop'); setTimeout(() => stopBtn.classList.remove('btn-pop'), 300); }
   chatAppendUserMsg(text || '[文件]');
-  // 用户发消息后用前端时间更新会话预览
-  if (chatSessionId && chatCurrentAgent) {
-    updateSessionPreview(chatSessionId, undefined, new Date().toISOString());
-  }
   // Start streaming wave badge on session immediately (before LLM responds)
   if (chatSessionId) updateStreamingBadge(chatSessionId, true);
   setIsThinking(true);

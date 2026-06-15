@@ -50,46 +50,6 @@ export function sendMessage(content, sessionId, agent, model, images) {
     });
 }
 
-// ===== Session Preview =====
-
-export function updateSessionPreview(sessionId, text, updatedAt) {
-    if (!sessionId || !_chatCurrentAgent) return;
-    const _agent = _chatAgents.find(a => a.name === _chatCurrentAgent.name);
-    if (!_agent) return;
-    const _sess = _agent.sessions.find(s => s.session_id === sessionId);
-    if (!_sess) return;
-    if (text !== undefined) {
-        _sess.last_message = text.replace(/\n/g, ' ').substring(0, 60);
-    }
-    if (updatedAt !== undefined) {
-        _sess.updated_at = updatedAt;
-    } else if (text !== undefined) {
-        _sess.updated_at = new Date().toISOString();
-    }
-    const container = document.getElementById('chatMiddleList');
-    if (container) {
-        const items = container.querySelectorAll('.siper-session-item');
-        for (const item of items) {
-            if (item.dataset.sessionId === sessionId) {
-                if (text !== undefined) {
-                    const preview = item.querySelector('.siper-session-preview');
-                    if (preview) preview.textContent = _sess.last_message;
-                }
-                if (updatedAt !== undefined) {
-                    const timeEl = item.querySelector('.siper-session-time');
-                    if (timeEl && updatedAt) {
-                        timeEl.textContent = new Date(updatedAt).toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
-                    }
-                }
-                break;
-            }
-        }
-    }
-    if (updatedAt !== undefined && typeof renderMiddleList === 'function') {
-        renderMiddleList();
-    }
-}
-
 // ===== Context Info =====
 
 export function updateCtxFromStreamEnd(usage) {
@@ -99,33 +59,4 @@ export function updateCtxFromStreamEnd(usage) {
     if (typeof updateCtxInfoDisplay === 'function') updateCtxInfoDisplay();
 }
 
-// Re-export for backward compat
 export { _chatSessionId as chatSessionId, _chatCurrentAgent as chatCurrentAgent, _isSending as isSending };
-
-// ===== Load Session History =====
-// Called by pages/chat.js to load a session's message history
-export async function loadSessionHistory(sessionId) {
-    if (!sessionId) return;
-    try {
-        const resp = await fetch(`/api/sessions/${sessionId}/messages`);
-        if (!resp.ok) return;
-        const data = await resp.json();
-        if (typeof chatClearMessages === 'function') chatClearMessages();
-        if (data.messages && Array.isArray(data.messages)) {
-            for (const msg of data.messages) {
-                if (msg.role === 'user') {
-                    if (typeof chatAppendUserMsg === 'function') {
-                        chatAppendUserMsg(msg.content || '');
-                    }
-                } else if (msg.role === 'assistant') {
-                    if (typeof window.addMsg === 'function') {
-                        window.addMsg(msg.content || '', 'assistant', msg);
-                    }
-                }
-            }
-        }
-        if (typeof updateChatHeader === 'function') updateChatHeader();
-    } catch (e) {
-        console.error('[loadSessionHistory]', e);
-    }
-}

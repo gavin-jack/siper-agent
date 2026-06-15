@@ -296,15 +296,7 @@ export function selectChatSession(session, agent) {
     // Start wave badge for resumed stream — only if stream is still active (has accumulated text)
     if (typeof updateStreamingBadge === 'function' && _chatStreamAcc) updateStreamingBadge(session.session_id, true);
   }
-  // HTTP 兜底：如果 300ms 后消息列表仍为空，走 HTTP 加载
-  // WS messages 推送到达后会在 renderer.js 中渲染，此时消息列表不再为空
-  const _sid = session.session_id;
-  setTimeout(() => {
-    const msgs = document.querySelectorAll('.siper-msg-row');
-    if (msgs.length === 0 && typeof chatLoadSessionMessages === 'function') {
-      chatLoadSessionMessages(_sid);
-    }
-  }, 300);
+  // WS messages 推送到达后由 renderer.js 渲染，无需 HTTP 兜底
 }
 
 export function renameChatSession(session, agent) {

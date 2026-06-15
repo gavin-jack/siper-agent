@@ -49,8 +49,8 @@ export let _sessionWaiters = [];
 // Core Chat State — _chatSessionId 是会话 ID 的核心变量
 export let _chatSessionId = null;
 
-// Streaming sessions (per-session streaming badge) — removed, 0 external refs
-// export const _streamingSessions = new Set();
+// Streaming sessions (per-session streaming badge)
+export const _streamingSessions = new Set();
 
 // ===== Getter/Setter: Core Chat State =====
 export let _chatCurrentPage = 'chat';

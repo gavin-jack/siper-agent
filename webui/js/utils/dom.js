@@ -1,20 +1,6 @@
 // utils/dom.js — 纯 UI 工具函数
 
-import { escapeHtml } from './escape.js';
-
 import { t, currentLang } from './i18n.js';
-
-// ===== Logging =====
-export function addLog(level, message, lang) {
-  const list = document.getElementById('logsList');
-  if (!list) return;
-  const div = document.createElement('div');
-  div.className = 'log-entry ' + (level || 'info');
-  const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  div.innerHTML = `<span class="time">${time}</span>${escapeHtml(message || '')}`;
-  list.appendChild(div);
-  list.scrollTop = list.scrollHeight;
-}
 
 // ===== Sidebar =====
 export function toggleChatSidebar() {

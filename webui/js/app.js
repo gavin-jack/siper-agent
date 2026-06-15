@@ -6,7 +6,7 @@ import { registerAllHandlers } from './renderer.js';
 // Utils
 import { escapeHtml } from './utils/escape.js';
 import { LANG, t, applyLang, selectLang } from './utils/i18n.js';
-import { addLog, updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js';
+import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js';
 import { siPerNavigate } from './chat/nav.js';
 import { apiGet, apiPost } from './utils/api.js';
 import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js';
@@ -38,7 +38,6 @@ window.t = t;
 window.applyLang = applyLang;
 window.selectLang = selectLang;
 window.siPerNavigate = siPerNavigate;
-window.addLog = addLog;
 window.updateThemePaletteTrigger = updateThemePaletteTrigger;
 window.toggleChatSidebar = toggleChatSidebar;
 window.toggleThemePalette = toggleThemePalette;

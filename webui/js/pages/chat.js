@@ -8,7 +8,7 @@ import { showDictModal } from '../components/toast.js';
 
 // Chat modules
 import { siPerNavigate } from '../chat/nav.js';
-import { loadSessionHistory, updateCtxFromStreamEnd } from '../chat/session.js';
+import { updateCtxFromStreamEnd } from '../chat/session.js';
 import { setCurrentPage, fmtTokens, updateStreamingBadge, chatSidebarExpanded, chatSessionId, chatCurrentAgent, chatAgents } from '../chat/state.js';
 import * as Message from '../chat/message.js';
 import * as Input from '../chat/input.js';
@@ -126,12 +126,9 @@ function insertChatMsg(btn) {
 window.chatSwitchPage = chatSwitchPage;
 window.renderChatPage = renderChatPage;
 window.chatSendMessage = Input.chatSendMessage;
-window.chatHandleStreamDelta = Stream.chatHandleStreamDelta;
-window.chatHandleStreamEnd = Stream.chatHandleStreamEnd;
 window.chatStopGeneration = Message.chatStopGeneration;
 window.chatClearMessages = Message.chatClearMessages;
 window.chatAddMessage = Message.chatAddMessage;
-window.chatLoadSessionMessages = Message.chatLoadSessionMessages;
 window.bindChatInput = Input.bindChatInput;
 window.chatAppendUserMsg = Message.chatAppendUserMsg;
 window.chatAppendAgentMsg = Message.chatAppendAgentMsg;
@@ -196,8 +193,8 @@ window.chatConfirm = Toast.chatConfirm;
 window.copyChatMsg = copyChatMsg;
 window.insertChatMsg = insertChatMsg;
 
-// Stop handler
-window.chatHandleStopped = Stream.chatHandleStopped;
+// Stop handler — core.js dispatch 直接调 handleStopped()
+// window.chatHandleStopped 已删除
 
 // Monitor / Tasks page
 window.switchMonitorTab = switchMonitorTab;
