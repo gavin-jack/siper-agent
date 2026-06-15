@@ -1804,3 +1804,111 @@ JS 前端（~3,500 行）：
 >
 > 这是"起源"版本的完整架构方案。
 > 下一步：确认方案后开始 Phase 0 实施。
+
+---
+
+# 附录 A：数据架构审计与优化决策（2026-08-20 更新）
+
+## A.1 全面审计结果
+
+### 数据库实际大小分析
+
+| 数据库 | 文件大小 | 实际数据 | 膨胀原因 | 活跃记录 |
+|--------|---------|---------|---------|---------|
+| `sessions.db` | **676MB** | 94KB（284条消息） | FTS 全文索引膨胀（172848页×4KB） | 7个session，最多149条/session |
+| `token.db` | 368KB | ~6条记录 | 正常 | 6条 token_usage + 3条 token_models |
+| `memory.db` | 32KB | 1条记录 | 正常 | 1条记忆 |
+| `models.db` | ~50KB | ~30条记录 | 正常 | ~30条模型配置 |
+
+**关键发现：sessions.db 的 676MB 中，99.99% 是 FTS 全文索引膨胀，实际数据仅 94KB。**
+
+### 数据来源链路审计
+
+| 数据 | 文件夹读取 | DB 写入 | 内存缓存 | WS 快照 | 刷新机制 | 状态 |
+|------|-----------|---------|---------|---------|---------|------|
+| Agent 列表 | ✅ | ✅ | ⚠️启动后不刷新 | ✅已修复 | ❌创建/删除不刷新 | 需修复 |
+| Skills 列表 | ✅ | ✅ | ⚠️启动后不刷新 | ❌ | ❌仅启动时扫描 | 需修复 |
+| Sessions 列表 | — | ✅ | ⚠️仅活跃会话 | ✅已修复 | ⚠️每次查 DB | 需修复 |
+| Sessions 消息 | — | ✅ | ✅按需50条 | ✅已修复 | ✅实时写入 | 基本达标 |
+| Models 数据 | — | ✅ | ⚠️启动后不刷新 | ❌ | ⚠️保存不刷新 | 需修复 |
+| Token 统计 | — | ✅ | ✅ deque(500) | — | ✅500条上限 | 已达标 |
+
+### 内存泄漏风险点
+
+| 变量 | 类型 | 大小限制 | 操作方式 | 安全 |
+|------|------|---------|---------|------|
+| `conversation_history[sid]` | Dict[str, List] | 50条/session | 追加+切片 | ✅ |
+| `snapshot.messages` | list | 50条 | 追加+截断 | ✅ |
+| `snapshot.sessions` | list | 30条(evict) | set 覆盖 | ✅ |
+| `_log_buffer` | list | 2000 | append+pop(0) | ✅ |
+| `_token_usage_history` | list | 500 | append+pop(0) | ✅ |
+| `active_tasks` | deque | 1000 | 自动淘汰 | ✅ |
+| **`session_manager.active_sessions`** | **Dict** | **无硬限** | **append+条件pop** | **🔴 最大风险** |
+
+### 前端 WS 快照消费审计
+
+| 维度 | 起源方案目标 | 当前实施 | 完成度 |
+|------|-------------|---------|--------|
+| SnapshotManager | DOMSnapshot + SnapshotManager | ✅ 已实施（P0-P2） | 80% |
+| WS 推送协议 | state_full / state_delta | ⚠️ 仅 stream_delta/response | 30% |
+| 前端 fetch 消除 | 0 处数据拉取 | ❌ 74 处 fetch | 0% |
+| 页面数据源 | WS 快照 | ❌ HTTP fetch | 0% |
+
+## A.2 数据库加载方式优化决策
+
+### sessions.db — 只加载会话列表，消息按需
+
+**决策**：sessions.db 676MB 中实际数据仅 94KB（284条消息），但 FTS 索引膨胀到 676MB。
+
+**最优方案**：
+1. 删除 sessions.db 中的冗余 FTS 索引（session_search_tool.py 在 memory.db 中独立维护 FTS）
+2. 启动时只加载会话元数据（session_id, user_id, title, created_at）到内存 Dict
+3. 消息保持现有按需加载（get_session() 时从 DB 读，缓存到 active_sessions，50条限制）
+4. 会话列表 API 返回内存副本（不查 DB）
+5. VACUUM 回收 676MB 磁盘空间
+
+**内存增加**：~2KB（7个会话的元数据）+ ~100KB（活跃会话的消息缓存）= ~102KB
+
+### token.db — 保持现状
+
+**决策**：368KB，6条记录，当前设计已最优（内存 deque + DB 双写 + 500条上限）。无需改动。
+
+### models.db — 内存缓存
+
+**决策**：数据量极小（几十条），但 get_models_flat() 每次请求都查 DB。改为读内存。
+
+## A.3 已完成修复（P0-P2，2026-08-20）
+
+| 修复项 | 状态 |
+|--------|------|
+| `active_tasks` → `deque(maxlen=1000)` | ✅ |
+| `_check_size()` 接入 set/batch_set | ✅ |
+| sessions 快照字段写入 | ✅ |
+| expanded_agents 快照字段写入 | ✅ |
+| 7 个数据变更端点触发快照同步 | ✅ |
+| WS register 前完成数据同步 | ✅ |
+
+## A.4 待执行优化方案
+
+### P0（必须修复）
+
+| # | 修复项 | 文件 | 方案 |
+|---|--------|------|------|
+| 1 | sessions.db FTS 瘦身 | session_manager.py | 删除 FTS 索引和触发器，VACUUM |
+| 2 | active_sessions LRU 淘汰 | session_manager.py | MAX_ACTIVE_SESSIONS=200 |
+| 3 | Skills 刷新机制 | siper_web.py | api_refresh_skills() |
+
+### P1（数据链路补齐）
+
+| # | 修复项 | 文件 | 方案 |
+|---|--------|------|------|
+| 4 | Agent 创建/删除后刷新内存 | siper_web.py | list_agents() 重扫 + 覆盖 |
+| 5 | 模型数据内存缓存 | siper_web.py | 读内存 _gm_models |
+| 6 | sessions 列表加载到内存 | session_manager.py | 启动时加载会话元数据 |
+
+### P2（代码质量）
+
+| # | 修复项 | 文件 | 方案 |
+|---|--------|------|------|
+| 7 | 清理死代码字段 | snapshot_manager.py | 删除 thinking_steps/toasts |
+| 8 | page_cache 单页面大小检查 | snapshot_manager.py | 加入字节大小检查 |

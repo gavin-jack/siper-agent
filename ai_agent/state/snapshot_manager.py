@@ -65,6 +65,7 @@ class SnapshotManager:
             delta = {"op": "replace", "path": path, "value": value}
             self._record(delta)
         await self._enqueue(delta)
+        await self._check_size()
 
     async def batch_set(self, pairs: List[Tuple[str, Any]]):
         """批量设置 [(path, value), ...]"""
@@ -83,6 +84,7 @@ class SnapshotManager:
                 self._record(d)
         for d in deltas:
             await self._enqueue(d)
+        await self._check_size()
 
     async def insert(self, path: str, index: int, value: Any):
         async with self._lock:

@@ -1,15 +1,24 @@
 """
 Session Manager - SQLite-backed conversation session management.
+
+内存控制：
+- active_sessions 使用 OrderedDict 实现 LRU，MAX_ACTIVE_SESSIONS=200
+- 消息按需加载，内存中保留 = 活跃 session × 50 条
+- conversation_history 限制 50 条/session（切片截断）
 """
 
 import json
 import logging
 import sqlite3
 import uuid
+from collections import OrderedDict
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field, fields, asdict
 from datetime import datetime
 from pathlib import Path
+
+# 活跃会话数上限，超限时 LRU 淘汰最旧会话
+MAX_ACTIVE_SESSIONS = 200
 
 
 @dataclass
@@ -135,7 +144,7 @@ class SessionManager:
     def __init__(self, data_dir: str = "./data"):
         self.data_dir = Path(data_dir)
         self.db_path = self.data_dir / "sessions" / "sessions.db"
-        self.active_sessions: Dict[str, ConversationSession] = {}
+        self.active_sessions: OrderedDict[str, ConversationSession] = OrderedDict()
         self.logger = logging.getLogger("session_manager")
         self._db_connection: Optional[sqlite3.Connection] = None
 
@@ -240,6 +249,11 @@ class SessionManager:
             metadata=metadata or {}
         )
 
+        # LRU eviction: remove oldest if at capacity
+        while len(self.active_sessions) >= MAX_ACTIVE_SESSIONS:
+            evicted_id, evicted = self.active_sessions.popitem(last=False)
+            self.logger.info(f"[LRU] evicted session {evicted_id} on create")
+
         # Store in memory only
         self.active_sessions[session_id] = session
         # Track as unsaved (not yet persisted to DB)
@@ -294,20 +308,21 @@ class SessionManager:
     async def get_session(self, session_id: str) -> Optional[ConversationSession]:
         """
         Retrieve an existing session.
-
-        Args:
-            session_id: Session identifier
-
-        Returns:
-            ConversationSession or None if not found
+        Uses LRU eviction when active_sessions exceeds MAX_ACTIVE_SESSIONS.
         """
         # Check in-memory cache first
         if session_id in self.active_sessions:
+            # Move to end (most recently used)
+            self.active_sessions.move_to_end(session_id)
             return self.active_sessions[session_id]
 
         # Load from database
         session = await self._load_session(session_id)
         if session:
+            # LRU eviction: remove oldest if at capacity
+            while len(self.active_sessions) >= MAX_ACTIVE_SESSIONS:
+                evicted_id, evicted = self.active_sessions.popitem(last=False)
+                self.logger.info(f"[LRU] evicted session {evicted_id} ({len(evicted.messages)} msgs)")
             self.active_sessions[session_id] = session
             # Loaded from DB, so it's persisted — remove from unsaved tracking
             if hasattr(self, '_unsaved_sessions'):

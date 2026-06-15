@@ -2,7 +2,10 @@
 HTTP 路由注册器
 """
 import asyncio
+import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
+logger = logging.getLogger("router")
 
 
 import re
@@ -127,6 +130,23 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
         _h._log_buffer = _sw._log_buffer
     if hasattr(_sw, '_LOG_I18N_CACHE'):
         _h._LOG_I18N_CACHE = _sw._LOG_I18N_CACHE
+
+    async def _sync_snapshot():
+        """数据变更后同步 agents+sessions 到快照"""
+        if not snapshot_mgr_ref or not agent_ref:
+            return
+        try:
+            from ai_agent.state.session_sync import sync_agents, sync_sessions
+            _agents = sync_agents(snapshot_mgr_ref)
+            await snapshot_mgr_ref.set("agents", _agents)
+            _sessions = sync_sessions(snapshot_mgr_ref, agent_ref)
+            await snapshot_mgr_ref.set("sessions", _sessions)
+            _expanded = [a["name"] for a in _agents if a.get("expanded", True)]
+            await snapshot_mgr_ref.set("expanded_agents", _expanded)
+        except Exception as _e:
+            import logging as _log
+            _log.warning(f"[router] snapshot sync failed: {_e}")
+
     # --- 系统端点 ---
     @router.get("/api/version")
     def api_version():
@@ -152,11 +172,15 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
 
     @router.delete("/api/sessions/{sid}")
     def api_sessions_delete(sid):
-        return local_handlers["api_delete_session"](sid)
+        result = local_handlers["api_delete_session"](sid)
+        asyncio.ensure_future(_sync_snapshot())
+        return result
 
     @router.put("/api/sessions/{sid}")
     def api_sessions_put(sid, body):
-        return local_handlers["api_rename_session"](sid, body)
+        result = local_handlers["api_rename_session"](sid, body)
+        asyncio.ensure_future(_sync_snapshot())
+        return result
 
     @router.post("/api/save-response-dict")
     def api_save_response_dict(body):
@@ -173,7 +197,9 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
 
     @router.post("/api/config")
     def api_config_post(body):
-        return local_handlers["api_update_config"](body)
+        result = local_handlers["api_update_config"](body)
+        asyncio.ensure_future(_sync_snapshot())
+        return result
 
     # --- 技能管理 ---
     @router.get("/api/skills")
@@ -188,6 +214,25 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
     def api_skills_stats():
         return local_handlers["api_skill_stats"]()
 
+    @router.post("/api/skills/refresh")
+    def api_skills_refresh():
+        """刷新技能注册表：重扫 skills/ 目录 + 重建预筛选索引 + 覆盖内存"""
+        if not agent_ref or not agent_ref.skill_registry:
+            return {"success": False, "error": "skill_registry not initialized"}
+        try:
+            agent_ref.skill_registry.scan()
+            count = len(agent_ref.skill_registry.skills)
+            # 重建预筛选索引
+            if agent_ref.skill_pre_filter:
+                agent_ref.skill_pre_filter.build_index()
+            # 触发快照同步
+            asyncio.ensure_future(_sync_snapshot())
+            logger.info(f"[skills] refreshed: {count} skills loaded")
+            return {"success": True, "count": count}
+        except Exception as e:
+            logger.error(f"[skills] refresh failed: {e}")
+            return {"success": False, "error": str(e)}
+
     # --- Agent 管理 ---
     @router.get("/api/agents")
     def api_agents_get():
@@ -196,13 +241,17 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
     @router.post("/api/agents")
     def api_agents_post(body):
         if body.get("action") == "create":
-            return local_handlers["api_create_agent"](body)
+            result = local_handlers["api_create_agent"](body)
         else:
-            return local_handlers["api_switch_agent"](body)
+            result = local_handlers["api_switch_agent"](body)
+        asyncio.ensure_future(_sync_snapshot())
+        return result
 
     @router.delete("/api/agents/{name}")
     def api_agents_delete(name):
-        return local_handlers["api_delete_agent"](name)
+        result = local_handlers["api_delete_agent"](name)
+        asyncio.ensure_future(_sync_snapshot())
+        return result
 
     @router.get("/api/agents/{name}/soul")
     def api_agents_soul_get(name):
@@ -269,7 +318,9 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
 
     @router.post("/api/models/global")
     def api_models_global_post(body):
-        return local_handlers["api_save_global_models"](body)
+        result = local_handlers["api_save_global_models"](body)
+        asyncio.ensure_future(_sync_snapshot())
+        return result
 
     @router.post("/api/models/discover")
     def api_models_discover(body):

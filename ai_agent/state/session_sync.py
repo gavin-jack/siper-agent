@@ -108,6 +108,7 @@ def sync_agents(snapshot_mgr: "SnapshotManager") -> list:
             "display_name": config.get("display_name", d.name),
             "model": config.get("model", ""),
             "sessions": sessions,
+            "expanded": True,
         })
     return agents
 

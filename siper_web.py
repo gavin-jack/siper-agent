@@ -12,6 +12,7 @@ import logging
 import os
 import platform as _platform
 import sqlite3
+from collections import deque
 _is_win = _platform.system() == "Windows"
 if not _is_win:
     import signal
@@ -399,7 +400,7 @@ def _render_index() -> str:
 
 agent = None
 start_time = time.time()
-active_tasks = []
+active_tasks = deque(maxlen=1000)
 
 # 起源：有状态 UI
 from ai_agent.state.snapshot_manager import SnapshotManager
@@ -3702,17 +3703,29 @@ async def main():
         # 起源：注册载体适配器
         if snapshot_mgr and carrier_mgr:
             _adapter = WebUIAdapter(ws)
-            await snapshot_mgr.register(conn_id, _adapter)
-            carrier_mgr.add(conn_id, _adapter)
-            # 起源：初始数据同步（agents with sessions）
-            logger.info(f"[起源] WS {conn_id} 注册完成，开始初始同步...")
+            # 起源：初始数据同步（agents with sessions）— 必须在 register 前完成
+            logger.info(f"[起源] WS {conn_id} 开始初始同步...")
             from ai_agent.state.session_sync import sync_agents
             try:
                 _agents = sync_agents(snapshot_mgr)
                 await snapshot_mgr.set("agents", _agents)
                 logger.info(f"[起源] 初始同步: {len(_agents)} agents")
+                # 同步 sessions 到快照
+                from ai_agent.state.session_sync import sync_sessions as _sync_sessions
+                try:
+                    _sessions = _sync_sessions(snapshot_mgr, agent)
+                    await snapshot_mgr.set("sessions", _sessions)
+                    logger.info(f"[起源] 初始同步: {len(_sessions)} sessions")
+                except Exception as e:
+                    logger.warning(f"[起源] sync_sessions failed: {e}")
+                # 同步 expanded_agents 到快照
+                _expanded = [a["name"] for a in _agents if a.get("expanded", True)]
+                await snapshot_mgr.set("expanded_agents", _expanded)
             except Exception as e:
                 logger.error(f"[起源] initial sync failed: {e}", exc_info=True)
+            # register 发送 state_full，此时快照已填充
+            await snapshot_mgr.register(conn_id, _adapter)
+            carrier_mgr.add(conn_id, _adapter)
         # Create per-connection queue
         _msg_queues[conn_id] = asyncio.Queue(maxsize=100)
         _msg_queue_locks[conn_id] = asyncio.Lock()
@@ -4137,7 +4150,17 @@ async def main():
                 agents = sync_agents(snapshot_mgr)
                 await snapshot_mgr.set("agents", agents)
             except Exception as e:
+                logger.warning(f"[起源] sync_agents failed: {e}")
+            # 同步 sessions 到快照
+            from ai_agent.state.session_sync import sync_sessions as _sync_sessions
+            try:
+                _sessions = _sync_sessions(snapshot_mgr, agent)
+                await snapshot_mgr.set("sessions", _sessions)
+            except Exception as e:
                 logger.warning(f"[起源] sync_sessions failed: {e}")
+            # 同步 expanded_agents 到快照
+            _expanded = [a["name"] for a in agents if a.get("expanded", True)]
+            await snapshot_mgr.set("expanded_agents", _expanded)
             # 同步 messages 到快照（起源链路）
             try:
                 active_s = agent.session_manager.active_sessions.get(session_id)
