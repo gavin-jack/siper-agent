@@ -32,15 +32,15 @@ if (chatSidebarExpanded) {
 }
 
 // ===== initChatPage =====
+let _sidebarInitialized = false;
 let _chatInitialized = false;
 
-export function initChatPage() {
-  if (_chatInitialized) return;
-  _chatInitialized = true;
+// 渲染侧边栏（常驻，只执行一次）
+function initSidebar() {
+  if (_sidebarInitialized) return;
+  _sidebarInitialized = true;
 
-  const pageChat = document.getElementById('page-chat');
-  pageChat.innerHTML = `
-    <!-- 侧边栏 -->
+  document.getElementById('sidebarContainer').innerHTML = `
     <div class="siper-sidebar" id="chatSidebar">
       <div class="siper-sidebar-header" onclick="toggleChatSidebar()" title="展开/折叠">
         <img src="/static/default_avatar.webp" class="siper-sidebar-avatar" alt="avatar" width="36" height="36" onerror="this.src='/static/default_avatar_256.png'">
@@ -50,7 +50,7 @@ export function initChatPage() {
         <div class="siper-nav-section">
           <div class="siper-nav-title" data-i18n="nav.agent">智能体</div>
           <div class="siper-nav-item active" data-page="chat" onclick="navigateToPage('chat')"><span>💬</span><span class="siper-nav-item-label" data-i18n="nav.chat">对话</span></div>
-          <div class="siper-nav-item" data-page="tasks" onclick="navigateToPage('tasks')"><span>📋</span><span class="siper-nav-item-label" data-i18n="nav.task">任务</span></div>
+          <div class="siper-nav-item" data-page="tasks" onclick="navigateToPage('tasks')"><span>📋</span><span class="siper-nav-item-label" data-i18n="nav.tasks">任务</span></div>
         </div>
         <div class="siper-nav-section">
           <div class="siper-nav-title" data-i18n="nav.support">支持</div>
@@ -67,7 +67,19 @@ export function initChatPage() {
         </div>
       </nav>
       <div class="siper-sidebar-footer"></div>
-    </div>
+    </div>`;
+}
+
+// 渲染 chat 内容区（中栏+右栏，到 #page-chat）
+export function initChatPage() {
+  if (_chatInitialized) return;
+  _chatInitialized = true;
+
+  // 确保侧边栏已渲染
+  initSidebar();
+
+  const pageChat = document.getElementById('page-chat');
+  pageChat.innerHTML = `
     <!-- 中栏 -->
     <div class="siper-middle" id="chatMiddle">
       <div class="siper-middle-header">
@@ -92,6 +104,7 @@ export function initChatPage() {
     window.renderChatPage(content);
   }
 }
+window.initSidebar = initSidebar;
 window.initChatPage = initChatPage;
 
 // ===== Page Lifecycle =====

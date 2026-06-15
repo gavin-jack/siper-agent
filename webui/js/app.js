@@ -257,16 +257,21 @@ const PAGE_RENDER_FN = {
 const _pageCache = {};
 
 async function navigateToPage(page) {
-  // Chat 页面 — 直接显示 #page-chat
+  // Chat 页面 — 显示中栏+右栏，隐藏独立页面
   if (page === 'chat') {
     document.getElementById('page-chat').style.display = 'flex';
     document.getElementById('page-standalone').style.display = 'none';
+    // 确保侧边栏可见（常驻）
+    document.getElementById('sidebarContainer').style.display = '';
     return;
   }
 
+  // 独立页面 — 隐藏中栏+右栏，侧边栏保持显示
   const container = document.getElementById('page-standalone');
   container.style.display = 'flex';
   document.getElementById('page-chat').style.display = 'none';
+  // 侧边栏常驻，不隐藏
+  document.getElementById('sidebarContainer').style.display = '';
 
   try {
     // Template-clone pages: 先创建模板 DOM
@@ -324,6 +329,11 @@ function initRouter() {
       if (theme._preset) updateThemePaletteTrigger(theme._preset);
     }
   } catch(e) {}
+  // 渲染常驻侧边栏
+  if (typeof window.initSidebar === 'function') {
+    window.initSidebar();
+  }
+
   const rawHash = location.hash.replace('#/', '').replace('#', '');
   if (rawHash && rawHash !== 'chat') {
     navigateToPage(rawHash);
