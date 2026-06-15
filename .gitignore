@@ -49,6 +49,11 @@ skills/watchlist/
 skills/siper-coding/
 skills/web-search/
 
+# Documentation & knowledge（不发布，仅供本地开发）
+docs/
+knowledge-space/
+skills/
+
 # Other
 reports/
 references/
