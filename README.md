@@ -332,20 +332,15 @@ siper/
 
 ## 更新记录
 
-### v0.2.0 (2026-08-20)
+### v0.2.0 (2026-06-15)
 
-**架构升级：起源（Origin）— 有状态 UI**
+**起源架构 + 数据审计 + P0 修复**
 
-- **起源架构 Phase 1-4 实施完成**：前端旧链路清理、死代码删除、import 修复、avatar 404 修复、技能页面空白修复
-- **全面架构审计**：后端/前端/内存三维度并行审计，输出完整审计报告
-- **数据架构审计**：sessions.db 676MB FTS 膨胀根因定位，实际数据仅 94KB
-- **P0 修复**：
-  - sessions.db FTS 全文索引删除（676MB 瘦身）
-  - active_sessions LRU 淘汰（MAX_ACTIVE_SESSIONS=200）
-  - Skills 刷新机制（POST /api/skills/refresh）
-- **快照同步完善**：agents + sessions + expanded_agents 写入 WS 快照、7 个数据变更端点触发同步、WS register 前完成同步
-- **内存泄漏修复**：active_tasks list → deque(maxlen=1000)、snapshot page_cache TTL + 大小限制
-- **前端优化**：消息气泡布局统一、Dict Modal（完整响应数据查看）、classList.toggle force 参数修复
+- 起源架构 Phase 1-4 实施完成，README 全面重写（设计理念/架构图/代码统计）
+- sessions.db FTS 瘦身（676MB→94KB 实际数据）+ active_sessions LRU 淘汰（MAX=200）
+- 快照同步完善（agents/sessions/expanded_agents）+ Skills 刷新 API
+- 内存泄漏修复：active_tasks → deque(maxlen=1000)、page_cache TTL 限制
+- 前端优化：消息气泡布局统一、Dict Modal、classList.toggle 修复
 
 ### v0.1.7 (2026-06-14)
 
