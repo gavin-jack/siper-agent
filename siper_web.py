@@ -386,11 +386,11 @@ def _render_index() -> str:
         lambda m: f'<script type="module" src="/js/app-{_cb}.js"></script>',
         html,
     )
-    # Inject cache-busting CSS — single merged style.css
-    style_css = PROJECT_ROOT / "webui" / "css" / "style.css"
-    if style_css.exists():
-        mtime = int(os.path.getmtime(style_css))
-        css_link = f'  <link rel="stylesheet" href="/css/style.css?v={mtime}">'
+    # Inject cache-busting CSS — base.css (global, always needed)
+    base_css = PROJECT_ROOT / "webui" / "css" / "base.css"
+    if base_css.exists():
+        mtime = int(os.path.getmtime(base_css))
+        css_link = f'  <link rel="stylesheet" href="/css/base.css?v={mtime}">'
         html = html.replace('</head>', f'{css_link}\n</head>')
     # 禁止浏览器缓存 index.html（确保每次启动都拿到最新的 ?v= 引用）
     html = html.replace('<head>', '<head>\n<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">\n<meta http-equiv="Pragma" content="no-cache">\n<meta http-equiv="Expires" content="0">', 1)

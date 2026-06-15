@@ -256,13 +256,24 @@ const PAGE_RENDER_FN = {
 // 缓存已加载的模块
 const _pageCache = {};
 
+// ===== CSS 按需加载 =====
+const _loadedCss = new Set();
+function loadCss(href) {
+  if (_loadedCss.has(href)) return;
+  _loadedCss.add(href);
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = href;
+  document.head.appendChild(link);
+}
+
 async function navigateToPage(page) {
   // Chat 页面 — 显示中栏+右栏，隐藏独立页面
   if (page === 'chat') {
     document.getElementById('page-chat').style.display = 'flex';
     document.getElementById('page-standalone').style.display = 'none';
-    // 确保侧边栏可见（常驻）
     document.getElementById('sidebarContainer').style.display = '';
+    loadCss('/css/chat.css');
     return;
   }
 
@@ -270,8 +281,8 @@ async function navigateToPage(page) {
   const container = document.getElementById('page-standalone');
   container.style.display = 'flex';
   document.getElementById('page-chat').style.display = 'none';
-  // 侧边栏常驻，不隐藏
   document.getElementById('sidebarContainer').style.display = '';
+  loadCss('/css/page.css');
 
   try {
     // Template-clone pages: 先创建模板 DOM
@@ -340,6 +351,7 @@ function initRouter() {
   } else {
     document.getElementById('page-chat').style.display = 'flex';
     document.getElementById('page-standalone').style.display = 'none';
+    loadCss('/css/chat.css');
     if (typeof window.initChatPage === 'function') {
       window.initChatPage();
     }
