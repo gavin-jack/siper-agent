@@ -1,11 +1,10 @@
-// chat-pages/monitor.js — 监控页面渲染
-// 从 pages/chat.js 拆分
-// 包含 Token 用量、日志、性能、目录四个 tab
+// chat-pages/monitor.js — 统计页面（性能 + 词元 + 日志）
+// 目录已提升为独立页面
 
 export function switchMonitorTab(tab) {
   const tabs = document.querySelectorAll('#monitorTabs .siper-settings-tab');
   tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  ['token','logs','performance','directory'].forEach(t => {
+  ['token','logs','performance'].forEach(t => {
     const el = document.getElementById('monitorTab' + t.charAt(0).toUpperCase() + t.slice(1));
     if (el) el.classList.toggle('js-hidden', t !== tab);
   });
@@ -25,68 +24,325 @@ export function switchMonitorTab(tab) {
     if (typeof window.refreshLogs === 'function') window.refreshLogs(true);
   }
   if (tab === 'performance') renderMonitorPerformance();
-  if (tab === 'directory') renderMonitorDirectory();
-  if (tab === 'token' && typeof window.echarts !== 'undefined') {
+  if (tab === 'token') {
+    if (typeof renderMonitorTokenTab === 'function') renderMonitorTokenTab();
+    // 延迟渲染图表，等容器可见后 ECharts 才能正确获取尺寸
     setTimeout(() => {
+      if (typeof _renderTokenCharts === 'function') _renderTokenCharts();
       if (typeof _mResizeCharts === 'function') _mResizeCharts();
-    }, 50);
+    }, 60);
   }
 }
 
+// ===== Performance Tab =====
 export function renderMonitorPerformance() {
   const container = document.getElementById('monitorTabPerformance');
   if (!container) return;
-  container.innerHTML = `<div class="page-header"><h3>系统性能</h3></div><div class="page-body"><div class="siper-settings-section"><div class="siper-settings-section-title">系统信息</div><div class="siper-settings-row"><label>端口</label><span id="perfPort">9724</span></div><div class="siper-settings-row"><label>运行时间</label><span id="perfUptime">加载中...</span></div><div class="siper-settings-row"><label>内存使用</label><span id="perfMemory">加载中...</span></div><div class="siper-settings-row"><label>CPU 使用</label><span id="perfCpu">加载中...</span></div></div><div class="siper-settings-section"><div class="siper-settings-section-title">资源使用</div><div class="siper-settings-row"><label>models.db</label><span id="perfModelsDb">加载中...</span></div><div class="siper-settings-row"><label>sessions.db</label><span id="perfSessionsDb">加载中...</span></div><div class="siper-settings-row"><label>token.db</label><span id="perfTokenDb">加载中...</span></div></div><div class="siper-settings-section"><div class="siper-settings-section-title">大文件</div><div id="perfLargeFiles" class="js-scroll-list"></div></div></div>`;
-  // 加载性能数据
-  fetch('/api/status').then(r => r.json()).then(data => {
-    if (data.port) document.getElementById('perfPort').textContent = data.port;
-    if (data.uptime) document.getElementById('perfUptime').textContent = data.uptime;
-    if (data.memory) document.getElementById('perfMemory').textContent = data.memory;
-    if (data.cpu) document.getElementById('perfCpu').textContent = data.cpu;
-  }).catch(() => {});
-  // 加载数据库大小
-  fetch('/api/config').then(r => r.json()).then(data => {
-    // 从后端获取文件信息
-  }).catch(() => {});
+  container.innerHTML = `<div class="page-header"><h3>系统信息</h3></div>
+<div class="page-body">
+  <div class="perf-section">
+    <div class="perf-section-title">🖥️ 系统概览</div>
+    <div class="perf-grid perf-grid-2">
+      <div class="perf-card card-hover">
+        <div class="perf-card-header"><span class="perf-card-icon">💻</span><span class="perf-card-label">操作系统</span></div>
+        <div class="perf-card-value perf-card-value-sm" id="perfOS">--</div>
+        <div class="perf-card-detail" id="perfKernel"></div>
+      </div>
+      <div class="perf-card card-hover">
+        <div class="perf-card-header"><span class="perf-card-icon">🔧</span><span class="perf-card-label">CPU</span></div>
+        <div class="perf-card-value perf-card-value-sm" id="perfCPU">--</div>
+        <div class="perf-card-detail" id="perfCPUCores"></div>
+      </div>
+      <div class="perf-card card-hover">
+        <div class="perf-card-header"><span class="perf-card-icon">🎮</span><span class="perf-card-label">显卡</span></div>
+        <div class="perf-card-value perf-card-value-sm" id="perfGPU">--</div>
+        <div class="perf-card-detail" id="perfGPUUtil"></div>
+      </div>
+      <div class="perf-card card-hover">
+        <div class="perf-card-header"><span class="perf-card-icon">🧠</span><span class="perf-card-label">内存</span></div>
+        <div class="perf-card-value perf-card-value-sm" id="perfRAM">--</div>
+        <div class="perf-card-detail" id="perfRAMUsed"></div>
+      </div>
+      <div class="perf-card card-hover">
+        <div class="perf-card-header"><span class="perf-card-icon">💾</span><span class="perf-card-label">磁盘</span></div>
+        <div class="perf-card-value perf-card-value-sm" id="perfDisk">--</div>
+        <div class="perf-card-detail" id="perfDiskDetail"></div>
+      </div>
+      <div class="perf-card card-hover">
+        <div class="perf-card-header"><span class="perf-card-icon">🔄</span><span class="perf-card-label">交换分区</span></div>
+        <div class="perf-card-value perf-card-value-sm" id="perfSwap">--</div>
+        <div class="perf-card-detail" id="perfSwapDetail"></div>
+      </div>
+      <div class="perf-card card-hover">
+        <div class="perf-card-header"><span class="perf-card-icon">📊</span><span class="perf-card-label">系统负载</span></div>
+        <div class="perf-card-value perf-card-value-sm" id="perfLoad">--</div>
+        <div class="perf-card-detail" id="perfProcessCount"></div>
+      </div>
+      <div class="perf-card card-hover">
+        <div class="perf-card-header"><span class="perf-card-icon">🐍</span><span class="perf-card-label">Python / SiPer</span></div>
+        <div class="perf-card-value perf-card-value-sm" id="perfPyVer">--</div>
+        <div class="perf-card-detail" id="perfSiperVer"></div>
+      </div>
+    </div>
+  </div>
+  <div class="perf-section">
+    <div class="perf-section-title">📊 资源使用</div>
+    <div class="perf-grid">
+      <div class="perf-card card-hover" id="perfMemoryCard">
+        <div class="perf-card-header"><span class="perf-card-icon">📈</span><span class="perf-card-label">进程内存 RSS</span></div>
+        <div class="perf-card-value" id="perfMemory">--</div>
+        <div class="perf-card-bar"><div class="perf-card-bar-fill" id="perfMemoryBar"></div></div>
+        <div class="perf-card-detail" id="perfMemoryDetail"></div>
+      </div>
+      <div class="perf-card card-hover">
+        <div class="perf-card-header"><span class="perf-card-icon">⏱️</span><span class="perf-card-label">运行时长</span></div>
+        <div class="perf-card-value" id="perfUptime">--</div>
+        <div class="perf-card-detail" id="perfStartTime"></div>
+      </div>
+      <div class="perf-card card-hover">
+        <div class="perf-card-header"><span class="perf-card-icon">🔌</span><span class="perf-card-label">端口</span></div>
+        <div class="perf-card-value" id="perfPort">--</div>
+        <div class="perf-card-detail" id="perfWsPort"></div>
+      </div>
+    </div>
+  </div>
+  <div class="perf-section">
+    <div class="perf-section-title">💾 数据库</div>
+    <div class="perf-grid">
+      <div class="perf-card card-hover">
+        <div class="perf-card-header"><span class="perf-card-icon">🗄️</span><span class="perf-card-label">sessions.db</span></div>
+        <div class="perf-card-value" id="perfSessionsDb">--</div>
+        <div class="perf-card-detail" id="perfSessionsCount"></div>
+      </div>
+      <div class="perf-card card-hover">
+        <div class="perf-card-header"><span class="perf-card-icon">🎫</span><span class="perf-card-label">token.db</span></div>
+        <div class="perf-card-value" id="perfTokenDb">--</div>
+        <div class="perf-card-detail" id="perfTokenCount"></div>
+      </div>
+      <div class="perf-card card-hover">
+        <div class="perf-card-header"><span class="perf-card-icon">📦</span><span class="perf-card-label">models.db</span></div>
+        <div class="perf-card-value" id="perfModelsDb">--</div>
+        <div class="perf-card-detail" id="perfModelsCount"></div>
+      </div>
+    </div>
+  </div>
+  <div class="perf-section">
+    <div class="perf-section-title">📈 内存趋势</div>
+    <div class="perf-chart-box"><div id="perfMemHistory" style="width:100%;height:200px;"></div></div>
+  </div>
+</div>`;
+
+  // 加载实时数据
+  _loadPerfData();
+  // 启动内存历史采集
+  _startMemHistory();
 }
 
-export function renderMonitorDirectory() {
-  const container = document.getElementById('monitorTabDirectory');
-  if (!container) return;
-  container.innerHTML = `<div class="page-header"><h3>项目目录</h3></div><div class="page-body"><div id="dirTree" class="js-code-block"></div></div>`;
-  const dirTree = document.getElementById('dirTree');
-  if (dirTree) {
-    dirTree.textContent = '项目目录结构（后端 API 待开发）\n\nsiper/\n├── ai_agent/\n│   ├── core/\n│   ├── tools/\n│   ├── skills/\n│   ├── sessions/\n│   └── utils/\n├── webui/\n│   ├── js/\n│   ├── css/\n│   └── static/\n├── agents/\n├── skills/\n├── models.db\n├── siper_web.py\n└── setup.py';
+let _memHistory = [];
+let _memHistoryTimer = null;
+let _mTokenData = null; // 缓存 token 数据供延迟图表渲染
+const _memHistoryMax = 600; // 保留600个数据点
+
+function _renderTokenCharts() {
+  if (_mTokenData && typeof renderMonitorCharts === 'function') {
+    renderMonitorCharts(_mTokenData);
   }
 }
 
+function _startMemHistory() {
+  if (_memHistoryTimer) clearInterval(_memHistoryTimer);
+  _memHistory = [];
+  // 立即采集一次
+  _collectMemPoint();
+  _memHistoryTimer = setInterval(_collectMemPoint, 1000);
+}
+
+function _collectMemPoint() {
+  fetch('/api/stats').then(r => r.json()).then(data => {
+    if (data.memory_rss_mb) {
+      _memHistory.push({ t: Date.now(), v: data.memory_rss_mb });
+      if (_memHistory.length > _memHistoryMax) _memHistory.shift();
+      _renderMemHistory();
+    }
+  }).catch(() => {});
+}
+
+function _renderMemHistory() {
+  if (typeof window.echarts === 'undefined' || _memHistory.length < 2) return;
+  const el = document.getElementById('perfMemHistory');
+  if (!el) return;
+  if (!_memHistoryTimer) return; // tab not active
+  let chart = window.echarts.getInstanceByDom(el);
+  if (chart) { chart.dispose(); chart = null; }
+  chart = window.echarts.init(el);
+  const firstT = _memHistory[0].t;
+  const times = _memHistory.map(d => {
+    const diffSec = Math.round((d.t - firstT) / 1000);
+    if (diffSec < 60) return diffSec + 's';
+    return Math.floor(diffSec / 60) + 'm';
+  });
+  const vals = _memHistory.map(d => d.v);
+  // 只在初始渲染时启用动画
+  const isFirstRender = !_memHistory._rendered;
+  _memHistory._rendered = true;
+  chart.setOption({
+    backgroundColor: 'transparent',
+    animation: isFirstRender,
+    animationDuration: 800,
+    animationEasing: 'cubicOut',
+    grid: { left: 50, right: 16, top: 16, bottom: 30 },
+    xAxis: {
+      type: 'category', data: times,
+      axisLabel: {
+        color: '#888', fontSize: 10,
+        interval: Math.max(0, Math.floor(_memHistory.length / 7) - 1),
+      },
+      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.12)' } },
+    },
+    yAxis: {
+      type: 'value', name: 'MB', nameTextStyle: { color: '#888' },
+      axisLabel: { color: '#888' },
+      splitLine: { lineStyle: { type: 'dashed', opacity: 0.3 } },
+    },
+    series: [{
+      type: 'line', data: vals, smooth: true,
+      lineStyle: { color: '#1aad6f', width: 2 },
+      areaStyle: {
+        color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(26,173,111,0.25)' },
+            { offset: 1, color: 'rgba(26,173,111,0.02)' },
+          ],
+        },
+      },
+      symbol: 'circle', symbolSize: 2,
+    }],
+    tooltip: { trigger: 'axis', formatter: (p) => `${p[0].name}<br/>内存: ${p[0].value} MB` },
+  });
+}
+
+function _loadPerfData() {
+  fetch('/api/stats').then(r => r.json()).then(data => {
+    // 系统概览
+    if (data.system) {
+      const sys = data.system;
+      if (sys.os) {
+        const osStr = sys.os + (sys.os_version ? ' ' + sys.os_version : '');
+        document.getElementById('perfOS').textContent = osStr;
+      }
+      if (sys.kernel) document.getElementById('perfKernel').textContent = sys.kernel;
+      if (sys.cpu_model) document.getElementById('perfCPU').textContent = sys.cpu_model;
+      const cpuDetail = (sys.cpu_cores ? sys.cpu_cores + ' 核' : '') + (sys.cpu_freq_mhz ? ' / ' + sys.cpu_freq_mhz + ' MHz' : '') + (sys.cpu_percent != null ? ' / ' + sys.cpu_percent + '%' : '');
+      if (cpuDetail) document.getElementById('perfCPUCores').textContent = cpuDetail;
+      if (sys.gpu_info) document.getElementById('perfGPU').textContent = sys.gpu_info;
+      if (sys.gpu_percent) document.getElementById('perfGPUUtil').textContent = '利用率 ' + sys.gpu_percent + '%';
+      if (sys.total_ram_mb) {
+        document.getElementById('perfRAM').textContent = sys.total_ram_mb + ' MB';
+        const ramUsed = data.memory_rss_mb ? `进程 ${data.memory_rss_mb} MB` : '';
+        const ramPct = sys.ram_percent != null ? `系统 ${sys.ram_percent}%` : '';
+        document.getElementById('perfRAMUsed').textContent = [ramUsed, ramPct].filter(Boolean).join(' / ');
+      }
+      if (sys.available_ram_mb != null && sys.total_ram_mb) {
+        const availPct = Math.round(sys.available_ram_mb / sys.total_ram_mb * 100);
+        // 追加到 RAM detail
+      }
+      if (sys.disk_total_gb) document.getElementById('perfDisk').textContent = `${sys.disk_used_gb} / ${sys.disk_total_gb} GB`;
+      if (sys.disk_percent != null) {
+        let diskDetail = `使用率 ${sys.disk_percent}%`;
+        if (sys.disk_read_mb != null) diskDetail += ` / 读 ${sys.disk_read_mb} MB`;
+        if (sys.disk_write_mb != null) diskDetail += ` / 写 ${sys.disk_write_mb} MB`;
+        document.getElementById('perfDiskDetail').textContent = diskDetail;
+      }
+      if (sys.swap_total_mb != null && sys.swap_total_mb > 0) {
+        document.getElementById('perfSwap').textContent = `${sys.swap_used_mb || 0} / ${sys.swap_total_mb} MB`;
+        if (sys.swap_total_mb > 0) {
+          const swPct = Math.round((sys.swap_used_mb || 0) / sys.swap_total_mb * 100);
+          document.getElementById('perfSwapDetail').textContent = `使用率 ${swPct}%`;
+        }
+      } else {
+        document.getElementById('perfSwap').textContent = '无';
+      }
+      if (sys.load_avg) {
+        document.getElementById('perfLoad').textContent = `${sys.load_avg[0]} / ${sys.load_avg[1]} / ${sys.load_avg[2]}`;
+      }
+      if (sys.process_count) {
+        document.getElementById('perfProcessCount').textContent = sys.process_count + ' 个进程';
+      }
+      if (sys.hostname) {
+        // 可显示在 OS detail
+      }
+      if (sys.python_version) document.getElementById('perfPyVer').textContent = sys.python_version;
+      if (sys.siper_version) document.getElementById('perfSiperVer').textContent = 'SiPer ' + sys.siper_version;
+    }
+    // 进程内存 RSS
+    if (data.memory_rss_mb) {
+      document.getElementById('perfMemory').textContent = data.memory_rss_mb + ' MB';
+      document.getElementById('perfMemoryDetail').textContent = `进程物理内存占用`;
+      const bar = document.getElementById('perfMemoryBar');
+      if (bar) {
+        const totalMb = data.system?.total_ram_mb || 8192;
+        const pct = Math.min(100, Math.round(data.memory_rss_mb / totalMb * 100));
+        bar.style.width = pct + '%';
+        bar.style.background = pct > 80 ? '#dc2626' : pct > 50 ? '#fa0' : '#1aad6f';
+      }
+    }
+    // 运行时长
+    if (data.uptime_seconds) {
+      const s = data.uptime_seconds;
+      const d = Math.floor(s / 86400);
+      const h = Math.floor((s % 86400) / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      document.getElementById('perfUptime').textContent = d > 0 ? `${d}天${h}时${m}分` : h > 0 ? `${h}时${m}分` : `${m}分`;
+      if (data.start_time) {
+        document.getElementById('perfStartTime').textContent = '启动: ' + data.start_time;
+      }
+    }
+    // 端口
+    if (data.port) {
+      document.getElementById('perfPort').textContent = data.port;
+      if (data.ws_port) document.getElementById('perfWsPort').textContent = 'WS: ' + data.ws_port;
+    }
+    // 数据库
+    if (data.db_sizes) {
+      if (data.db_sizes.sessions_db_mb) {
+        document.getElementById('perfSessionsDb').textContent = data.db_sizes.sessions_db_mb + ' MB';
+      }
+      if (data.db_sizes.token_db_kb) {
+        document.getElementById('perfTokenDb').textContent = data.db_sizes.token_db_kb + ' KB';
+      }
+      if (data.db_sizes.models_db_kb) {
+        document.getElementById('perfModelsDb').textContent = data.db_sizes.models_db_kb + ' KB';
+      }
+    }
+    if (data.session_count != null) document.getElementById('perfSessionsCount').textContent = data.session_count + ' 个会话';
+    if (data.token_usage_count != null) document.getElementById('perfTokenCount').textContent = data.token_usage_count + ' 条记录';
+    if (data.model_count != null) document.getElementById('perfModelsCount').textContent = data.model_count + ' 个模型';
+  }).catch(() => {});
+}
+
+// ===== Monitor Page Shell =====
 export function renderMonitorPageChat(container) {
   container.className = 'siper-content siper-full-content';
   container.innerHTML = `
 <div class="siper-page-toolbar js-toolbar-flex-wrap">
   <div class="siper-settings-tabs" id="monitorTabs">
-    <button class="siper-settings-tab active" data-tab="token" onclick="window.switchMonitorTab('token')">Token用量</button>
+    <button class="siper-settings-tab active" data-tab="performance" onclick="window.switchMonitorTab('performance')">性能</button>
+    <button class="siper-settings-tab" data-tab="token" onclick="window.switchMonitorTab('token')">词元</button>
     <button class="siper-settings-tab" data-tab="logs" onclick="window.switchMonitorTab('logs')">日志</button>
-    <button class="siper-settings-tab" data-tab="performance" onclick="window.switchMonitorTab('performance')">性能</button>
-    <button class="siper-settings-tab" data-tab="directory" onclick="window.switchMonitorTab('directory')">目录</button>
   </div>
   <div class="js-flex-shrink-0">
     <button class="siper-btn" onclick="window.refreshMonitorTab()">刷新</button>
   </div>
 </div>
 <div id="monitorContent">
-  <div id="monitorTabToken"></div>
+  <div id="monitorTabPerformance"></div>
+  <div id="monitorTabToken" class="js-hidden"></div>
   <div id="monitorTabLogs" class="js-hidden"></div>
-  <div id="monitorTabPerformance" class="js-hidden"></div>
-  <div id="monitorTabDirectory" class="js-hidden"></div>
 </div>`;
-  // 默认显示 token tab
-  const tokenEl = document.getElementById('monitorTabToken');
-  if (tokenEl) tokenEl.classList.remove('js-hidden');
-  // 加载 token 数据（独立渲染，不依赖旧 token 页面）
-  renderMonitorTokenTab();
+  renderMonitorPerformance();
 }
 
+// ===== Token Tab — 4个等宽卡片一行 =====
 export function renderMonitorTokenTab() {
   const container = document.getElementById('monitorTabToken');
   if (!container) return;
@@ -94,33 +350,31 @@ export function renderMonitorTokenTab() {
 <div class="siper-token-charts-row">
   <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">📊 分模型 Token 分布</div><div id="monitorChartModel" class="js-chart-box"></div></div>
   <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">⏰ 24小时 Token 分布</div><div id="monitorChartHourly" class="js-chart-box"></div></div>
-</div>
-<div class="siper-token-chart-card card-hover js-mt-12"><div class="siper-token-chart-title">📈 每日 Token 趋势</div><div id="monitorChartDate" class="js-chart-box"></div></div>
-<div class="siper-token-charts-row js-mt-12">
-  <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">⚡ 模型效率对比</div><div id="monitorChartEfficiency" class="js-chart-box"></div></div>
+  <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">📈 每日 Token 趋势</div><div id="monitorChartDate" class="js-chart-box"></div></div>
   <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">📅 活跃时段热力图</div><div id="monitorChartHeatmap" class="js-chart-box"></div></div>
-</div>`;
+</div>
+<div class="siper-token-chart-card card-hover js-mt-12" style="width:100%"><div class="siper-token-chart-title">⚡ 模型效率对比</div><div id="monitorChartEfficiency" class="js-chart-box" style="height:300px"></div></div>`;
   fetch('/api/token').then(r => r.json()).then(data => {
     const stats = document.getElementById('monitorTokenStats');
     if (stats && data) {
       stats.innerHTML = `<div class="siper-token-charts-row">
-        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">总请求数</div><div style="font-size:24px;font-weight:700;color:var(--color-primary)">${data.total_requests || 0}</div></div>
-        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">总 Token</div><div style="font-size:24px;font-weight:700;color:var(--color-primary)">${data.total_tokens || 0}</div></div>
-        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">Prompt Token</div><div style="font-size:24px;font-weight:700;color:var(--color-success)">${data.total_prompt_tokens || 0}</div></div>
-        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">Completion Token</div><div style="font-size:24px;font-weight:700;color:var(--color-warning)">${data.total_completion_tokens || 0}</div></div>
+        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">总请求数</div><div class="siper-token-value">${data.total_requests || 0}</div></div>
+        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">总词元</div><div class="siper-token-value">${_mFmt(data.total_tokens)}</div></div>
+        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">提示词元</div><div class="siper-token-value" style="color:var(--color-success)">${_mFmt(data.total_prompt_tokens)}</div></div>
+        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">完成词元</div><div class="siper-token-value" style="color:var(--color-warning)">${_mFmt(data.total_completion_tokens)}</div></div>
       </div>`;
     }
-    renderMonitorCharts(data);
+    _mTokenData = data;
+    // 图表渲染延迟到 switchMonitorTab 中执行（等容器可见）
   }).catch(() => {});
 }
 
+// ===== ECharts =====
 let _mChartModel = null, _mChartDate = null, _mChartHourly = null, _mChartEfficiency = null, _mChartHeatmap = null;
 let _mCachedPalette = null;
 const _mDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
 function _mReadCssVar(name) {
-  const inline = document.documentElement.style.getPropertyValue(name);
-  if (inline) return inline.trim();
   const d = document.createElement('div');
   d.style.color = `var(${name})`;
   d.style.position = 'absolute';
@@ -143,39 +397,22 @@ function _mResolveColors() {
   const errorText = _mReadCssVar('--color-error-text');
   const warning = _mReadCssVar('--color-warning');
   _mCachedPalette = {
-    primary: primary || '#1aad6f',
-    text: text || '#1a1a1a',
-    textDim: textDim || '#888888',
-    border: border || 'rgba(0,0,0,0.12)',
-    surface: surface || '#ffffff',
-    success: success || '#1aad6f',
-    errorText: errorText || '#dc2626',
-    warning: warning || '#fa0',
+    primary: primary || '#1aad6f', text: text || '#1a1a1a', textDim: textDim || '#888888',
+    border: border || 'rgba(0,0,0,0.12)', surface: surface || '#ffffff',
+    success: success || '#1aad6f', errorText: errorText || '#dc2626', warning: warning || '#fa0',
   };
   return _mCachedPalette;
 }
 
-function _mEchartsPalette() {
-  const c = _mResolveColors();
-  return [
-    c.primary, '#06b6d4', '#8b5cf6', c.success, '#f59e0b',
-    '#ec4899', c.errorText, '#10b981', '#6366f1', '#f97316',
-  ];
-}
-
 function _mFmt(n) {
+  if (n == null) return '--';
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
   if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
   return String(n);
 }
 
 function renderMonitorCharts(data) {
-  if (typeof window.echarts === 'undefined') {
-    console.warn('ECharts not loaded, skipping monitor charts');
-    return;
-  }
-
-  // Dispose old charts
+  if (typeof window.echarts === 'undefined') return;
   if (_mChartModel) { _mChartModel.dispose(); _mChartModel = null; }
   if (_mChartDate) { _mChartDate.dispose(); _mChartDate = null; }
   if (_mChartHourly) { _mChartHourly.dispose(); _mChartHourly = null; }
@@ -183,20 +420,18 @@ function renderMonitorCharts(data) {
   if (_mChartHeatmap) { _mChartHeatmap.dispose(); _mChartHeatmap = null; }
 
   const colors = _mResolveColors();
-  const palette = _mEchartsPalette();
+  const palette = [colors.primary, '#06b6d4', '#8b5cf6', colors.success, '#f59e0b', '#ec4899', colors.errorText, '#10b981', '#6366f1', '#f97316'];
   const textStyle = { color: colors.text };
   const tooltipStyle = { backgroundColor: colors.surface, textStyle };
   const axisLabelStyle = { color: colors.textDim };
   const axisLineStyle = { lineStyle: { color: colors.border } };
   const splitLineStyle = { lineStyle: { color: colors.border, type: 'dashed', opacity: 0.4 } };
-
   const modelStats = data.model_stats || [];
 
   // Chart 1: Model distribution (donut)
   const modelPieData = modelStats.map(m => ({
     name: m.model.length > 20 ? m.model.slice(0, 18) + '…' : m.model,
-    value: m.total_tokens,
-    fullName: m.model,
+    value: m.total_tokens, fullName: m.model,
   }));
   if (modelPieData.length > 0) {
     const el = document.getElementById('monitorChartModel');
@@ -204,29 +439,17 @@ function renderMonitorCharts(data) {
       _mChartModel = window.echarts.init(el);
       _mChartModel.setOption({
         backgroundColor: 'transparent',
-        tooltip: {
-          trigger: 'item', ...tooltipStyle,
-          formatter: (p) => {
-            const item = modelPieData.find(d => d.name === p.name);
-            const fullName = item ? item.fullName : p.name;
-            return `${fullName}<br/>Tokens: ${_mFmt(p.value)}<br/>占比: ${p.percent}%`;
-          },
-        },
+        animation: true,
+        animationDuration: 800,
+        animationEasing: 'cubicOut',
+        tooltip: { trigger: 'item', ...tooltipStyle, formatter: (p) => { const item = modelPieData.find(d => d.name === p.name); return `${item ? item.fullName : p.name}<br/>Tokens: ${_mFmt(p.value)}<br/>占比: ${p.percent}%`; } },
         legend: { orient: 'vertical', right: 0, top: 'center', textStyle, itemGap: 8 },
-        series: [{
-          type: 'pie', radius: ['42%', '72%'], center: ['35%', '50%'],
-          data: modelPieData,
-          label: { color: colors.text, fontSize: 12 },
-          labelLine: { lineStyle: { color: colors.textDim } },
-          itemStyle: { borderRadius: 4, borderColor: colors.surface, borderWidth: 2 },
-          emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.15)' } },
-          color: palette,
-        }],
+        series: [{ type: 'pie', radius: ['42%', '72%'], center: ['35%', '50%'], data: modelPieData, label: { color: colors.text, fontSize: 12 }, labelLine: { lineStyle: { color: colors.textDim } }, itemStyle: { borderRadius: 4, borderColor: colors.surface, borderWidth: 2 }, emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.15)' } }, color: palette }],
       });
     }
   }
 
-  // Chart 2: Daily trend (stacked bar + line)
+  // Chart 2: Daily trend
   const dateStats = data.date_stats || {};
   const dateKeys = Object.keys(dateStats).sort();
   if (dateKeys.length > 0) {
@@ -235,6 +458,9 @@ function renderMonitorCharts(data) {
       _mChartDate = window.echarts.init(el);
       _mChartDate.setOption({
         backgroundColor: 'transparent',
+        animation: true,
+        animationDuration: 800,
+        animationEasing: 'cubicOut',
         tooltip: { trigger: 'axis', ...tooltipStyle, axisPointer: { type: 'shadow' } },
         legend: { data: ['Prompt', 'Completion', 'Total'], textStyle, top: 4 },
         grid: { left: 50, right: 24, top: 44, bottom: 30 },
@@ -249,7 +475,7 @@ function renderMonitorCharts(data) {
     }
   }
 
-  // Chart 3: Hourly bar (last 24h) with gradient intensity
+  // Chart 3: Hourly bar
   const hourlyStats = data.hourly_stats || [];
   if (hourlyStats.length > 0) {
     const maxVal = Math.max(...hourlyStats.map(x => x.total_tokens));
@@ -258,39 +484,44 @@ function renderMonitorCharts(data) {
       _mChartHourly = window.echarts.init(el);
       _mChartHourly.setOption({
         backgroundColor: 'transparent',
-        tooltip: {
-          trigger: 'axis', ...tooltipStyle,
-          formatter: (params) => {
-            const idx = params[0].dataIndex;
-            const d = hourlyStats[idx];
-            return `${d.hour}<br/>Tokens: ${_mFmt(d.total_tokens)}<br/>调用: ${d.requests}`;
-          },
-        },
+        animation: true,
+        animationDuration: 800,
+        animationEasing: 'cubicOut',
+        tooltip: { trigger: 'axis', ...tooltipStyle, formatter: (params) => { const idx = params[0].dataIndex; const d = hourlyStats[idx]; return `${d.hour}<br/>Tokens: ${_mFmt(d.total_tokens)}<br/>调用: ${d.requests}`; } },
         grid: { left: 50, right: 24, top: 24, bottom: 46 },
         xAxis: { type: 'category', data: hourlyStats.map(h => h.hour), axisLabel: { ...axisLabelStyle, rotate: 45 }, axisLine: axisLineStyle },
         yAxis: { type: 'value', axisLabel: { ...axisLabelStyle, formatter: v => _mFmt(v) }, axisLine: axisLineStyle, splitLine: splitLineStyle },
-        series: [{
-          type: 'bar',
-          data: hourlyStats.map((h) => {
-            const v = h.total_tokens;
-            let barColor;
-            if (v === 0) barColor = colors.border;
-            else if (maxVal > 0) {
-              const ratio = v / maxVal;
-              if (ratio > 0.7) barColor = colors.errorText;
-              else if (ratio > 0.4) barColor = '#f97316';
-              else if (ratio > 0.15) barColor = colors.warning;
-              else barColor = colors.primary;
-            } else barColor = colors.primary;
-            return { value: v, itemStyle: { color: barColor, borderRadius: [4, 4, 0, 0] } };
-          }),
-          barWidth: '60%',
-        }],
+        series: [{ type: 'bar', data: hourlyStats.map((h) => { const v = h.total_tokens; let barColor; if (v === 0) barColor = colors.border; else if (maxVal > 0) { const ratio = v / maxVal; if (ratio > 0.7) barColor = colors.errorText; else if (ratio > 0.4) barColor = '#f97316'; else if (ratio > 0.15) barColor = colors.warning; else barColor = colors.primary; } else barColor = colors.primary; return { value: v, itemStyle: { color: barColor, borderRadius: [4, 4, 0, 0] } }; }), barWidth: '60%' }],
       });
     }
   }
 
-  // Chart 4: Model efficiency — avg tokens + completion ratio (bar + line combo)
+  // Chart 4: Heatmap
+  const heatmapData = data.heatmap || [];
+  if (heatmapData.length > 0) {
+    const maxHeat = Math.max(...heatmapData.map(h => h.total_tokens));
+    const heatDays = _mDAY_NAMES;
+    const heatHours = Array.from({length: 24}, (_, i) => `${i}时`);
+    const heatSeriesData = heatmapData.filter(h => h.total_tokens > 0).map(h => [h.hour, h.dow, h.total_tokens]);
+    const el = document.getElementById('monitorChartHeatmap');
+    if (el) {
+      _mChartHeatmap = window.echarts.init(el);
+      _mChartHeatmap.setOption({
+        backgroundColor: 'transparent',
+        animation: true,
+        animationDuration: 800,
+        animationEasing: 'cubicOut',
+        tooltip: { ...tooltipStyle, formatter: (p) => { const d = p.data; return `${heatDays[d[1]]} ${d[0]}时<br/>Tokens: ${_mFmt(d[2])}<br/>调用: ${heatmapData.find(h => h.hour === d[0] && h.dow === d[1])?.requests || 0}`; } },
+        grid: { left: 50, right: 24, top: 24, bottom: 46 },
+        xAxis: { type: 'category', data: heatHours, splitArea: { show: true }, axisLabel: { ...axisLabelStyle, interval: 2 }, axisLine: axisLineStyle },
+        yAxis: { type: 'category', data: heatDays, splitArea: { show: true }, axisLabel: axisLabelStyle, axisLine: axisLineStyle },
+        visualMap: { min: 0, max: maxHeat, calculable: true, orient: 'horizontal', left: 'center', bottom: 0, inRange: { color: [colors.border, colors.primary, colors.warning, colors.errorText] }, textStyle: axisLabelStyle, text: ['高', '低'], itemWidth: 14, itemHeight: 80 },
+        series: [{ type: 'heatmap', data: heatSeriesData, label: { show: false }, emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.3)' } } }],
+      });
+    }
+  }
+
+  // Chart 5: Model efficiency
   if (modelStats.length > 0) {
     const effModels = modelStats.filter(m => m.total_tokens > 0);
     if (effModels.length > 0) {
@@ -299,132 +530,26 @@ function renderMonitorCharts(data) {
         _mChartEfficiency = window.echarts.init(el);
         _mChartEfficiency.setOption({
           backgroundColor: 'transparent',
-          tooltip: {
-            trigger: 'axis',
-            ...tooltipStyle,
-            axisPointer: { type: 'shadow' },
-            formatter: (params) => {
-              const idx = params[0].dataIndex;
-              const m = effModels[idx];
-              const ratio = m.prompt_tokens > 0 ? ((m.completion_tokens / m.prompt_tokens) * 100).toFixed(1) : '0.0';
-              return `${m.model}<br/>平均 Token: ${Math.round(m.total_tokens / m.requests)}<br/>完成/提示比: ${ratio}%<br/>调用次数: ${m.requests}`;
-            },
-          },
+          animation: true,
+        animationDuration: 800,
+        animationEasing: 'cubicOut',
+        tooltip: { trigger: 'axis', ...tooltipStyle, axisPointer: { type: 'shadow' }, formatter: (params) => { const idx = params[0].dataIndex; const m = effModels[idx]; const ratio = m.prompt_tokens > 0 ? ((m.completion_tokens / m.prompt_tokens) * 100).toFixed(1) : '0.0'; return `${m.model}<br/>平均 Token: ${Math.round(m.total_tokens / m.requests)}<br/>完成/提示比: ${ratio}%<br/>调用次数: ${m.requests}`; } },
           legend: { data: ['平均 Token', '完成/提示比'], textStyle, top: 4 },
           grid: { left: 55, right: 55, top: 44, bottom: 30 },
-          xAxis: {
-            type: 'category',
-            data: effModels.map(m => m.model.length > 15 ? m.model.slice(0, 13) + '…' : m.model),
-            axisLabel: axisLabelStyle,
-            axisLine: axisLineStyle,
-          },
+          xAxis: { type: 'category', data: effModels.map(m => m.model.length > 15 ? m.model.slice(0, 13) + '…' : m.model), axisLabel: axisLabelStyle, axisLine: axisLineStyle },
           yAxis: [
-            {
-              type: 'value', name: 'Token', nameTextStyle: axisLabelStyle,
-              axisLabel: { ...axisLabelStyle, formatter: v => _mFmt(v) },
-              axisLine: axisLineStyle, splitLine: splitLineStyle,
-            },
-            {
-              type: 'value', name: '比例', nameTextStyle: axisLabelStyle,
-              axisLabel: { color: colors.textDim, formatter: v => v + '%' },
-              axisLine: { lineStyle: { color: colors.success } },
-              splitLine: { show: false },
-              max: (value) => Math.max(value.max + 5, 20),
-            },
+            { type: 'value', name: 'Token', nameTextStyle: axisLabelStyle, axisLabel: { ...axisLabelStyle, formatter: v => _mFmt(v) }, axisLine: axisLineStyle, splitLine: splitLineStyle },
+            { type: 'value', name: '比例', nameTextStyle: axisLabelStyle, axisLabel: { color: colors.textDim, formatter: v => v + '%' }, axisLine: { lineStyle: { color: colors.success } }, splitLine: { show: false }, max: (value) => Math.max(value.max + 5, 20) },
           ],
           series: [
-            {
-              name: '平均 Token',
-              type: 'bar',
-              data: effModels.map(m => m.avg_tokens || Math.round(m.total_tokens / m.requests)),
-              itemStyle: { color: colors.primary, borderRadius: [4, 4, 0, 0] },
-              barWidth: '35%',
-            },
-            {
-              name: '完成/提示比',
-              type: 'line',
-              yAxisIndex: 1,
-              data: effModels.map(m => {
-                const ratio = m.prompt_tokens > 0 ? Math.round((m.completion_tokens / m.prompt_tokens) * 1000) / 10 : 0;
-                return ratio;
-              }),
-              itemStyle: { color: colors.success },
-              lineStyle: { width: 2.5 },
-              symbol: 'circle',
-              symbolSize: 8,
-              smooth: true,
-            },
+            { name: '平均 Token', type: 'bar', data: effModels.map(m => m.avg_tokens || Math.round(m.total_tokens / m.requests)), itemStyle: { color: colors.primary, borderRadius: [4, 4, 0, 0] }, barWidth: '35%' },
+            { name: '完成/提示比', type: 'line', yAxisIndex: 1, data: effModels.map(m => { const ratio = m.prompt_tokens > 0 ? Math.round((m.completion_tokens / m.prompt_tokens) * 1000) / 10 : 0; return ratio; }), itemStyle: { color: colors.success }, lineStyle: { width: 2.5 }, symbol: 'circle', symbolSize: 8, smooth: true },
           ],
         });
       }
     }
   }
 
-  // Chart 5: Day-of-week × hour heatmap
-  const heatmapData = data.heatmap || [];
-  if (heatmapData.length > 0) {
-    const maxHeat = Math.max(...heatmapData.map(h => h.total_tokens));
-    const heatDays = _mDAY_NAMES;
-    const heatHours = Array.from({length: 24}, (_, i) => `${i}时`);
-    const heatSeriesData = heatmapData
-      .filter(h => h.total_tokens > 0)
-      .map(h => [h.hour, h.dow, h.total_tokens]);
-
-    const el = document.getElementById('monitorChartHeatmap');
-    if (el) {
-      _mChartHeatmap = window.echarts.init(el);
-      _mChartHeatmap.setOption({
-        backgroundColor: 'transparent',
-        tooltip: {
-          ...tooltipStyle,
-          formatter: (p) => {
-            const d = p.data;
-            return `${heatDays[d[1]]} ${d[0]}时<br/>Tokens: ${_mFmt(d[2])}<br/>调用: ${heatmapData.find(h => h.hour === d[0] && h.dow === d[1])?.requests || 0}`;
-          },
-        },
-        grid: { left: 50, right: 24, top: 24, bottom: 46 },
-        xAxis: {
-          type: 'category',
-          data: heatHours,
-          splitArea: { show: true },
-          axisLabel: { ...axisLabelStyle, interval: 2 },
-          axisLine: axisLineStyle,
-        },
-        yAxis: {
-          type: 'category',
-          data: heatDays,
-          splitArea: { show: true },
-          axisLabel: axisLabelStyle,
-          axisLine: axisLineStyle,
-        },
-        visualMap: {
-          min: 0,
-          max: maxHeat,
-          calculable: true,
-          orient: 'horizontal',
-          left: 'center',
-          bottom: 0,
-          inRange: {
-            color: [colors.border, colors.primary, colors.warning, colors.errorText],
-          },
-          textStyle: axisLabelStyle,
-          text: ['高', '低'],
-          itemWidth: 14,
-          itemHeight: 80,
-        },
-        series: [{
-          type: 'heatmap',
-          data: heatSeriesData,
-          label: { show: false },
-          emphasis: {
-            itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.3)' },
-          },
-        }],
-      });
-    }
-  }
-
-  // Resize handler
   window.removeEventListener('resize', _mResizeCharts);
   window.addEventListener('resize', _mResizeCharts);
 }

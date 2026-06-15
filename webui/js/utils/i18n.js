@@ -64,7 +64,7 @@ export const LANG = {
     'nav.task': '任务',
     'nav.support': '支持',
     'nav.monitor': '监控',
-    'nav.monitorPage': '监控',
+    'nav.monitorPage': '统计',
     'nav.performance': '性能',
     'nav.directory': '目录',
     'nav.auxiliary': '辅助',

@@ -118,6 +118,10 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
     将本地 API 函数注册到指定的路由器实例。
     local_handlers: dict 包含所有本地 api_* 函数的引用。
     """
+    # 始终注册到模块级 api_router（siper_web.py HTTP handler 通过 from import 引用它）
+    global api_router
+    if router is not api_router:
+        router = api_router
 
     # 注入全局变量到 handlers 模块
     from ai_agent.api import handlers as _h
@@ -209,6 +213,18 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
     @router.post("/api/skills/preview")
     def api_skills_preview(body):
         return local_handlers["api_skill_preview"](body)
+
+    @router.get("/api/stats")
+    def api_stats_get():
+        return local_handlers["api_get_system_stats"]()
+
+    @router.get("/api/project-structure")
+    def api_project_structure_get():
+        return local_handlers["api_get_project_structure"]()
+
+    @router.get("/api/tools")
+    def api_tools_get():
+        return local_handlers["api_get_tools"]()
 
     @router.get("/api/skills/stats")
     def api_skills_stats():

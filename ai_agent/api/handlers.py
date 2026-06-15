@@ -2426,5 +2426,317 @@ def api_get_logs(full_path, log_buffer=None):
             logger.warning(f"模型测试失败: {model} @ {chat_url} — {e}")
             return {"success": False, "error": str(e)}
 
-    # ===== Token Stats API =====
+    # ===== System Stats API =====
+
+def api_get_system_stats():
+    """Return system statistics: DB sizes, row counts, agent count, uptime."""
+    import resource, platform, os as _os, subprocess, json as _json
+    result = {
+        "memory_rss_mb": 0,
+        "session_count": 0,
+        "message_count": 0,
+        "token_usage_count": 0,
+        "agent_count": 0,
+        "model_count": 0,
+        "uptime_seconds": round(time.time() - start_time, 1),
+        "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time)),
+        "port": port,
+        "ws_port": ws_port,
+        "db_sizes": {
+            "sessions_db_mb": 0,
+            "token_db_kb": 0,
+            "models_db_kb": 0,
+        },
+        "system": {
+            "os": "",
+            "os_version": "",
+            "kernel": "",
+            "hostname": "",
+            "cpu_model": "",
+            "cpu_cores": 0,
+            "cpu_percent": 0,
+            "gpu_info": "",
+            "gpu_percent": 0,
+            "total_ram_mb": 0,
+            "disk_total_gb": 0,
+            "disk_used_gb": 0,
+            "disk_percent": 0,
+            "python_version": "",
+            "siper_version": "",
+        },
+    }
+
+    # Memory RSS (Linux: ru_maxrss in KB)
+    try:
+        mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        result["memory_rss_mb"] = round(mem / 1024, 1)
+    except Exception as e:
+        logger.warning(f"stats memory: {e}")
+
+    # Agent count: subdirectories of agents/
+    try:
+        agents_dir = PROJECT_ROOT / "agents"
+        if agents_dir.exists():
+            result["agent_count"] = sum(1 for d in agents_dir.iterdir() if d.is_dir())
+    except Exception as e:
+        logger.warning(f"stats agents: {e}")
+
+    # Sessions & messages count from default sessions.db
+    try:
+        sessions_db = PROJECT_ROOT / "agents" / "default" / "sessions" / "sessions.db"
+        if sessions_db.exists():
+            conn = sqlite3.connect(str(sessions_db), check_same_thread=False)
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM sessions")
+            result["session_count"] = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM messages")
+            result["message_count"] = cur.fetchone()[0]
+            conn.close()
+            result["db_sizes"]["sessions_db_mb"] = round(_os.path.getsize(str(sessions_db)) / 1024 / 1024, 2)
+    except Exception as e:
+        logger.warning(f"stats sessions: {e}")
+
+    # Token usage count
+    try:
+        token_db = PROJECT_ROOT / "agents" / "token.db"
+        if token_db.exists():
+            conn = sqlite3.connect(str(token_db), check_same_thread=False)
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM token_usage")
+            result["token_usage_count"] = cur.fetchone()[0]
+            conn.close()
+            result["db_sizes"]["token_db_kb"] = round(_os.path.getsize(str(token_db)) / 1024, 1)
+    except Exception as e:
+        logger.warning(f"stats token: {e}")
+
+    # Models DB size & count
+    try:
+        models_db = PROJECT_ROOT / "models.db"
+        if models_db.exists():
+            result["db_sizes"]["models_db_kb"] = round(_os.path.getsize(str(models_db)) / 1024, 1)
+            conn = sqlite3.connect(str(models_db), check_same_thread=False)
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM models")
+            result["model_count"] = cur.fetchone()[0]
+            conn.close()
+    except Exception as e:
+        logger.warning(f"stats models: {e}")
+
+    # System info
+    try:
+        sys = result["system"]
+        sys["os"] = platform.system()
+        sys["os_version"] = platform.version()
+        sys["kernel"] = platform.release()
+        sys["hostname"] = platform.node()
+        sys["python_version"] = platform.python_version()
+        try:
+            from siper_web import SIPER_VERSION
+            sys["siper_version"] = SIPER_VERSION
+        except Exception:
+            pass
+        # CPU
+        try:
+            sys["cpu_cores"] = _os.cpu_count() or 0
+            # 尝试读取 CPU 型号
+            if sys["os"] == "Linux":
+                try:
+                    with open("/proc/cpuinfo") as f:
+                        for line in f:
+                            if "model name" in line:
+                                sys["cpu_model"] = line.split(":", 1)[1].strip()
+                                break
+                except Exception:
+                    pass
+            elif sys["os"] == "Darwin":
+                try:
+                    r = subprocess.run(["sysctl", "-n", "machdep.cpu.brand_string"], capture_output=True, text=True, timeout=5)
+                    sys["cpu_model"] = r.stdout.strip()
+                except Exception:
+                    pass
+            elif sys["os"] == "Windows":
+                try:
+                    r = subprocess.run(["wmic", "cpu", "get", "name"], capture_output=True, text=True, timeout=5)
+                    lines = [l.strip() for l in r.stdout.strip().split("\n") if l.strip() and l.strip() != "Name"]
+                    if lines:
+                        sys["cpu_model"] = lines[0]
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.warning(f"stats cpu: {e}")
+        # CPU usage
+        try:
+            import psutil
+            sys["cpu_percent"] = round(psutil.cpu_percent(interval=0.5), 1)
+            try:
+                freq = psutil.cpu_freq()
+                if freq:
+                    sys["cpu_freq_mhz"] = round(freq.current)
+            except Exception:
+                pass
+        except Exception:
+            pass
+        # Disk IO
+        try:
+            import psutil
+            disk = psutil.disk_usage(str(PROJECT_ROOT))
+            sys["disk_total_gb"] = round(disk.total / 1024 / 1024 / 1024, 1)
+            sys["disk_used_gb"] = round(disk.used / 1024 / 1024 / 1024, 1)
+            sys["disk_percent"] = disk.percent
+            try:
+                io = psutil.disk_io_counters()
+                if io:
+                    sys["disk_read_mb"] = round(io.read_bytes / 1024 / 1024, 1)
+                    sys["disk_write_mb"] = round(io.write_bytes / 1024 / 1024, 1)
+            except Exception:
+                pass
+        except Exception:
+            pass
+        # Swap
+        try:
+            import psutil
+            sw = psutil.swap_memory()
+            sys["swap_total_mb"] = round(sw.total / 1024 / 1024)
+            sys["swap_used_mb"] = round(sw.used / 1024 / 1024)
+        except Exception:
+            pass
+        # RAM
+        try:
+            import psutil
+            vm = psutil.virtual_memory()
+            sys["total_ram_mb"] = round(vm.total / 1024 / 1024)
+            sys["available_ram_mb"] = round(vm.available / 1024 / 1024)
+            sys["ram_percent"] = vm.percent
+        except Exception:
+            pass
+        # Load avg (Linux/macOS)
+        try:
+            import os as _os
+            la = _os.getloadavg()
+            sys["load_avg"] = [round(la[0], 2), round(la[1], 2), round(la[2], 2)]
+        except Exception:
+            pass
+        # Process count
+        try:
+            import psutil
+            sys["process_count"] = len(psutil.pids())
+        except Exception:
+            pass
+        # GPU
+        try:
+            import subprocess as sp
+            if sys["os"] == "Linux":
+                # 尝试 nvidia-smi
+                try:
+                    r = sp.run(["nvidia-smi", "--query-gpu=name,utilization.gpu", "--format=csv,noheader"], capture_output=True, text=True, timeout=5)
+                    if r.returncode == 0 and r.stdout.strip():
+                        parts = r.stdout.strip().split(",")
+                        sys["gpu_info"] = parts[0].strip()
+                        gpu_util = parts[1].strip().replace("%", "").strip()
+                        sys["gpu_percent"] = float(gpu_util)
+                except Exception:
+                    pass
+            elif sys["os"] == "Darwin":
+                # macOS: 检查是否有 GPU
+                try:
+                    r = sp.run(["system_profiler", "SPDisplaysDataType"], capture_output=True, text=True, timeout=5)
+                    for line in r.stdout.split("\n"):
+                        if "Chipset Model" in line:
+                            sys["gpu_info"] = line.split(":", 1)[1].strip()
+                            break
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.warning(f"stats gpu: {e}")
+    except Exception as e:
+        logger.warning(f"stats system: {e}")
+
+    return result
+
+
+# ===== Project Structure API =====
+
+def api_get_project_structure():
+    """Return project directory structure: subdirs and root-level files."""
+    root = Path.cwd()
+    EXCLUDE_DIRS = {".git", "__pycache__", "node_modules", ".hermes", "agents", "uploads", "knowledge-space", "docs", "skills"}
+    ROOT_EXTENSIONS = {".py", ".md", ".txt", ".json", ".sh", ".yml", ".yaml", ".js", ".css", ".html"}
+
+    dirs_info = []
+    files_info = []
+
+    try:
+        for entry in sorted(root.iterdir()):
+            if entry.is_dir():
+                if entry.name in EXCLUDE_DIRS or entry.name.startswith("."):
+                    continue
+                count = 0
+                total_size = 0
+                for f in entry.rglob("*"):
+                    if f.is_file():
+                        count += 1
+                        try:
+                            total_size += f.stat().st_size
+                        except Exception:
+                            pass
+                dirs_info.append({
+                    "name": entry.name,
+                    "count": count,
+                    "size_kb": round(total_size / 1024, 1),
+                })
+            elif entry.is_file():
+                if entry.suffix in ROOT_EXTENSIONS:
+                    try:
+                        sz = entry.stat().st_size
+                    except Exception:
+                        sz = 0
+                    files_info.append({
+                        "name": entry.name,
+                        "size_kb": round(sz / 1024, 1),
+                    })
+    except Exception as e:
+        logger.warning(f"project structure: {e}")
+
+    return {"dirs": dirs_info, "files": files_info}
+
+
+# ===== Tools API =====
+
+def api_get_tools():
+    """Return all registered tools with metadata (name, description, schema, category, toolsets)."""
+    from ai_agent.tools.tool_registry import ToolRegistry
+    registry = ToolRegistry()
+    # Initialize to auto-discover tools
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop:
+        # Already in an async context, use run_coroutine_threadsafe or create task
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            fut = pool.submit(asyncio.run, registry.initialize())
+            fut.result(timeout=30)
+    else:
+        asyncio.run(registry.initialize())
+
+    tools_list = registry.get_available_tools()
+    # Group by category
+    categories = {}
+    for t in tools_list:
+        cat = t.get("category", "utility")
+        if cat not in categories:
+            categories[cat] = []
+        categories[cat].append(t)
+
+    return {
+        "tools": tools_list,
+        "categories": categories,
+        "total": len(tools_list),
+    }
+
+
+# ===== Token Stats API =====
 

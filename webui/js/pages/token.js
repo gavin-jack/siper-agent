@@ -85,13 +85,27 @@ export async function refreshTokenStats() {
     const colors = _resolveColors();
     const palette = _echartsPalette();
 
-    // Summary cards
+    // Summary cards — 4-column grid with new labels
     const stats = el('TokenStats');
     stats.innerHTML = `
-      <div class="stat-card card-left-accent"><div class="value">${data.total_requests}</div><div class="label">${t('token.totalCalls')}</div></div>
-      <div class="stat-card card-left-accent"><div class="value">${fmt(data.total_tokens)}</div><div class="label">${t('token.totalTokens')}</div></div>
-      <div class="stat-card card-left-accent"><div class="value">${fmt(data.total_prompt_tokens)}</div><div class="label">${t('token.prompt')}</div></div>
-      <div class="stat-card card-left-accent"><div class="value">${fmt(data.total_completion_tokens)}</div><div class="label">${t('token.completion')}</div></div>
+      <div class="token-stats-grid">
+        <div class="stat-card">
+          <div class="value">${data.total_requests}</div>
+          <div class="label">总调用次数</div>
+        </div>
+        <div class="stat-card">
+          <div class="value">${fmt(data.total_tokens)}</div>
+          <div class="label">总词元数</div>
+        </div>
+        <div class="stat-card">
+          <div class="value">${fmt(data.total_prompt_tokens)}</div>
+          <div class="label">提示词元</div>
+        </div>
+        <div class="stat-card">
+          <div class="value">${fmt(data.total_completion_tokens)}</div>
+          <div class="label">完成词元</div>
+        </div>
+      </div>
     `;
 
     // History table — removed
@@ -332,11 +346,16 @@ export async function refreshTokenStats() {
           data: heatSeriesData,
           label: { show: false },
           emphasis: {
-            itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.3)' },
+            itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.3)' }
           },
         }],
       });
     }
+
+    // Apply token-chart-grid to all siper-token-charts-row containers
+    document.querySelectorAll('.siper-token-charts-row').forEach(row => {
+      row.classList.add('token-chart-grid');
+    });
 
     // Resize handler
     window.removeEventListener('resize', _resizeCharts);

@@ -78,24 +78,21 @@ export function renderLogLevelFilters() { _renderLogLevelFilters(); }
 function _renderLogLevelFilters() {
   const container = document.getElementById('logLevelFilters');
   if (!container) return;
-  const levelColors = {
-    'DEBUG': 'var(--cyan)', 'INFO': 'var(--accent)',
-    'WARNING': 'var(--yellow)', 'WARN': 'var(--yellow)',
-    'ERROR': 'var(--red)', 'CRITICAL': 'var(--red)',
-    'HEARTBEAT': 'var(--green)',
-  };
+  container.classList.add('log-level-chips');
   container.innerHTML = logState.availableLevels.map(lvl => {
     const isActive = logState.levels.includes(lvl);
-    const color = levelColors[lvl] || 'var(--text-dim)';
-    return `<span class="log-level-chip" data-level="${lvl}" onclick="toggleLogLevel('${lvl}')" style="cursor:pointer;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;border:1px solid ${color};background:${isActive ? color : 'transparent'};color:${isActive ? 'var(--color-surface)' : color};margin-right:4px;user-select:none;transition:all 0.15s">${lvl}</span>`;
+    return `<span class="log-chip${isActive ? ' active' : ''}" data-level="${lvl}" onclick="toggleLogLevel('${lvl}')">${lvl}</span>`;
   }).join('');
 }
 
 export function toggleLogLevel(lvl) {
   const idx = logState.levels.indexOf(lvl);
-  if (idx >= 0) logState.levels.splice(idx, 1); else logState.levels.push(lvl);
+  const isActive = idx >= 0;
+  if (isActive) logState.levels.splice(idx, 1); else logState.levels.push(lvl);
   logState.offset = 0;
-  _renderLogLevelFilters();
+  // Update chip active state via classList
+  const chip = document.querySelector(`.log-chip[data-level="${lvl}"]`);
+  if (chip) chip.classList.toggle('active', !isActive);
 }
 
 export function renderLogSourceOptions() { _renderLogSourceOptions(); }

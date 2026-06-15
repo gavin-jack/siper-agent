@@ -3619,10 +3619,18 @@ async def main():
     carrier_mgr = CarrierManager()
     db_mgr = _DBMgr(PROJECT_ROOT)
     api_router = Router(prefix="")
+    # 替换模块级 api_router，确保 HTTP handler 通过 from import 引用同一个对象
+    import ai_agent.api.router as _router_mod
+    _router_mod.api_router = api_router
     logger.info("[起源] SnapshotManager / CarrierManager / Router / DatabaseManager 已初始化")
 
     # 起源：注册 API 路由（一次性，在 main() 中完成）
-    from ai_agent.api.router import api_router, register_routes as _register_routes
+    from ai_agent.api.router import register_routes as _register_routes
+    from ai_agent.api.handlers import api_get_system_stats, api_get_project_structure, api_get_tools
+    import ai_agent.api.handlers as _h
+    _h.start_time = start_time
+    _h.port = port
+    _h.ws_port = ws_port
     _handlers = {
         "api_upgrade_check": api_upgrade_check,
         "api_upgrade_execute": api_upgrade_execute,
@@ -3667,12 +3675,18 @@ async def main():
         "api_discover_models": api_discover_models,
         "api_test_model": api_test_model,
         "api_get_token_stats": api_get_token_stats,
+        "api_get_system_stats": api_get_system_stats,
+        "api_get_project_structure": api_get_project_structure,
+        "api_get_tools": api_get_tools,
         "api_upload_file": api_upload_file,
         "api_get_logs": api_get_logs,
         "_handle_avatar_upload": _handle_avatar_upload,
     }
     _register_routes(api_router, agent, snapshot_mgr, carrier_mgr, _handlers)
-    logger.info("[起源] API 路由注册完成")
+    logger.info(f"[起源] API 路由注册完成，共 {len(api_router.routes)} 条路由")
+    # 调试：打印所有注册的路由
+    for m, p, fn in api_router.routes:
+        logger.info(f"  [ROUTE] {m} {p} -> {fn.__name__}")
 
     connections = {}
 
