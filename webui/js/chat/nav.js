@@ -4,7 +4,7 @@
  */
 import { setCurrentPage } from './state.js';
 
-const _CHAT_RENDERED_PAGES = new Set(['chat', 'tasks', 'skills', 'plugins', 'token', 'global-settings', 'model-settings', 'logs', 'monitor']);
+const _CHAT_RENDERED_PAGES = new Set(['chat', 'tasks', 'skills', 'plugins', 'token', 'global-settings', 'model-settings', 'logs', 'monitor', 'tools', 'directory']);
 let _currentPage = 'chat';
 
 export function siPerNavigate(page, skipHash) {
