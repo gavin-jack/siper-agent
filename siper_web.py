@@ -351,7 +351,7 @@ _jinja_env = jinja2.Environment(
     enable_async=False,
 )
 _version = int(time.time())  # Cache-buster for JS/CSS
-SIPER_VERSION = "v1.0.0-origin"  # Current version — update on release
+SIPER_VERSION = "v0.2.0"  # Current version — update on release
 
 
 def _render_index() -> str:
