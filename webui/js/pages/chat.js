@@ -146,7 +146,8 @@ export function chatSwitchPage(page, fromNavigate) {
 
   const headerName = document.getElementById('chatRightHeaderName');
   if (headerName) {
-    headerName.textContent = CHAT_PAGES[page].title;
+    const icon = CHAT_PAGES[page].icon || '';
+    headerName.innerHTML = icon ? `<span class="siper-page-header-icon">${icon}</span>${CHAT_PAGES[page].title}` : CHAT_PAGES[page].title;
     headerName.classList[isChat ? 'add' : 'remove']('siper-chat-header-name');
     headerName.classList[isChat ? 'remove' : 'add']('siper-page-header-name');
   }
