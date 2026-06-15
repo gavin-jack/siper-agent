@@ -1,82 +1,29 @@
-/**
- * chat/nav.js — 页面导航
- * 从 core.js 拆出。处理 siPerNavigate 页面切换逻辑。
- */
+// nav.js — 统一页面路由
+// 所有页面通过 app.js 的 navigateToPage() 动态加载
+// 此文件保留路由相关的常量和辅助函数
+
 import { setCurrentPage } from './state.js';
 
-const _CHAT_RENDERED_PAGES = new Set(['chat', 'tasks', 'skills', 'plugins', 'token', 'global-settings', 'model-settings', 'logs', 'monitor', 'tools', 'directory']);
-let _currentPage = 'chat';
+// 页面配置：标题 + 图标
+export const PAGE_CONFIG = {
+  chat:    { title: '对话', icon: '💬' },
+  tasks:    { title: '任务', icon: '📋' },
+  'model-settings': { title: '模型管理', icon: '🤖' },
+  tools:    { title: '工具', icon: '🔧' },
+  skills:    { title: '技能管理', icon: '🧩' },
+  plugins:  { title: '插件管理', icon: '🔌' },
+  monitor:  { title: '统计', icon: '📊' },
+  directory: { title: '目录', icon: '📁' },
+  'global-settings': { title: '全局设置', icon: '⚙️' },
+  sessions: { title: '会话管理', icon: '📝' },
+  memory:   { title: '记忆管理', icon: '🧠' },
+  'agent-config': { title: '智能体配置', icon: '⚡' },
+  'theme':  { title: '外观设置', icon: '🎨' },
+  logs:     { title: '日志', icon: '📜' },
+  token:    { title: '词元统计', icon: '📊' },
+};
 
-export function siPerNavigate(page, skipHash) {
-    if (!page) return;
-
-    // Chat-family pages (rendered inside #page-chat three-column layout)
-    if (_CHAT_RENDERED_PAGES.has(page)) {
-        const chatPage = document.getElementById('page-chat');
-        const dynamicPage = document.getElementById('page-dynamic');
-        if (chatPage) chatPage.style.display = 'flex';
-        if (dynamicPage) dynamicPage.style.display = 'none';
-        _currentPage = page;
-        if (typeof window.chatSwitchPage === 'function') {
-            window.chatSwitchPage(page, true);
-        }
-        return;
-    }
-
-    // Standalone pages (rendered into #page-dynamic)
-    const chatPage = document.getElementById('page-chat');
-    const dynamicPage = document.getElementById('page-dynamic');
-    if (chatPage) chatPage.style.display = 'none';
-    if (dynamicPage) {
-        dynamicPage.style.display = 'flex';
-        dynamicPage.innerHTML = '';
-    }
-    _currentPage = page;
-    if (!skipHash) location.hash = '#/' + page;
-
-    // Clone template DOM into #page-dynamic
-    const tplMap = {
-        'sessions': 'tpl-sessions',
-        'memory': 'tpl-memory',
-        'agent-config': 'tpl-agent-config',
-        'theme-settings': 'tpl-theme-settings',
-        'model-settings': 'tpl-model-settings',
-    };
-    const tplId = tplMap[page];
-    if (tplId) {
-        const tpl = document.getElementById(tplId);
-        if (tpl && dynamicPage) {
-            const clone = tpl.cloneNode(true);
-            clone.style.display = '';
-            clone.removeAttribute('id');
-            dynamicPage.appendChild(clone);
-        }
-    }
-
-    // Page-specific init
-    if (page === 'sessions' && typeof window.refreshSessions === 'function') {
-        window.refreshSessions();
-    }
-    if (page === 'memory') {
-        if (typeof window.populateMemoryAgentSelector === 'function') {
-            window.populateMemoryAgentSelector();
-        }
-        if (typeof window.refreshMemoryPage === 'function') {
-            window.refreshMemoryPage();
-        }
-    }
-    if (page === 'agent-config') {
-        if (typeof window.refreshConfigAgentPanel === 'function') window.refreshConfigAgentPanel();
-        if (typeof window.loadAgentSettings === 'function') window.loadAgentSettings();
-        if (typeof window.renderMiddleList === 'function') window.renderMiddleList();
-    }
-    if (page === 'theme-settings' && typeof window.showThemeSettings === 'function') {
-        window.showThemeSettings();
-    }
-    if (page === 'models' && typeof window.refreshModelsPage === 'function') {
-        window.refreshModelsPage();
-    }
-    if (page === 'file-browser' && typeof window.refreshFileList === 'function') {
-        window.refreshFileList();
-    }
+// 设置当前页面状态
+export function setNavCurrentPage(page) {
+  setCurrentPage(page);
 }

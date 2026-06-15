@@ -1,5 +1,5 @@
 // app.js — ESM 入口
-// 起源：有状态 UI（先加载，确保 WS 连接最早建立）
+// 三模板 SPA: chat(默认) | standalone(懒加载) | sidebar(常驻)
 import { connectWS, setConnected } from './core.js';
 import { registerAllHandlers } from './renderer.js';
 
@@ -7,7 +7,6 @@ import { registerAllHandlers } from './renderer.js';
 import { escapeHtml } from './utils/escape.js';
 import { LANG, t, applyLang, selectLang } from './utils/i18n.js';
 import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js';
-import { siPerNavigate } from './chat/nav.js';
 import { apiGet, apiPost } from './utils/api.js';
 import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js';
 
@@ -16,20 +15,21 @@ import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmD
 import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js';
 import * as AgentModels from './components/agent-models.js';
 
-// Pages
-import * as Skills from './pages/skills.js';
-import * as Memory from './pages/memory.js';
-import * as Logs from './pages/logs.js';
-import * as Token from './pages/token.js';
-import * as Sessions from './pages/sessions.js';
-import * as Theme from './pages/theme.js';
-import * as AgentConfig from './pages/agent-config.js';
-import * as Settings from './pages/settings.js';
-import * as ModelSettings from './pages/model-settings.js';
-
-// Chat (must load before DOMContentLoaded)
+// Chat core (must load before DOMContentLoaded)
 import * as Chat from './pages/chat.js';
-// chatSwitchPage 由 pages/chat.js L126 挂载
+
+// Chat input
+import { toggleChatModelDropdown } from './chat/input.js';
+
+// Sidebar / UI
+import { startNewChat } from './chat/sidebar.js';
+import { newSession } from './chat/session.js';
+
+// Template-clone pages (保留全量 import，后续逐步迁移)
+import * as Sessions from './pages/sessions.js';
+import * as Memory from './pages/memory.js';
+import * as AgentConfig from './pages/agent-config.js';
+import * as Theme from './pages/theme.js';
 
 // ===== Window Global Mounts =====
 // Utils
@@ -37,7 +37,6 @@ window.escapeHtml = escapeHtml;
 window.t = t;
 window.applyLang = applyLang;
 window.selectLang = selectLang;
-window.siPerNavigate = siPerNavigate;
 window.updateThemePaletteTrigger = updateThemePaletteTrigger;
 window.toggleChatSidebar = toggleChatSidebar;
 window.toggleThemePalette = toggleThemePalette;
@@ -63,71 +62,250 @@ window.verifyChatModel = verifyChatModel;
 window.initModelTestDelegation = initModelTestDelegation;
 window.AgentModels = AgentModels;
 
-// Pages
-window.Skills = Skills;
-window.Memory = Memory;
-window.Logs = Logs;
-window.Token = Token;
-window.Sessions = Sessions;
-window.Theme = Theme;
-window.AgentConfig = AgentConfig;
-window.Settings = Settings;
-window.ModelSettings = ModelSettings;
-
-// Page-specific functions (onclick handlers in index.html)
-import { switchConfigAgentPageTab, switchChatAgentTab, toggleIconPicker, saveAgentFile, resetAgentLimits, saveAllChatAgentConfig } from './pages/agent-config.js';
-import { renderTemplateList, saveThemeTemplate, exportTheme, importTheme, resetTheme } from './pages/theme.js';
-import { addModelFromForm } from './pages/model-settings.js';
-import { switchModelTab } from './pages/chat-pages/model-settings.js';
-import { loadGlobalModelsForAgent } from './components/agent-models.js';
-import { newSession } from './chat/session.js';
-// switchMonitorTab 由 pages/chat.js 挂载到 window（避免浏览器 ESM cache 问题）
-
-window.switchConfigAgentPageTab = switchConfigAgentPageTab;
-window.switchChatAgentTab = switchChatAgentTab;
-window.toggleIconPicker = toggleIconPicker;
-window.saveAgentFile = saveAgentFile;
-window.resetAgentLimits = resetAgentLimits;
-window.saveAllChatAgentConfig = saveAllChatAgentConfig;
-window.switchModelTab = switchModelTab;
-window.renderTemplateList = renderTemplateList;
-window.saveThemeTemplate = saveThemeTemplate;
-window.exportTheme = exportTheme;
-window.importTheme = importTheme;
-window.resetTheme = resetTheme;
-window.addModelFromForm = addModelFromForm;
-window.loadGlobalModelsForAgent = loadGlobalModelsForAgent;
+// Chat / Sidebar
+window.toggleChatModelDropdown = toggleChatModelDropdown;
+window.startNewChat = startNewChat;
 window.newSession = newSession;
-window.navigateToPage = siPerNavigate;  // alias
 
-// refreshSessions / refreshMemoryPage — 起源架构下由 WS 推送驱动，保留空函数兜底
+// Template-clone page functions
+window.showAddAgentModal = AgentConfig.showAddAgentModal;
+window.switchConfigAgentPageTab = AgentConfig.switchConfigAgentPageTab;
+window.switchChatAgentTab = AgentConfig.switchChatAgentTab;
+window.toggleIconPicker = AgentConfig.toggleIconPicker;
+window.saveAgentFile = AgentConfig.saveChatAgentFile;
+window.resetAgentLimits = AgentConfig.resetAgentLimits;
+window.saveAllChatAgentConfig = AgentConfig.saveAllChatAgentConfig;
+window.renderTemplateList = Theme.renderTemplateList;
+window.saveThemeTemplate = Theme.saveThemeTemplate;
+window.exportTheme = Theme.exportTheme;
+window.importTheme = Theme.importTheme;
+window.resetTheme = Theme.resetTheme;
+
 window.refreshSessions = () => {};
 window.refreshMemoryPage = () => {};
 
-// Model settings
-window.loadSettingsModels = ModelSettings.loadSettingsModels;
-window.discoverModels = ModelSettings.discoverModels;
-window.addCustomModel = ModelSettings.addCustomModel;
-window.addModelGroup = ModelSettings.addModelGroup;
-window.saveSettingsModels = ModelSettings.saveSettingsModels;
-window.deleteSettingsModel = ModelSettings.deleteSettingsModel;
-window.saveAllModels = ModelSettings.saveAllModels;
-window.applyProviderPreset = ModelSettings.applyProviderPreset;
-window.addDiscoveredModel = ModelSettings.addDiscoveredModel;
-window.addAllDiscoveredModels = ModelSettings.addAllDiscoveredModels;
-window.filterModelsList = ModelSettings.filterModelsList;
-window.verifyAllModels = ModelSettings.verifyAllModels;
-window.refreshModelsPage = ModelSettings.refreshModelsPage;
+// ===== 懒加载映射：页面名 → () => import(模块) =====
+function tplSessions() {
+  return `<div class="page-header">
+    <h2 data-i18n="sessions.title">会话管理</h2>
+    <div class="actions">
+      <button class="btn-sm primary" onclick="newSession()" data-i18n="sessions.new">+ 新会话</button>
+      <button class="btn-sm" onclick="refreshSessions()" data-i18n="sessions.refresh">刷新</button>
+    </div>
+  </div>
+  <div class="page-body page-body-flex">
+    <div class="session-list" id="sessionsList"></div>
+    <div class="session-preview" id="sessionPreview">
+      <div class="empty-state" data-i18n="sessions.selectPrompt">← 点击会话查看消息</div>
+    </div>
+  </div>`;
+}
 
-// Chat input
-import { toggleChatModelDropdown } from './chat/input.js';
+function tplMemory() {
+  return `<div class="page-header">
+    <h2 data-i18n="memory.title">记忆管理</h2>
+    <div class="actions flex-align-8">
+      <select id="memoryAgentSelector" onchange="onMemoryAgentChange(this.value)" class="select-input select-wide" aria-label="记忆智能体">
+        <option value="" data-i18n="memory.selectAgent">选择智能体...</option>
+      </select>
+      <button class="btn-sm" onclick="refreshMemoryPage()" data-i18n="memory.refresh">刷新</button>
+      <button class="btn-sm primary" onclick="saveMemoryMd()" data-i18n="memory.save">保存记忆</button>
+      <button class="btn-sm primary" onclick="saveMemoryConfig()" data-i18n="memory.saveConfig">保存配置</button>
+    </div>
+  </div>
+  <div class="memory-grid">
+    <div class="memory-file-section">
+      <div class="section-header">
+        <span class="model-badge badge-accent2">memory.md</span>
+        <span data-i18n="memory.mdFile">记忆文件</span>
+        <span id="memoryAgentLabel" class="text-muted-small"></span>
+      </div>
+      <textarea class="agent-file-editor code-editor-flex" id="memoryMdEditor" placeholder="加载中..." aria-label="记忆内容编辑器"></textarea>
+    </div>
+    <div class="memory-config-section">
+      <div class="section-header">
+        <span class="model-badge badge-green" data-i18n="memory.integration">记忆整合</span>
+        <span data-i18n="memory.integrationTitle">记忆整合进提示词的方式</span>
+      </div>
+      <div class="config-grid">
+        <div class="setting-label" data-i18n="memory.mode">整合模式</div>
+        <select id="memMode" class="select-input">
+          <option value="append" data-i18n="memory.modeAppend">追加到系统提示词后</option>
+          <option value="prepend" data-i18n="memory.modePrepend">插入到系统提示词前</option>
+          <option value="system" data-i18n="memory.modeSystem">替换系统提示词</option>
+          <option value="none" data-i18n="memory.modeNone">不整合（仅手动引用）</option>
+        </select>
+        <div class="setting-label" data-i18n="memory.maxTokens">最大 Token 数</div>
+        <input type="number" id="memMaxTokens" class="select-input" value="2000" min="100" max="10000" aria-label="最大 Token 数">
+        <div class="setting-label" data-i18n="memory.template">提示词模板</div>
+        <textarea id="memTemplate" rows="3" class="code-input" placeholder="提示词模板">{memory}</textarea>
+        <div class="section-label" data-i18n="memory.preview">预览效果</div>
+        <div id="memPreview" class="preview-box"></div>
+      </div>
+      <button class="btn-sm" onclick="showConfirm({title:'重置记忆配置',msg:'确定要重置记忆配置为默认值吗？',okText:'重置',onConfirm:resetMemoryConfig})" data-i18n="memory.resetConfig">重置</button>
+    </div>
+  </div>`;
+}
 
-// Sidebar / UI
-import { startNewChat } from './chat/sidebar.js';
-window.toggleChatModelDropdown = toggleChatModelDropdown;
-window.startNewChat = startNewChat;
+function tplAgentConfig() {
+  return `<div class="page-header">
+    <h2 data-i18n="agentConfig.title">智能体配置</h2>
+    <div class="actions">
+      <button class="btn-sm primary" onclick="navigateToPage('chat')" data-i18n="agentConfig.backToChat">← 返回对话</button>
+    </div>
+  </div>
+  <div id="agentConfigContent">
+    <div id="agentSelector" class="agent-selector"></div>
+    <div id="agentConfigTitle" class="agent-config-title"></div>
+    <div class="agent-tabs">
+      <button class="agent-tab active" data-tab="about" id="agentTabAbout" onclick="switchConfigAgentPageTab('about')">关于</button>
+      <button class="agent-tab" data-tab="files" id="agentTabFiles" onclick="switchConfigAgentPageTab('files')">属性文件</button>
+      <button class="agent-tab" data-tab="memory" id="agentTabMemory" onclick="switchConfigAgentPageTab('memory')">记忆</button>
+      <button class="agent-tab" data-tab="limits" onclick="switchConfigAgentPageTab('limits')">限制</button>
+      <button class="agent-tab" data-tab="models" onclick="switchConfigAgentPageTab('models')">模型</button>
+      <button class="agent-tab" data-tab="avatar" onclick="switchConfigAgentPageTab('avatar')">头像</button>
+    </div>
+    <div class="agent-tab-content active" id="agentTabContentAbout"></div>
+    <div class="agent-tab-content" id="agentTabContentFiles"></div>
+    <div class="agent-tab-content" id="agentTabContentMemory"></div>
+    <div class="agent-tab-content" id="tab-limits"></div>
+    <div class="agent-tab-content" id="tab-models"></div>
+    <div class="agent-tab-content" id="tab-avatar"></div>
+    <div class="agent-config-footer">
+      <button class="btn-sm" id="cfgAgentDeleteBtn" onclick="if(typeof confirmDeleteAgent==='function'&&currentConfigAgent)confirmDeleteAgent(currentConfigAgent)" data-i18n="agentConfig.deleteAgent">删除智能体</button>
+      <button class="btn-sm primary" onclick="saveAllChatAgentConfig()" data-i18n="agentConfig.saveAll">保存全部</button>
+    </div>
+  </div>
+  <div id="iconPickerPopup" class="icon-picker-popup hidden"></div>`;
+}
 
-// ===== 注册所有 renderer handlers（起源核心） =====
+function tplTheme() {
+  return `<div class="page-header">
+    <h2 data-i18n="theme.title">外观设置</h2>
+    <div class="actions">
+      <button class="btn-sm theme-reset-btn" onclick="resetTheme()" data-i18n="theme.reset">重置默认</button>
+      <button class="btn-sm" onclick="exportTheme()" data-i18n="theme.export">导出</button>
+      <button class="btn-sm" onclick="importTheme()" data-i18n="theme.import">导入</button>
+    </div>
+  </div>
+  <div class="theme-settings-content">
+    <div class="theme-section">
+      <div class="section-label" data-i18n="theme.preset">预设主题</div>
+      <div id="themePresetBar" class="theme-preset-bar"></div>
+    </div>
+    <div class="theme-section">
+      <div class="section-label" data-i18n="theme.customColors">自定义颜色</div>
+      <div id="themeCustomColors" class="color-grid"></div>
+    </div>
+    <div class="theme-section">
+      <div class="section-label" data-i18n="theme.sizeSettings">尺寸设置</div>
+      <div id="themeSizeSettings" class="size-settings"></div>
+    </div>
+    <div class="theme-section">
+      <div class="section-label" data-i18n="theme.templates">主题模板</div>
+      <div class="template-controls">
+        <input type="text" id="templateName" class="select-input" placeholder="模板名称" aria-label="主题模板名称">
+        <button class="btn-sm primary" onclick="saveThemeTemplate()" data-i18n="theme.saveTemplate">保存模板</button>
+        <button class="btn-sm" onclick="renderTemplateList()" data-i18n="theme.refreshTemplates">刷新</button>
+      </div>
+      <div id="themeTemplateList" class="template-list"></div>
+    </div>
+  </div>`;
+}
+
+// ===== 懒加载映射：页面名 → () => import(模块) =====
+const PAGE_LAZY = {
+  'tasks':     () => import('./pages/chat-pages/tasks.js'),
+  'skills':    () => import('./pages/chat-pages/skills.js'),
+  'plugins':  () => import('./pages/chat-pages/plugins.js'),
+  'token':     () => import('./pages/chat-pages/token.js'),
+  'settings': () => import('./pages/chat-pages/settings.js'),
+  'model-settings': () => import('./pages/chat-pages/model-settings.js'),
+  'logs':      () => import('./pages/chat-pages/logs.js'),
+  'monitor':  () => import('./pages/chat-pages/monitor.js'),
+  'tools':     () => import('./pages/chat-pages/tools.js'),
+  'directory': () => import('./pages/chat-pages/directory.js'),
+};
+
+// Template-clone pages 已全量加载，直接映射
+const PAGE_TEMPLATE = {
+  'sessions': Sessions,
+  'memory': Memory,
+  'agent-config': AgentConfig,
+  'theme': Theme,
+};
+
+// 页面名 → 渲染函数名 映射
+const PAGE_RENDER_FN = {
+  'tasks':     'renderTasksPageChat',
+  'skills':    'renderSkillsPageChat',
+  'plugins':  'renderPluginsPageChat',
+  'token':     'renderTokenPageChat',
+  'settings': 'renderSettingsPageChat',
+  'model-settings': 'renderModelSettingsPageChat',
+  'logs':      'renderLogsPageChat',
+  'monitor':  'renderMonitorPageChat',
+  'tools':     'renderToolsPage',
+  'directory': 'renderDirectoryPageChat',
+  'sessions': 'renderSessions',
+  'memory':    'renderMemoryContent',
+  'agent-config': 'showAddAgentModal',
+  'theme':  'showThemeSettings',
+};
+
+// 缓存已加载的模块
+const _pageCache = {};
+
+async function navigateToPage(page) {
+  const container = document.getElementById('page-standalone');
+  container.style.display = 'flex';
+  document.getElementById('page-chat').style.display = 'none';
+
+  try {
+    // Template-clone pages: 先创建模板 DOM
+    if (PAGE_TEMPLATE[page]) {
+      const tplMap = { 'sessions': tplSessions, 'memory': tplMemory, 'agent-config': tplAgentConfig, 'theme': tplTheme };
+      container.innerHTML = tplMap[page] ? tplMap[page]() : '';
+    } else {
+      container.innerHTML = '<div class="empty-state">加载中...</div>';
+    }
+
+    // 获取模块
+    let mod;
+    if (PAGE_TEMPLATE[page]) {
+      mod = PAGE_TEMPLATE[page];
+    } else if (PAGE_LAZY[page]) {
+      if (!_pageCache[page]) {
+        _pageCache[page] = await PAGE_LAZY[page]();
+      }
+      mod = _pageCache[page];
+    } else {
+      return;
+    }
+
+    // 调用渲染函数
+    const fnName = PAGE_RENDER_FN[page];
+    if (fnName && typeof mod[fnName] === 'function') {
+      mod[fnName](container);
+    }
+
+    // 挂载页面特有的全局函数（供 HTML onclick 调用）
+    if (page === 'model-settings' && typeof mod.switchModelTab === 'function') {
+      window.switchModelTab = mod.switchModelTab;
+    }
+
+    // 更新 hash
+    if (location.hash !== '#/' + page) {
+      history.replaceState(null, '', '#/' + page);
+    }
+  } catch(e) {
+    console.error('[app.js] navigateToPage failed:', e);
+    container.innerHTML = '<div class="empty-state">加载失败: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+window.navigateToPage = navigateToPage;
+
+// ===== 注册所有 renderer handlers =====
 registerAllHandlers();
 
 // ===== Hash-based SPA routing =====
@@ -140,16 +318,14 @@ function initRouter() {
     }
   } catch(e) {}
   const rawHash = location.hash.replace('#/', '').replace('#', '');
-  const pageToShow = rawHash && rawHash !== 'chat' ? rawHash : null;
-  if (pageToShow) {
-    if (typeof window.siPerNavigate === 'function') {
-      window.siPerNavigate(pageToShow, true);
-    }
+  if (rawHash && rawHash !== 'chat') {
+    navigateToPage(rawHash);
   } else {
-    const chatPage = document.getElementById('page-chat');
-    if (chatPage) chatPage.style.display = 'flex';
-    if (typeof window.chatSwitchPage === 'function') window.chatSwitchPage('chat');
-    else console.error('[ESM] chatSwitchPage is not a function!');
+    document.getElementById('page-chat').style.display = 'flex';
+    document.getElementById('page-standalone').style.display = 'none';
+    if (typeof window.initChatPage === 'function') {
+      window.initChatPage();
+    }
   }
   // Init Mermaid
   if (window.mermaid) {

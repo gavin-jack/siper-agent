@@ -1,13 +1,11 @@
-// pages/chat.js — 聊天页面入口 + 路由
-// 从 1017 行精简为入口 + 路由表 + window 挂载
-// 各页面渲染函数已迁移到 pages/chat-pages/
+// pages/chat.js — chat 页面初始化器
+// 只负责构建 #page-chat 的 DOM 结构并渲染聊天页面
 
 // Utils
 import { escapeHtml } from '../utils/escape.js';
 import { showDictModal } from '../components/toast.js';
 
 // Chat modules
-import { siPerNavigate } from '../chat/nav.js';
 import { updateCtxFromStreamEnd } from '../chat/session.js';
 import { setCurrentPage, fmtTokens, updateStreamingBadge, chatSidebarExpanded, chatSessionId, chatCurrentAgent, chatAgents } from '../chat/state.js';
 import * as Message from '../chat/message.js';
@@ -23,89 +21,8 @@ import { isSessionUnread } from '../chat/sidebar.js';
 import { updateCtxInfoDisplay } from '../chat/message.js';
 import { closeChatModelDropdown, updateChatHeader } from '../chat/input.js';
 
-// Sub-page renderers
+// Chat page renderer
 import { renderChatPage } from './chat-pages/chat.js';
-import { renderTasksPageChat } from './chat-pages/tasks.js';
-import { renderSkillsPageChat } from './chat-pages/skills.js';
-import { renderPluginsPageChat } from './chat-pages/plugins.js';
-import { renderTokenPageChat } from './chat-pages/token.js';
-import { renderSettingsPageChat } from './chat-pages/settings.js';
-import { renderModelSettingsPageChat } from './chat-pages/model-settings.js';
-import { renderLogsPageChat } from './chat-pages/logs.js';
-import { renderMonitorPageChat, switchMonitorTab } from './chat-pages/monitor.js';
-import { renderToolsPage } from './chat-pages/tools.js';
-// directory.js 内联 — 避免浏览器 ESM 加载器对独立文件缓存失败
-// 注意：escapeHtml 已在 chat.js 顶部 import，直接使用
-function renderDirectoryPageChat(container) {
-  container.className = 'siper-content siper-full-content';
-  container.innerHTML = `
-<div class="page-header">
-  <h3>📁 项目目录</h3>
-  <button class="siper-btn" id="dirRefreshBtn" onclick="window._dirRefresh()">刷新</button>
-</div>
-<div class="page-body">
-  <div id="dirTree" class="siper-dir-tree">加载中...</div>
-</div>`;
-  _loadDirectory();
-}
-function _fmtSize(kb) {
-  if (kb >= 1024) return (kb / 1024).toFixed(1) + ' MB';
-  return kb.toFixed(1) + ' KB';
-}
-function _loadDirectory() {
-  const treeEl = document.getElementById('dirTree');
-  if (!treeEl) return;
-  treeEl.innerHTML = '<div style="padding:20px;color:var(--color-text-dim)">加载中...</div>';
-  fetch('/api/project-structure').then(r => r.json()).then(data => {
-    if (!data || (!data.dirs && !data.files)) {
-      treeEl.innerHTML = '<div style="padding:20px;color:var(--color-error-text)">加载失败</div>';
-      return;
-    }
-    let html = '';
-    if (data.dirs && data.dirs.length > 0) {
-      html += '<div class="siper-dir-section"><div class="siper-dir-section-title">📂 目录</div>';
-      data.dirs.forEach(d => {
-        html += `<div class="siper-dir-item">
-          <span class="siper-dir-icon">📂</span>
-          <span class="siper-dir-name">${escapeHtml(d.name)}/</span>
-          <span class="siper-dir-meta">${d.count} 个文件</span>
-          <span class="siper-dir-size">${_fmtSize(d.size_kb)}</span>
-        </div>`;
-      });
-      html += '</div>';
-    }
-    if (data.files && data.files.length > 0) {
-      html += '<div class="siper-dir-section"><div class="siper-dir-section-title">📄 根目录文件</div>';
-      data.files.forEach(f => {
-        const icon = f.name.endsWith('.py') ? '🐍' : f.name.endsWith('.md') ? '📝' : f.name.endsWith('.json') ? '📋' : f.name.endsWith('.sh') ? '⚡' : '📄';
-        html += `<div class="siper-dir-item">
-          <span class="siper-dir-icon">${icon}</span>
-          <span class="siper-dir-name">${escapeHtml(f.name)}</span>
-          <span class="siper-dir-meta"></span>
-          <span class="siper-dir-size">${_fmtSize(f.size_kb)}</span>
-        </div>`;
-      });
-      html += '</div>';
-    }
-    treeEl.innerHTML = html;
-  }).catch(() => {
-    treeEl.innerHTML = '<div style="padding:20px;color:var(--color-error-text)">加载失败，请刷新重试</div>';
-  });
-}
-window._dirRefresh = function() { _loadDirectory(); };
-
-// ===== Page Config =====
-const CHAT_PAGES = {
-  chat:    { title: '对话', icon: '💬' },
-  tasks:    { title: '任务', icon: '📋' },
-  'model-settings': { title: '模型管理', icon: '🤖' },
-  tools:    { title: '工具', icon: '🔧' },
-  skills:    { title: '技能管理', icon: '🧩' },
-  plugins:  { title: '插件管理', icon: '🔌' },
-  monitor:  { title: '统计', icon: '📊' },
-  directory: { title: '目录', icon: '📁' },
-  'global-settings': { title: '全局设置', icon: '⚙️' },
-};
 
 // ===== Init =====
 Input.bindChatInput();
@@ -114,78 +31,71 @@ if (chatSidebarExpanded) {
   if (sidebar) sidebar.classList.add('expanded');
 }
 
-// siper-chat 仅 chat 页面使用，其余均为独立页面（siper-page）
-const CHAT_PAGE_ONLY = new Set(['chat']);
+// ===== initChatPage =====
+let _chatInitialized = false;
 
-// ===== Page Switching =====
-export function chatSwitchPage(page, fromNavigate) {
-  if (!CHAT_PAGES[page]) return;
-  setCurrentPage(page);
+export function initChatPage() {
+  if (_chatInitialized) return;
+  _chatInitialized = true;
 
-  if (!fromNavigate) {
-    if (page !== 'chat') location.hash = '#/' + page;
-    else location.hash = '';
-  }
+  const pageChat = document.getElementById('page-chat');
+  pageChat.innerHTML = `
+    <!-- 侧边栏 -->
+    <div class="siper-sidebar" id="chatSidebar">
+      <div class="siper-sidebar-header" onclick="toggleChatSidebar()" title="展开/折叠">
+        <img src="/static/default_avatar.webp" class="siper-sidebar-avatar" alt="avatar" width="36" height="36" onerror="this.src='/static/default_avatar_256.png'">
+        <span class="siper-sidebar-brand">SiPer</span>
+      </div>
+      <nav class="siper-sidebar-nav" role="navigation" aria-label="主导航">
+        <div class="siper-nav-section">
+          <div class="siper-nav-title" data-i18n="nav.agent">智能体</div>
+          <div class="siper-nav-item active" data-page="chat" onclick="navigateToPage('chat')"><span>💬</span><span class="siper-nav-item-label" data-i18n="nav.chat">对话</span></div>
+          <div class="siper-nav-item" data-page="tasks" onclick="navigateToPage('tasks')"><span>📋</span><span class="siper-nav-item-label" data-i18n="nav.task">任务</span></div>
+        </div>
+        <div class="siper-nav-section">
+          <div class="siper-nav-title" data-i18n="nav.support">支持</div>
+          <div class="siper-nav-item" data-page="model-settings" onclick="navigateToPage('model-settings')"><span>🤖</span><span class="siper-nav-item-label" data-i18n="nav.modelSettings">模型</span></div>
+          <div class="siper-nav-item" data-page="tools" onclick="navigateToPage('tools')"><span>🔧</span><span class="siper-nav-item-label" data-i18n="nav.tools">工具</span></div>
+          <div class="siper-nav-item" data-page="skills" onclick="navigateToPage('skills')"><span>🧩</span><span class="siper-nav-item-label" data-i18n="nav.skills">技能</span></div>
+          <div class="siper-nav-item" data-page="plugins" onclick="navigateToPage('plugins')"><span>🔌</span><span class="siper-nav-item-label" data-i18n="nav.plugins">插件</span></div>
+        </div>
+        <div class="siper-nav-section">
+          <div class="siper-nav-title" data-i18n="nav.monitor">监控</div>
+          <div class="siper-nav-item" data-page="monitor" onclick="navigateToPage('monitor')"><span>📊</span><span class="siper-nav-item-label" data-i18n="nav.monitorPage">统计</span></div>
+          <div class="siper-nav-item" data-page="directory" onclick="navigateToPage('directory')"><span>📁</span><span class="siper-nav-item-label" data-i18n="nav.directory">目录</span></div>
+          <div class="siper-nav-item" data-page="global-settings" onclick="navigateToPage('global-settings')"><span>⚙️</span><span class="siper-nav-item-label" data-i18n="nav.globalSettings">全局</span></div>
+        </div>
+      </nav>
+      <div class="siper-sidebar-footer"></div>
+    </div>
+    <!-- 中栏 -->
+    <div class="siper-middle" id="chatMiddle">
+      <div class="siper-middle-header">
+        <div class="siper-search-box">
+          <span>🔍</span>
+          <input type="text" class="siper-search-input" id="chatSearchInput" placeholder="搜索智能体..." oninput="chatHandleSearch(this.value)" aria-label="搜索智能体">
+        </div>
+      </div>
+      <div class="siper-middle-list" id="chatMiddleList"></div>
+    </div>
+    <!-- 右栏 -->
+    <div class="siper-chat" id="chatRight">
+      <div class="siper-chat-header" id="chatRightHeader">
+        <span class="siper-chat-header-name" id="chatRightHeaderName">SiPer</span>
+      </div>
+      <div class="siper-content" id="chatContentArea"></div>
+    </div>`;
 
-  document.querySelectorAll('.siper-nav-item').forEach(el => {
-    el.classList[el.dataset.page === page ? 'add' : 'remove']('active');
-  });
-
-  // 动态切换右栏容器 class：仅 chat 用 siper-chat，其余用 siper-page
-  const right = document.getElementById('chatRight');
-  const header = document.getElementById('chatRightHeader');
-  const isChat = CHAT_PAGE_ONLY.has(page);
-  if (right) {
-    right.classList[isChat ? 'add' : 'remove']('siper-chat');
-    right.classList[isChat ? 'remove' : 'add']('siper-page');
-  }
-  if (header) {
-    header.classList[isChat ? 'add' : 'remove']('siper-chat-header');
-    header.classList[isChat ? 'remove' : 'add']('siper-page-header');
-  }
-
-  const headerName = document.getElementById('chatRightHeaderName');
-  if (headerName) {
-    const icon = CHAT_PAGES[page].icon || '';
-    headerName.innerHTML = icon ? `<span class="siper-page-header-icon">${icon}</span>${CHAT_PAGES[page].title}` : CHAT_PAGES[page].title;
-    headerName.classList[isChat ? 'add' : 'remove']('siper-chat-header-name');
-    headerName.classList[isChat ? 'remove' : 'add']('siper-page-header-name');
-  }
-
-  if (header) {
-    const oldChatBtn = header.querySelector('.siper-chat-header-btn');
-    if (oldChatBtn) oldChatBtn.remove();
-    const oldPageBtn = header.querySelector('.siper-page-header-btn');
-    if (oldPageBtn) oldPageBtn.remove();
-  }
-
+  // 渲染聊天页面内容
   const content = document.getElementById('chatContentArea');
-  const middle = document.getElementById('chatMiddle');
-  if (!content) return;
-
-  content.innerHTML = '';
-  content.className = 'siper-content siper-page-enter';
-  setTimeout(() => content.classList.remove('siper-page-enter'), 200);
-
-  if (middle) middle.style.display = (page === 'chat') ? '' : 'none';
-
-  switch (page) {
-    case 'chat':    renderChatPage(content); break;
-    case 'tasks':    renderTasksPageChat(content); break;
-    case 'skills':    renderSkillsPageChat(content); break;
-    case 'plugins':  renderPluginsPageChat(content); break;
-    case 'token':     renderTokenPageChat(content); break;
-    case 'global-settings': renderSettingsPageChat(content); break;
-    case 'model-settings': renderModelSettingsPageChat(content); break;
-    case 'logs':      renderLogsPageChat(content); break;
-    case 'monitor':  renderMonitorPageChat(content); break;
-    case 'directory': renderDirectoryPageChat(content); break;
-    case 'tools':     renderToolsPage(content); break;
+  if (typeof window.renderChatPage === 'function') {
+    window.renderChatPage(content);
   }
 }
+window.initChatPage = initChatPage;
 
 // ===== Page Lifecycle =====
-export function onChatPageEnter() { chatSwitchPage('chat', true); }
+export function onChatPageEnter() { initChatPage(); }
 
 // ===== Copy/Insert Message =====
 function copyChatMsg(btn) {
@@ -208,7 +118,6 @@ function insertChatMsg(btn) {
 
 // ===== Window Mount =====
 // Core chat
-window.chatSwitchPage = chatSwitchPage;
 window.renderChatPage = renderChatPage;
 window.chatSendMessage = Input.chatSendMessage;
 window.chatStopGeneration = Message.chatStopGeneration;
@@ -237,7 +146,6 @@ window.updateChatHeader = Input.updateChatHeader;
 window.addMsg = addMsg;
 window.appendMeta = appendMeta;
 window.debugHighlight = debugHighlight;
-window.siPerNavigate = siPerNavigate;
 window.updateCtxInfoDisplay = updateCtxInfoDisplay;
 window.updateCtxFromStreamEnd = updateCtxFromStreamEnd;
 
@@ -257,7 +165,6 @@ window.selectChatSession = Sidebar.selectChatSession;
 window.startNewChat = Sidebar.startNewChat;
 window.chatHandleSearch = Sidebar.handleChatSearch;
 window.chatShowSessionMenu = Sidebar.chatShowSessionMenu;
-window.renderChatPage = renderChatPage;
 window.chatHideSessionMenu = Sidebar.chatHideSessionMenu;
 window.renameChatSession = Sidebar.renameChatSession;
 window.deleteChatSessionConfirm = Sidebar.deleteChatSessionConfirm;
@@ -277,13 +184,3 @@ window.chatConfirm = Toast.chatConfirm;
 // Copy/Insert
 window.copyChatMsg = copyChatMsg;
 window.insertChatMsg = insertChatMsg;
-
-// Stop handler — core.js dispatch 直接调 handleStopped()
-// window.chatHandleStopped 已删除
-
-// Monitor / Tasks page
-window.switchMonitorTab = switchMonitorTab;
-window.refreshMonitorTab = function() {
-  const active = document.querySelector('#monitorTabs .siper-settings-tab.active');
-  if (active) switchMonitorTab(active.dataset.tab);
-};
