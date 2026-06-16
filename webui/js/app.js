@@ -304,7 +304,7 @@ function loadCss(href) {
   _loadedCss.add(href);
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = href;
+  link.href = href + '?v=' + Date.now();
   document.head.appendChild(link);
 }
 
