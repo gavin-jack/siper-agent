@@ -8,6 +8,10 @@ export function switchMonitorTab(tab) {
     const el = document.getElementById('monitorTab' + t.charAt(0).toUpperCase() + t.slice(1));
     if (el) el.classList.toggle('js-hidden', t !== tab);
   });
+  // 更新 hash（不触发 hashchange，因为 hashchange 会调用 navigateToPage 再次渲染）
+  if (location.hash !== '#/monitor?tab=' + tab) {
+    history.replaceState(null, '', '#/monitor?tab=' + tab);
+  }
   if (tab === 'logs') {
     const logsContainer = document.getElementById('monitorTabLogs');
     if (logsContainer && !logsContainer.querySelector('#chatLogsList')) {

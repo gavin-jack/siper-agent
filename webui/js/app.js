@@ -278,7 +278,7 @@ function loadCss(href) {
   document.head.appendChild(link);
 }
 
-async function navigateToPage(page) {
+async function navigateToPage(page, tab) {
   // 更新侧边栏 active 状态
   document.querySelectorAll('.siper-nav-item').forEach(el => {
     el.classList.toggle('active', el.getAttribute('data-page') === page);
@@ -341,9 +341,21 @@ async function navigateToPage(page) {
       window.refreshGlobalSettings = mod.refreshGlobalSettings;
     }
 
+    // 切换到指定 tab（如果有）
+    if (tab) {
+      if (page === 'monitor' && typeof window.switchMonitorTab === 'function') {
+        setTimeout(() => window.switchMonitorTab(tab), 60);
+      } else if (page === 'model-settings' && typeof window.switchModelTab === 'function') {
+        setTimeout(() => window.switchModelTab(tab), 60);
+      } else if (page === 'settings' && typeof window.switchSettingsTab === 'function') {
+        setTimeout(() => window.switchSettingsTab(tab), 60);
+      }
+    }
+
     // 更新 hash
-    if (location.hash !== '#/' + page) {
-      history.replaceState(null, '', '#/' + page);
+    var hash = '#/' + page + (tab ? '?tab=' + tab : '');
+    if (location.hash !== hash) {
+      history.replaceState(null, '', hash);
     }
   } catch(e) {
     console.error('[app.js] navigateToPage failed:', e);
@@ -393,6 +405,22 @@ function initRouter() {
   }
   // Auto-connect WebSocket
   if (typeof connectWS === 'function') connectWS();
+
+  // Hash-based routing: listen for hash changes (browser back/forward)
+  window.addEventListener('hashchange', function() {
+    var hash = location.hash.replace('#/', '').replace('#', '');
+    if (hash) {
+      // Extract page name and tab (strip query params)
+      var parts = hash.split('?');
+      var page = parts[0];
+      var tab = parts[1] ? parts[1].replace('tab=', '') : null;
+      if (page && page !== 'chat') {
+        navigateToPage(page, tab);
+      } else if (page === 'chat') {
+        navigateToPage('chat');
+      }
+    }
+  });
 }
 
 // ===== Error Diagnostics =====

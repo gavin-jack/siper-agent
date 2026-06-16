@@ -10,6 +10,9 @@ export function switchSettingsTab(tab) {
   if (sysEl) sysEl.classList.toggle('js-hidden', tab !== 'system');
   if (agentEl) agentEl.classList.toggle('js-hidden', tab !== 'agents');
   window._currentSettingsTab = tab;
+  if (location.hash !== '#/global-settings?tab=' + tab) {
+    history.replaceState(null, '', '#/global-settings?tab=' + tab);
+  }
 }
 
 export function resetSystemParams() {

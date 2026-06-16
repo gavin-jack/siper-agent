@@ -1115,7 +1115,8 @@ html { touch-action: manipulation; }
 }
 
 /* ===== Left Sidebar Icons — Unified Size & Centered ===== */
-/* Nav item base styles */
+/* Nav item base styles — <a> or <div> */
+a.siper-nav-item,
 .siper-sidebar .siper-nav-item {
   display: flex;
   align-items: center;
@@ -1127,6 +1128,10 @@ html { touch-action: manipulation; }
   color: var(--color-text-dim);
   transition: background-color 0.2s, color 0.2s;
   white-space: nowrap;
+}
+a.siper-nav-item {
+  text-decoration: none;
+  color: var(--color-text-dim);
 }
 .siper-sidebar .siper-nav-item:hover {
   background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));

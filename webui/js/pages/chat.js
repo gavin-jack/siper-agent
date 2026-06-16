@@ -49,25 +49,34 @@ function initSidebar() {
       <nav class="siper-sidebar-nav" role="navigation" aria-label="主导航">
         <div class="siper-nav-section">
           <div class="siper-nav-title" data-i18n="nav.agent">智能体</div>
-          <div class="siper-nav-item active" data-page="chat" onclick="navigateToPage('chat')"><span>💬</span><span class="siper-nav-item-label" data-i18n="nav.chat">对话</span></div>
-          <div class="siper-nav-item" data-page="tasks" onclick="navigateToPage('tasks')"><span>📋</span><span class="siper-nav-item-label" data-i18n="nav.tasks">任务</span></div>
+          <a class="siper-nav-item active" data-page="chat" href="#/chat"><span>💬</span><span class="siper-nav-item-label" data-i18n="nav.chat">对话</span></a>
+          <a class="siper-nav-item" data-page="tasks" href="#/tasks"><span>📋</span><span class="siper-nav-item-label" data-i18n="nav.tasks">任务</span></a>
         </div>
         <div class="siper-nav-section">
           <div class="siper-nav-title" data-i18n="nav.support">支持</div>
-          <div class="siper-nav-item" data-page="model-settings" onclick="navigateToPage('model-settings')"><span>🤖</span><span class="siper-nav-item-label" data-i18n="nav.modelSettings">模型</span></div>
-          <div class="siper-nav-item" data-page="tools" onclick="navigateToPage('tools')"><span>🔧</span><span class="siper-nav-item-label" data-i18n="nav.tools">工具</span></div>
-          <div class="siper-nav-item" data-page="skills" onclick="navigateToPage('skills')"><span>🧩</span><span class="siper-nav-item-label" data-i18n="nav.skills">技能</span></div>
-          <div class="siper-nav-item" data-page="plugins" onclick="navigateToPage('plugins')"><span>🔌</span><span class="siper-nav-item-label" data-i18n="nav.plugins">插件</span></div>
+          <a class="siper-nav-item" data-page="model-settings" href="#/model-settings"><span>🤖</span><span class="siper-nav-item-label" data-i18n="nav.modelSettings">模型</span></a>
+          <a class="siper-nav-item" data-page="tools" href="#/tools"><span>🔧</span><span class="siper-nav-item-label" data-i18n="nav.tools">工具</span></a>
+          <a class="siper-nav-item" data-page="skills" href="#/skills"><span>🧩</span><span class="siper-nav-item-label" data-i18n="nav.skills">技能</span></a>
+          <a class="siper-nav-item" data-page="plugins" href="#/plugins"><span>🔌</span><span class="siper-nav-item-label" data-i18n="nav.plugins">插件</span></a>
         </div>
         <div class="siper-nav-section">
           <div class="siper-nav-title" data-i18n="nav.monitor">监控</div>
-          <div class="siper-nav-item" data-page="monitor" onclick="navigateToPage('monitor')"><span>📊</span><span class="siper-nav-item-label" data-i18n="nav.monitorPage">统计</span></div>
-          <div class="siper-nav-item" data-page="directory" onclick="navigateToPage('directory')"><span>📁</span><span class="siper-nav-item-label" data-i18n="nav.directory">目录</span></div>
-          <div class="siper-nav-item" data-page="global-settings" onclick="navigateToPage('global-settings')"><span>⚙️</span><span class="siper-nav-item-label" data-i18n="nav.globalSettings">全局</span></div>
+          <a class="siper-nav-item" data-page="monitor" href="#/monitor"><span>📊</span><span class="siper-nav-item-label" data-i18n="nav.monitorPage">统计</span></a>
+          <a class="siper-nav-item" data-page="directory" href="#/directory"><span>📁</span><span class="siper-nav-item-label" data-i18n="nav.directory">目录</span></a>
+          <a class="siper-nav-item" data-page="global-settings" href="#/global-settings"><span>⚙️</span><span class="siper-nav-item-label" data-i18n="nav.globalSettings">全局</span></a>
         </div>
       </nav>
       <div class="siper-sidebar-footer"></div>
     </div>`;
+
+  // 绑定侧边栏导航点击（<a> 标签，阻止默认跳转）
+  document.querySelectorAll('.siper-nav-item').forEach(el => {
+    el.addEventListener('click', function(e) {
+      e.preventDefault();
+      const page = this.getAttribute('data-page');
+      if (page) navigateToPage(page);
+    });
+  });
 }
 
 // 渲染 chat 内容区（中栏+右栏，到 #page-chat）

@@ -11,6 +11,9 @@ export function switchModelTab(tabName) {
   const activeContent = document.getElementById(`modelSettingsTab-${tabName}`);
   if (activeTab) activeTab.classList.add('active');
   if (activeContent) activeContent.style.display = '';
+  if (location.hash !== '#/model-settings?tab=' + tabName) {
+    history.replaceState(null, '', '#/model-settings?tab=' + tabName);
+  }
 }
 
 export function renderModelSettingsPageChat(container) {
