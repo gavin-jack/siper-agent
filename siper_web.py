@@ -2391,11 +2391,19 @@ async def main():
 
     def api_delete_model(path, req_headers):
         # DELETE /api/models/{model}?provider=xxx
+        # path 可能是完整路径（旧版路由）或 model_id（新版路由 router.py）
         from urllib.parse import urlparse, parse_qs, unquote
-        parsed = urlparse(path)
-        model = unquote(parsed.path[len("/api/models/"):])
-        params = parse_qs(parsed.query)
-        provider_str = unquote(params.get("provider", [None])[0] or "")
+        model = path
+        provider_str = ""
+        if isinstance(path, str) and "/api/models/" in path:
+            # 旧版：path 是完整 URL 如 /api/models/LongCat-2.0-Preview?provider=1
+            parsed = urlparse(path)
+            model = unquote(parsed.path[len("/api/models/"):])
+            params = parse_qs(parsed.query)
+            provider_str = unquote(params.get("provider", [None])[0] or "")
+        elif isinstance(path, str):
+            # 新版（router.py 已提取 model_id）
+            model = unquote(path)
         if not model:
             return {"success": False, "error": "model 不能为空"}
         try:

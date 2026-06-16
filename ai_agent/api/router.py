@@ -56,7 +56,8 @@ class Router:
         支持路径参数：/api/sessions/{sid} 匹配 /api/sessions/abc123
         路径参数通过关键字参数传递给处理函数。
         """
-        _pass_body = method in ("POST", "PUT", "DELETE") and body is not None
+        # DELETE 通常没有 body，即使 body={} 也不应作为第一参数传给 handler
+        _pass_body = method in ("POST", "PUT") and body is not None
         for m, p, fn in self._routes:
             if m != method:
                 continue

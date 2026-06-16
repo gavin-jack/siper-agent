@@ -835,35 +835,39 @@ function escapeAttr(s) {
 // ===== 事件委托 =====
 // 验证按钮
 document.addEventListener('click', function(e) {
-  const btn = e.target.closest('.btn-verify');
+  var target = e.target;
+  var btn = target && typeof target.closest === 'function' ? target.closest('.btn-verify') : null;
   if (!btn || btn.dataset.idx === undefined) return;
   e.preventDefault(); e.stopPropagation();
   if (!btn.closest('.models-grid')) return;
-  const idx = parseInt(btn.dataset.idx, 10);
+  var idx = parseInt(btn.dataset.idx, 10);
   if (!isNaN(idx)) verifySingleModel(idx);
 });
 
 // 复制模型名按钮
 document.addEventListener('click', function(e) {
-  const btn = e.target.closest('.btn-copy-model');
+  var target = e.target;
+  var btn = target && typeof target.closest === 'function' ? target.closest('.btn-copy-model') : null;
   if (!btn) return;
   e.preventDefault(); e.stopPropagation();
-  const name = btn.dataset.name;
+  var name = btn.dataset.name;
   if (name) copyModelName(e, name);
 });
 
 // 关闭 cap filter dropdown
 document.addEventListener('click', function(e) {
-  const dropdown = document.getElementById('capFilterDropdown');
-  const menu = document.getElementById('capFilterMenu');
-  if (menu && dropdown && !dropdown.contains(e.target)) {
+  var target = e.target;
+  var dropdown = document.getElementById('capFilterDropdown');
+  var menu = document.getElementById('capFilterMenu');
+  if (menu && dropdown && (!target || typeof target.closest !== 'function' || !dropdown.contains(target))) {
     menu.style.display = 'none';
   }
 });
 
 // 走马灯 — mouseenter
 document.addEventListener('mouseenter', function(e) {
-  const nameEl = e.target.closest('.model-name-scroll');
+  var target = e.target;
+  var nameEl = target && typeof target.closest === 'function' ? target.closest('.model-name-scroll') : null;
   if (nameEl && !nameEl._marqueeTimer && nameEl.scrollWidth > nameEl.clientWidth + 1) {
     const overflow = nameEl.scrollWidth - nameEl.clientWidth;
     const duration = Math.max(1500, overflow * 20);
@@ -878,7 +882,7 @@ document.addEventListener('mouseenter', function(e) {
     }
   }
   // caps 走马灯
-  const scrollEl = e.target.closest('.model-caps-scroll');
+  var scrollEl = target && typeof target.closest === 'function' ? target.closest('.model-caps-scroll') : null;
   if (scrollEl && !scrollEl._marqueeTimer) {
     const inner = scrollEl.querySelector('.model-caps-inner');
     if (inner && inner.scrollWidth > scrollEl.clientWidth + 1) {
@@ -896,7 +900,8 @@ document.addEventListener('mouseenter', function(e) {
 
 // 走马灯 — mouseleave
 document.addEventListener('mouseleave', function(e) {
-  const nameEl = e.target.closest('.model-name-scroll');
+  var target = e.target;
+  var nameEl = target && typeof target.closest === 'function' ? target.closest('.model-name-scroll') : null;
   if (nameEl) {
     if (nameEl._marqueeTimer) { clearTimeout(nameEl._marqueeTimer); nameEl._marqueeTimer = null; }
     const text = nameEl.querySelector('.model-name-text');
@@ -905,7 +910,7 @@ document.addEventListener('mouseleave', function(e) {
       text.style.transform = 'translateX(0)';
     }
   }
-  const scrollEl = e.target.closest('.model-caps-scroll');
+  var scrollEl = target && typeof target.closest === 'function' ? target.closest('.model-caps-scroll') : null;
   if (scrollEl) {
     if (scrollEl._marqueeTimer) { clearTimeout(scrollEl._marqueeTimer); scrollEl._marqueeTimer = null; }
     const inner = scrollEl.querySelector('.model-caps-inner');

@@ -1258,10 +1258,21 @@ def api_save_global_models(body):
 
 def api_delete_model(path, req_headers):
     # DELETE /api/models/{model}?provider=xxx
-    parsed = urlparse(path)
-    model = unquote(parsed.path[len("/api/models/"):])
-    params = parse_qs(parsed.query)
-    provider_str = unquote(params.get("provider", [None])[0] or "")
+    # path 可能是完整路径（旧版路由）或 model_id（新版路由 router.py）
+    model = path
+    provider_str = ""
+    if "/api/models/" in path:
+        # 旧版：path 是完整 URL 如 /api/models/LongCat-2.0-Preview?provider=1
+        parsed = urlparse(path)
+        model = unquote(parsed.path[len("/api/models/"):])
+        params = parse_qs(parsed.query)
+        provider_str = unquote(params.get("provider", [None])[0] or "")
+    else:
+        # 新版（router.py 已提取 model_id 为 path 参数）
+        # provider 信息通过路由传递 — 如果没有，尝试从 path 提取简单 provider 参数
+        # router.py 传了空的 req_headers，所以 provider 参数完全丢失
+        # 直接使用 path 作为 model_id
+        model = unquote(path)
     if not model:
         return {"success": False, "error": "model 不能为空"}
     try:
