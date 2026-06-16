@@ -438,6 +438,26 @@ async function navigateToPage(page, tab) {
 }
 window.navigateToPage = navigateToPage;
 
+// 提前挂载 agent-config 函数（selectChatAgent 在侧边栏中直接调用，不经过 navigateToPage）
+window.loadAgentSettings = AgentConfig.loadAgentSettings;
+window.saveAgentSettings = AgentConfig.saveAgentSettings;
+window.refreshConfigAgentPanel = AgentConfig.refreshConfigAgentPanel;
+window.switchConfigAgentPageTab = AgentConfig.switchConfigAgentPageTab;
+window.loadAgentMemoryContent = AgentConfig.loadAgentMemoryContent;
+window.saveAgentFile = AgentConfig.saveAgentFile;
+window.uploadAgentAvatar = AgentConfig.uploadAgentAvatar;
+window.triggerAgentAutoSave = AgentConfig.triggerAgentAutoSave;
+window.attachAgentAutoSaveListeners = AgentConfig.attachAgentAutoSaveListeners;
+window.resetAgentLimits = AgentConfig.resetAgentLimits;
+window.toggleIconPicker = AgentConfig.toggleIconPicker;
+window.selectAgentIcon = AgentConfig.selectAgentIcon;
+window.switchChatAgentTab = AgentConfig.switchChatAgentTab;
+window.switchChatAgentFile = AgentConfig.switchChatAgentFile;
+window.saveChatAgentFile = AgentConfig.saveChatAgentFile;
+window.loadChatAgentFilesForAgent = AgentConfig.loadChatAgentFilesForAgent;
+window.saveAllChatAgentConfig = AgentConfig.saveAllChatAgentConfig;
+window.loadGlobalModelsForAgent = AgentConfig.loadGlobalModelsForAgent;
+
 // ===== 注册所有 renderer handlers =====
 registerAllHandlers();
 
