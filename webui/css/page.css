@@ -1974,4 +1974,16 @@
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/** model-group-header — Provider 分组标题 */
+.model-group-header { display:flex; align-items:center; gap:6px; margin-top:10px; margin-bottom:4px; padding:4px 0; border-bottom:1px solid var(--color-border); }
+.model-group-label { font-size:12px; color:var(--color-text-dim); cursor:pointer; }
+.model-group-label:hover { color:var(--color-primary); }
+/** btn-verify — 验证按钮 */
+.btn-verify { font-size:12px; padding:2px 8px; cursor:pointer; }
+.btn-verify-pending { font-size:12px; padding:2px 8px; opacity:0.5; cursor:not-allowed; }
+/** model-caps-scroll — 能力徽章走马灯容器 */
+.model-caps-scroll { flex:1; min-width:0; overflow:hidden; }
+.model-caps-inner { display:inline-flex; gap:3px; white-space:nowrap; }
+/** model-discover-info — 发现模型信息 */
+.model-discover-info { flex:1; min-width:0; }
 .tool-nav-badge { font-size:11px; color:var(--color-text-dim); background:var(--color-border); border-radius:10px; padding:1px 7px; margin-left:6px; font-weight:600; }

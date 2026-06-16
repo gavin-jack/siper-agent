@@ -395,8 +395,13 @@ async function navigateToPage(page, tab) {
       window.toggleSortDir = mod.toggleSortDir;
       window.verifyAllModels = mod.verifyAllModels;
       window.verifySingleModel = mod.verifySingleModel;
-      window.deleteModel = mod.deleteModel;
+      window.removeSettingsModel = mod.removeSettingsModel;
       window.resetSettingsModels = mod.resetSettingsModels;
+      window.renderSettingsModelsList = mod.renderSettingsModelsList;
+      window.clearModelFilter = mod.clearModelFilter;
+      window.editProviderName = mod.editProviderName;
+      window.copyModelName = mod.copyModelName;
+      window.autoSaveModels = mod.autoSaveModels;
     }
     if (page === 'monitor' && typeof mod.switchMonitorTab === 'function') {
       window.switchMonitorTab = mod.switchMonitorTab;

@@ -1,7 +1,16 @@
-// chat-pages/model-settings.js — 模型设置页面渲染
-// 从 pages/chat.js 拆分
-// 包含模型管理和辅助两个 tab
+// chat-pages/model-settings.js — 模型设置页面
+// 集成 v0.1.7 的完整功能：按 base_url 分组、走马灯、复制模型名、速度颜色、入场动画
+// 2026-07-28: 从 472 行升级至 ~700 行，功能对齐 v0.1.7
 
+// ===== 状态 =====
+export let settingsModelsCache = [];
+export let discoveredModelsCache = [];
+let _selectedCaps = new Set();
+let _sortDir = 'asc';
+let _lastRenderCount = 0;
+let _autoSaveTimer = null;
+
+// ===== Tab 切换 =====
 export function switchModelTab(tabName) {
   const tabs = document.querySelectorAll('.siper-settings-tab');
   const contents = document.querySelectorAll('.js-model-settings-tab-content');
@@ -16,6 +25,7 @@ export function switchModelTab(tabName) {
   }
 }
 
+// ===== 渲染模型设置页面 =====
 export function renderModelSettingsPageChat(container) {
   container.className = 'siper-content siper-full-content';
   container.innerHTML = `
@@ -30,7 +40,7 @@ export function renderModelSettingsPageChat(container) {
       <span>可用模型</span>
       <div class="js-spacer"></div>
       <div class="js-search-wrapper">
-        <input type="text" id="modelSearchInput" placeholder="搜索模型..." class="siper-input" class="js-input-xs" oninput="window.filterModelsList()">
+        <input type="text" id="modelSearchInput" placeholder="搜索模型..." class="siper-input js-input-xs" oninput="window.filterModelsList()">
         <span id="modelSearchClear" onclick="window.clearModelSearch()" class="js-search-clear" title="清空">✕</span>
       </div>
       <div id="capFilterDropdown" class="js-cap-filter-wrap">
@@ -68,8 +78,8 @@ export function renderModelSettingsPageChat(container) {
             </div>
           </div>
           <div class="js-cap-filter-actions">
-            <button class="siper-btn" class="js-btn-xs" onclick="window.clearCapFilter()">清除</button>
-            <button class="siper-btn primary" class="js-btn-xs" onclick="window.applyCapFilter()">确定</button>
+            <button class="siper-btn js-btn-xs" onclick="window.clearCapFilter()">清除</button>
+            <button class="siper-btn primary js-btn-xs" onclick="window.applyCapFilter()">确定</button>
           </div>
         </div>
       </div>
@@ -91,8 +101,8 @@ export function renderModelSettingsPageChat(container) {
     <div class="siper-form-title">🔍 发现模型</div>
     <div class="js-sort-group">
       <div style="flex:1;">
-        <div class="text-dim" class="js-label-sm">Provider</div>
-        <select id="providerPreset" class="siper-input" class="js-input-sm" onchange="window.applyProviderPreset()" aria-label="Provider 预设">
+        <div class="text-dim js-label-sm">Provider</div>
+        <select id="providerPreset" class="siper-input js-input-sm" onchange="window.applyProviderPreset()" aria-label="Provider 预设">
           <option value="">— 选择 —</option>
           <option value="openai">OpenAI</option>
           <option value="anthropic">Anthropic</option>
@@ -109,12 +119,12 @@ export function renderModelSettingsPageChat(container) {
         </select>
       </div>
       <div style="flex:1.5;">
-        <div class="text-dim" class="js-label-sm">Base URL</div>
+        <div class="text-dim js-label-sm">Base URL</div>
         <input type="text" class="siper-input" id="discoverBaseUrl" placeholder="https://api.openai.com/v1" aria-label="发现 Base URL" class="js-input-sm">
       </div>
     </div>
     <div class="js-mb-6">
-      <div class="text-dim" class="js-label-sm">API Key</div>
+      <div class="text-dim js-label-sm">API Key</div>
       <input type="password" class="siper-input" id="discoverApiKey" placeholder="sk-..." autocomplete="off" aria-label="发现 API Key" class="js-input-sm">
     </div>
     <div class="js-select-group">
@@ -135,35 +145,531 @@ export function renderModelSettingsPageChat(container) {
     <div id="auxiliaryModelsContainer"></div>
   </div>
 </div>`;
-  // 独立页面模式下，重置按钮添加到 page-header 中
-  const pageHeader = container.querySelector('.page-header');
-  if (pageHeader && !pageHeader.querySelector('.siper-page-header-btn')) {
-    const btn = document.createElement('button');
-    btn.className = 'siper-page-header-btn siper-page-header-btn-text';
-    btn.textContent = '重置';
-    btn.onclick = () => { if (typeof window.resetSettingsModels === 'function') window.resetSettingsModels(); };
-    const actions = pageHeader.querySelector('.actions');
-    if (actions) actions.appendChild(btn);
-    else pageHeader.appendChild(btn);
-  }
-
   if (typeof window.loadSettingsModels === 'function') window.loadSettingsModels();
 }
 
-// ===== Provider Preset (发现模型) =====
+// ===== 加载模型列表 =====
+export function loadSettingsModels() {
+  const list = document.getElementById('settingsModelsList');
+  if (list) list.innerHTML = '<div class="js-empty-state-lg" style="padding:24px;text-align:center;">⏳ 加载模型数据中...</div>';
+  fetch('/api/models/global').then(r => r.json()).then(data => {
+    settingsModelsCache = (data.models || []).map(m => ({
+      ...m,
+      _ttft: m.ttft ?? m._ttft ?? null,
+      _streaming: m.streaming ?? m._streaming ?? null,
+      _context_window_tested: m.context_window_tested ?? m._context_window_tested ?? null,
+      _json_mode: m.json_mode ?? m._json_mode ?? null,
+      ttft: m.ttft ?? m._ttft ?? null,
+      streaming: m.streaming ?? m._streaming ?? null,
+      context_window_tested: m.context_window_tested ?? m._context_window_tested ?? null,
+      json_mode: m.json_mode ?? m._json_mode ?? null,
+    }));
+    window.settingsModelsCache = settingsModelsCache;
+    const defaultModel = settingsModelsCache.find(m => m.is_default);
+    const defName = defaultModel ? defaultModel.name : '';
+    settingsModelsCache.forEach(m => { m._isDefault = (m.name === defName); });
+    renderSettingsModelsList();
+  }).catch(e => {
+    console.error('loadSettingsModels error:', e);
+    const list = document.getElementById('settingsModelsList');
+    if (list) list.innerHTML = '<div class="settings-empty-msg">加载失败</div>';
+  });
+}
+
+// ===== 渲染模型列表 =====
+export function renderSettingsModelsList() {
+  const list = document.getElementById('settingsModelsList');
+  if (!list) return;
+  if (!settingsModelsCache || settingsModelsCache.length === 0) {
+    list.innerHTML = '<div class="settings-empty-msg">暂无模型，请添加</div>';
+    return;
+  }
+
+  // 是否分组（无搜索/筛选/排序时分组）
+  const searchText = (document.getElementById('modelSearchInput')?.value || '').trim();
+  const hasCapFilter = _selectedCaps.size > 0;
+  const hasSort = document.getElementById('modelSortBy') && document.getElementById('modelSortBy').value !== 'name' || _sortDir !== 'asc';
+  const showGroups = !searchText && !hasCapFilter && !hasSort;
+
+  // 过滤器
+  let filtered = [...settingsModelsCache];
+  if (searchText) {
+    const q = searchText.toLowerCase();
+    filtered = filtered.filter(m => (m.name || '').toLowerCase().includes(q));
+  }
+  if (_selectedCaps.size > 0) {
+    filtered = filtered.filter(m => {
+      const caps = m.capabilities || [];
+      return [..._selectedCaps].every(c => caps.includes(c));
+    });
+  }
+
+  // 排序
+  const sortKey = document.getElementById('modelSortBy')?.value || 'name';
+  const dir = _sortDir === 'asc' ? 1 : -1;
+  filtered.sort((a, b) => {
+    if (sortKey === 'name') return (a.name || '').localeCompare(b.name || '') * dir;
+    const va = sortKey === 'ttft' ? (a.ttft || 99999) : sortKey === 'latency' ? (a.latency || a._latency || 99999) : sortKey === 'context' ? (a.context_window || 0) : (a.capabilities || []).length;
+    const vb = sortKey === 'ttft' ? (b.ttft || 99999) : sortKey === 'latency' ? (b.latency || b._latency || 99999) : sortKey === 'context' ? (b.context_window || 0) : (b.capabilities || []).length;
+    return (va - vb) * dir;
+  });
+
+  // 动态高度
+  const rect = list.getBoundingClientRect();
+  list.style.maxHeight = Math.max(200, window.innerHeight - rect.top - 20) + 'px';
+  list.style.overflowY = 'auto';
+
+  let html = '';
+  if (showGroups) {
+    // 按 base_url 分组
+    const groups = new Map();
+    filtered.forEach((m, i) => {
+      const key = m.base_url || '';
+      if (!groups.has(key)) groups.set(key, { base_url: key, models: [], provider: m.provider || '', provider_name: m.provider_name || '' });
+      groups.get(key).models.push({ ...m, _idx: i });
+    });
+    const sortedGroups = [...groups.values()].sort((a, b) => {
+      const aHasDef = a.models.some(m => m._isDefault);
+      const bHasDef = b.models.some(m => m._isDefault);
+      if (aHasDef && !bHasDef) return -1;
+      if (!aHasDef && bHasDef) return 1;
+      return a.base_url.localeCompare(b.base_url);
+    });
+    sortedGroups.forEach(group => {
+      const providerLabel = group.provider_name || group.base_url || '默认';
+      html += `<div class="model-group-header" data-base-url="${escapeAttr(group.base_url)}" style="display:flex;align-items:center;gap:6px;margin-top:10px;margin-bottom:4px;padding:4px 0;border-bottom:1px solid var(--color-border);">`;
+      html += `<span class="model-group-label model-name-text" onclick="window.editProviderName('${escapeAttr(group.base_url)}')" title="点击编辑 Provider 名称">${escapeHtml(providerLabel)}</span>`;
+      html += `<span class="model-group-count text-dim" style="font-size:11px;">(${group.models.length})</span></div>`;
+      html += `<div class="models-grid">${group.models.map(m => buildCardHtml(m, m._idx)).join('')}</div>`;
+    });
+  } else {
+    html += `<div class="models-grid">${filtered.map((m, i) => buildCardHtml(m, i)).join('')}</div>`;
+    if (searchText || hasCapFilter || hasSort) {
+      const parts = [];
+      if (searchText) parts.push(`搜索: "${escapeHtml(searchText)}"`);
+      if (hasCapFilter) parts.push(`${_selectedCaps.size}项筛选`);
+      if (hasSort) parts.push(`排序`);
+      html = `<div class="js-model-card" style="display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:12px;color:var(--color-text-dim);">` +
+        `<span>📋 ${parts.join(' + ')}</span>` +
+        `<button class="siper-btn js-btn-xs" onclick="window.clearModelFilter()">恢复分组</button></div>` + html;
+    }
+  }
+  list.innerHTML = html;
+
+  // 入场动画（仅新卡片）
+  const currentCount = list.querySelectorAll('.model-card').length;
+  if (currentCount > _lastRenderCount) {
+    requestAnimationFrame(() => {
+      const allCards = list.querySelectorAll('.model-card');
+      for (let i = _lastRenderCount; i < allCards.length; i++) {
+        const card = allCards[i];
+        card.classList.add('model-card-animate');
+        card.style.animationDelay = `${(i - _lastRenderCount) * 30}ms`;
+        setTimeout(() => {
+          card.classList.remove('model-card-animate');
+          card.style.animationDelay = '';
+        }, 250 + (i - _lastRenderCount) * 30 + 50);
+      }
+    });
+  }
+  _lastRenderCount = currentCount;
+
+  // 走马灯检测
+  requestAnimationFrame(() => {
+    list.querySelectorAll('.model-name-scroll').forEach(el => {
+      const text = el.querySelector('.model-name-text');
+      if (text && text.scrollWidth > el.clientWidth) {
+        el.classList.add('model-name-scrollable');
+        text.style.setProperty('--scroll-distance', (el.clientWidth - text.scrollWidth) + 'px');
+      }
+    });
+  });
+}
+
+/** 构建单张模型卡片 HTML */
+function buildCardHtml(m, i) {
+  const ctx = m.context_window ? (m.context_window >= 1000000 ? (m.context_window/1000000).toFixed(1)+'M' : (m.context_window/1000).toFixed(0)+'K') : '-';
+  const capBadges = renderCapBadges(m.capabilities);
+  const ctxTested = m.context_window_tested ? (m.context_window_tested >= 1000000 ? (m.context_window_tested/1000000).toFixed(1)+'M' : (m.context_window_tested/1000).toFixed(0)+'K') : '';
+  const ttft = m.ttft ? formatSpeed(m.ttft) : '';
+  const latency = (m._latency || m.latency) ? `${formatSpeed(m._latency || m.latency)}` : '';
+  const streaming = m.streaming ? '⚡流式' : '';
+  const jsonMode = m.json_mode ? '📋json' : '';
+  const latencyOnly = m._latency && !m.ttft ? latency : '';
+  const metaTags = [ctxTested, ttft, latencyOnly, streaming, jsonMode].filter(Boolean).map(t2 => '<span class="siper-meta-tag">' + t2 + '</span>').join('');
+  const verifyBtnHtml = m._verified === "pending"
+    ? '<button class="btn-sm btn-verify-pending" disabled title="检测中...">⏳</button>'
+    : `<button class="btn-sm btn-verify" data-idx="${i}" title="验证可用性">🔍</button>`;
+  return `
+    <div class="model-card card-left-accent${m._verified === 'pending' ? ' model-card-verifying' : m._verified === true ? ' model-verify-pass' : m._verified === false ? ' model-verify-fail' : ''}" data-model-name="${escapeAttr(m.name)}" data-caps="${escapeAttr((m.capabilities || []).join(','))}" data-ttft="${m.ttft || 99999}" data-latency="${m._latency || m.latency || 99999}" data-context="${m.context_window || 0}">
+      <div class="model-card-header">
+        <div class="model-name-scroll">
+          <span class="model-name-text" title="${escapeAttr(m.name)}">${escapeHtml(m.name)}</span>
+        </div>
+        <div class="model-card-actions">
+          <button class="btn-sm btn-copy-model" data-name="${escapeAttr(m.name)}" title="复制模型名称">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><rect x="5" y="5" width="9" height="9" rx="1.5" opacity="0.6"/><rect x="2" y="2" width="9" height="9" rx="1.5"/></svg>
+          </button>
+          <button class="btn-sm danger" onclick="window.removeSettingsModel(${i})" title="删除模型">✕</button>
+        </div>
+      </div>
+      <div class="siper-model-meta">${ctx ? '<span class="siper-meta-tag">ctx ' + ctx + '</span>' : ''}${metaTags}</div>
+      ${m._verified === false && m._error ? `<div class="model-card-error text-danger-sm">❌ ${escapeHtml(m._error)}</div>` : ''}
+      <div class="model-card-actions-bottom">
+        <div class="model-caps-scroll">
+          ${m._verified === "pending" ? '<div class="model-caps-inner text-warning-sm"><span class="pulse">⏳</span> 正在更新模型能力...</div>' : (capBadges ? `<div class="model-caps-inner">${capBadges}</div>` : '')}
+        </div>
+        ${verifyBtnHtml}
+      </div>
+    </div>`;
+}
+
+/** 渲染能力徽章 */
+function renderCapBadges(capabilities) {
+  if (!capabilities || !capabilities.length) return '';
+  const iconMap = { vision: '👁', reasoning: '🧠', code: '💻', chat: '💬', function_calling: '🔧', tts: '🔊', embedding: '📎', image_gen: '🎨', long_context: '📏' };
+  const labelMap = { vision: '视觉', reasoning: '推理', code: '代码', chat: '对话', function_calling: '工具', tts: '语音', embedding: '嵌入', image_gen: '生图', long_context: '长上下文' };
+  return capabilities.map(c => `<span class="cap-badge cap-badge-${c}" title="${labelMap[c] || c}">${iconMap[c] || c}</span>`).join('');
+}
+
+/** 格式化速度（带颜色） */
+function formatSpeed(ms) {
+  if (!ms || ms <= 0) return '';
+  let color, label;
+  if (ms < 500) { color = '#3b82f6'; label = ms < 100 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`; }
+  else if (ms < 1500) { color = '#f59e0b'; label = `${(ms / 1000).toFixed(1)}s`; }
+  else { color = '#ef4444'; label = `${(ms / 1000).toFixed(1)}s`; }
+  return `<span style="color:${color};font-weight:500;">${label}</span>`;
+}
+
+// ===== 搜索 / 筛选 / 排序 =====
+export function filterModelsList() {
+  // 切换清除按钮
+  const input = document.getElementById('modelSearchInput');
+  const clearBtn = document.getElementById('modelSearchClear');
+  if (input && clearBtn) clearBtn.style.display = input.value ? 'block' : 'none';
+  renderSettingsModelsList();
+}
+
+export function clearModelSearch() {
+  const input = document.getElementById('modelSearchInput');
+  if (input) input.value = '';
+  renderSettingsModelsList();
+}
+
+export function toggleCapFilterDropdown() {
+  const menu = document.getElementById('capFilterMenu');
+  if (!menu) return;
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+export function selectCapFilter(cap) {
+  if (_selectedCaps.has(cap)) _selectedCaps.delete(cap);
+  else _selectedCaps.add(cap);
+  const label = document.getElementById('capFilterLabel');
+  if (label) {
+    const capLabels = { chat: '💬对话', vision: '👁视觉', reasoning: '🧠推理', code: '💻代码', function_calling: '🔧工具', tts: '🔊语音', embedding: '📎嵌入', image_gen: '🎨生图', long_context: '📏长上下文' };
+    if (_selectedCaps.size === 0) label.textContent = '全部功能';
+    else if (_selectedCaps.size <= 2) label.textContent = [..._selectedCaps].map(c => capLabels[c] || c).join('+');
+    else label.textContent = `${_selectedCaps.size}项筛选`;
+  }
+  document.querySelectorAll('.cap-filter-option').forEach(el => {
+    const cb = el.querySelector('input[type="checkbox"]');
+    if (cb) cb.checked = _selectedCaps.has(el.dataset.cap);
+  });
+}
+
+export function applyCapFilter() {
+  const menu = document.getElementById('capFilterMenu');
+  if (menu) menu.style.display = 'none';
+  renderSettingsModelsList();
+}
+
+export function clearCapFilter() {
+  _selectedCaps.clear();
+  const label = document.getElementById('capFilterLabel');
+  if (label) label.textContent = '全部功能';
+  document.querySelectorAll('.cap-filter-option input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+}
+
+export function clearModelFilter() {
+  _selectedCaps.clear();
+  _sortDir = 'asc';
+  const input = document.getElementById('modelSearchInput');
+  if (input) { input.value = ''; }
+  const label = document.getElementById('capFilterLabel');
+  if (label) label.textContent = '全部功能';
+  document.querySelectorAll('.cap-filter-option input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+  const menu = document.getElementById('capFilterMenu');
+  if (menu) menu.style.display = 'none';
+  const sortBtn = document.getElementById('sortDirBtn');
+  if (sortBtn) sortBtn.textContent = '↑';
+  renderSettingsModelsList();
+}
+
+export function toggleSortDir() {
+  _sortDir = _sortDir === 'asc' ? 'desc' : 'asc';
+  const btn = document.getElementById('sortDirBtn');
+  if (btn) btn.textContent = _sortDir === 'asc' ? '↑' : '↓';
+  renderSettingsModelsList();
+}
+
+// ===== 编辑 Provider 名称 =====
+export function editProviderName(baseUrl) {
+  const current = settingsModelsCache.find(m => m.base_url === baseUrl);
+  const currentName = current ? (current.provider_name || current.provider || baseUrl) : baseUrl;
+  const newName = prompt('请输入 Provider 名称（留空使用 Base URL）:', currentName);
+  if (newName === null) return;
+  const trimmed = newName.trim();
+  if (trimmed === currentName) return;
+  settingsModelsCache.forEach(m => {
+    if (m.base_url === baseUrl) m.provider_name = trimmed || '';
+  });
+  renderSettingsModelsList();
+  autoSaveModels();
+}
+
+// ===== 删除模型 =====
+export function removeSettingsModel(idx) {
+  const m = settingsModelsCache[idx];
+  if (!m) return;
+  if (typeof window.confirmDeleteModel === 'function') {
+    window.confirmDeleteModel(m.name, () => _doRemove(idx));
+  } else {
+    if (!confirm('确定删除 "' + (m.name || m.id) + '"？')) return;
+    _doRemove(idx);
+  }
+}
+
+function _doRemove(idx) {
+  const m = settingsModelsCache[idx];
+  if (!m) return;
+  fetch('/api/models/' + encodeURIComponent(m.id || m.name) + '?provider=' + encodeURIComponent(m.provider || ''), { method: 'DELETE' })
+    .then(r => r.json()).then(d => {
+      if (!d.success) { if (window.toast) window.toast.error('删除失败: ' + (d.error || 'unknown')); return; }
+      settingsModelsCache.splice(idx, 1);
+      renderSettingsModelsList();
+      if (window.toast) window.toast.success('已删除模型: ' + m.name, 1500);
+    }).catch(e => { if (window.toast) window.toast.error('删除失败: ' + e.message); });
+}
+
+// ===== 复制模型名 =====
+export function copyModelName(e, name) {
+  const btn = (e && e.target && e.target.closest('button')) || (e && e.currentTarget);
+  if (!btn || !btn.classList.contains('btn-copy-model')) return;
+
+  const showOk = () => {
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="var(--green)"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/></svg>';
+    setTimeout(() => {
+      btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><rect x="5" y="5" width="9" height="9" rx="1.5" opacity="0.6"/><rect x="2" y="2" width="9" height="9" rx="1.5"/></svg>';
+    }, 1200);
+  };
+  const fallbackModal = () => {
+    const existing = document.getElementById('copyNameModal');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'copyNameModal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center';
+    overlay.innerHTML = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;max-width:90%;min-width:300px"><div style="font-weight:600;margin-bottom:12px">复制</div><input type="text" value="' + escapeAttr(name) + '" readonly style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;box-sizing:border-box" onclick="this.select()"><div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end"><button id="copyNameModalClose" class="btn-sm primary">关闭</button></div></div>';
+    document.body.appendChild(overlay);
+    overlay.querySelector('#copyNameModalClose').onclick = () => overlay.remove();
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    setTimeout(() => { const inp = overlay.querySelector('input'); if (inp) { inp.focus(); inp.select(); } }, 50);
+  };
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(name).then(() => { showOk(); if (window.toast) window.toast.success('已复制'); }).catch(() => {
+      try {
+        const ta = document.createElement('textarea'); ta.value = name; ta.style.cssText = 'position:fixed;left:0;top:0;opacity:0';
+        document.body.appendChild(ta); ta.select();
+        if (document.execCommand('copy')) { document.body.removeChild(ta); showOk(); if (window.toast) window.toast.success('已复制'); return; }
+        document.body.removeChild(ta);
+      } catch(e) {}
+      fallbackModal(); showOk();
+    });
+  } else { fallbackModal(); showOk(); }
+}
+
+// ===== 模型发现 =====
+export function discoverModels() {
+  const baseUrl = document.getElementById('discoverBaseUrl')?.value.trim();
+  const apiKey = document.getElementById('discoverApiKey')?.value.trim();
+  if (!baseUrl) { if (window.toast) window.toast.warning('请输入 Base URL'); return; }
+  if (!apiKey) { if (window.toast) window.toast.warning('请输入 API Key'); return; }
+
+  const resultEl = document.getElementById('discoverResult');
+  if (resultEl) resultEl.innerHTML = '<div class="settings-empty-msg">⏳ 正在获取模型列表...</div>';
+
+  fetch('/api/models/discover', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ base_url: baseUrl, api_key: apiKey }),
+  }).then(r => r.json()).then(d => {
+    if (d.success && d.models && d.models.length > 0) {
+      discoveredModelsCache = d.models;
+      const filterInput = document.getElementById('discoverFilter');
+      if (filterInput) filterInput.value = '';
+      renderDiscoveredModels(d.models, d.provider, d.count);
+    } else if (d.success) {
+      if (resultEl) resultEl.innerHTML = '<div class="settings-empty-msg">未找到可用模型</div>';
+    } else {
+      if (resultEl) resultEl.innerHTML = '<div class="settings-empty-msg">❌ ' + escapeHtml(d.error || '获取失败') + '</div>';
+    }
+  }).catch(e => {
+    if (resultEl) resultEl.innerHTML = '<div class="settings-empty-msg">❌ ' + escapeHtml(e.message) + '</div>';
+  });
+}
+
+export function renderDiscoveredModels(models, provider, count) {
+  const resultEl = document.getElementById('discoverResult');
+  if (!resultEl) return;
+  const capIcons = { vision: '👁', reasoning: '🧠', code: '💻', chat: '💬', tts: '🔊', embedding: '📎', image_gen: '🎨', long_context: '📏', function_calling: '🔧' };
+  const capLabels = { vision: '视觉', reasoning: '推理', code: '代码', chat: '对话', tts: '语音', embedding: '嵌入', image_gen: '生图', long_context: '长上下文', function_calling: '工具调用' };
+  const capOrder = { chat: 0, reasoning: 1, vision: 2, code: 3, tts: 4, embedding: 5, image_gen: 6, long_context: 7, function_calling: 99 };
+  resultEl.innerHTML = `
+    <div class="discover-result-header">
+      ✅ 发现 <strong class="discover-count">${count}</strong> 个模型 · Provider: <strong>${escapeHtml(provider || '-')}</strong>
+      <span class="discover-header-actions">
+        <button class="btn-sm btn-discover-add-one" onclick="window.addDiscoveredModel(0)">添加模型</button>
+        <button class="btn-sm primary btn-discover-add-all" onclick="window.addAllDiscoveredModels()">全部添加</button>
+      </span>
+    </div>
+    ${models.map((m, i) => {
+      const ctx = m.context_window ? (m.context_window >= 1000000 ? (m.context_window/1000000).toFixed(1)+'M' : (m.context_window/1000).toFixed(0)+'K') : '-';
+      const caps = (m.capabilities || []).slice().sort((a, b) => (capOrder[a] ?? 50) - (capOrder[b] ?? 50));
+      const capBadges = caps.map(c => `<span class="cap-badge cap-badge-${c}" title="${capLabels[c] || c}">${capIcons[c] || c}</span>`).join('');
+      return `<div class="model-card model-card-discover" data-name="${escapeAttr(m.name || m.id)}">
+        <div class="model-discover-info">
+          <div class="model-discover-name" title="${escapeAttr(m.name || m.id)}">${escapeHtml((m.name || m.id).length > 22 ? (m.name || m.id).substring(0, 20) + '..' : (m.name || m.id))}</div>
+          <div class="model-discover-meta">${escapeHtml(m.provider || '')} · ctx:${ctx} · ${escapeHtml(m.base_url || '')}</div>
+          ${capBadges ? '<div class="model-card-caps">' + capBadges + '</div>' : ''}
+        </div>
+        <button class="btn-sm primary btn-discover-add" onclick="window.addDiscoveredModel(${i})">添加</button>
+      </div>`;
+    }).join('')}`;
+  // 6+ 模型时显示筛选栏
+  const filterWrap = document.getElementById('discoverFilterWrap');
+  if (filterWrap) filterWrap.style.display = models.length >= 6 ? 'block' : 'none';
+}
+
+export function chatFilterDiscovered() {
+  const input = document.getElementById('discoverFilter');
+  const clearBtn = document.getElementById('discoverFilterClear');
+  if (input && clearBtn) clearBtn.style.display = input.value ? 'block' : 'none';
+  const text = (input?.value || '').trim().toLowerCase();
+  const cards = document.querySelectorAll('#discoverResult .model-card-discover');
+  let shown = 0;
+  cards.forEach(card => {
+    const name = (card.dataset.name || '').toLowerCase();
+    const match = !text || name.includes(text);
+    card.style.display = match ? '' : 'none';
+    if (match) shown++;
+  });
+  const header = document.querySelector('#discoverResult .discover-result-header');
+  if (header) {
+    header.innerHTML = text
+      ? `🔍 筛选: <strong>"${escapeHtml(text)}"</strong> · 匹配 ${shown}/${cards.length} 个<span class="discover-header-actions"><button class="btn-sm btn-discover-add-one" onclick="window.addDiscoveredModel(0)">添加模型</button><button class="btn-sm primary btn-discover-add-all" onclick="window.addAllDiscoveredModels()">全部添加</button></span>`
+      : `✅ 发现 <strong class="discover-count">${cards.length}</strong> 个模型<span class="discover-header-actions"><button class="btn-sm btn-discover-add-one" onclick="window.addDiscoveredModel(0)">添加模型</button><button class="btn-sm primary btn-discover-add-all" onclick="window.addAllDiscoveredModels()">全部添加</button></span>`;
+  }
+}
+
+export function chatClearDiscoverFilter() {
+  const input = document.getElementById('discoverFilter');
+  if (input) { input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true })); }
+}
+
+export function addDiscoveredModel(idx) {
+  const m = discoveredModelsCache[idx];
+  if (!m) return;
+  if (settingsModelsCache.find(x => x.name === (m.name || m.id) && x.provider === m.provider)) {
+    if (window.toast) window.toast.warning('模型已存在: ' + (m.name || m.id));
+    return;
+  }
+  settingsModelsCache.push({
+    id: m.id || m.name,
+    name: m.name || m.id,
+    alias: m.alias || '',
+    provider: m.provider,
+    provider_name: m.provider_name || '',
+    base_url: m.base_url,
+    api_key: m.api_key,
+    context_window: m.context_window,
+    capabilities: m.capabilities || [],
+  });
+  if (settingsModelsCache.length === 1) settingsModelsCache[0]._isDefault = true;
+  renderSettingsModelsList();
+  saveModelsImmediate();
+}
+
+export function addAllDiscoveredModels() {
+  let added = 0;
+  discoveredModelsCache.forEach(m => {
+    if (settingsModelsCache.find(x => x.name === (m.name || m.id) && x.provider === m.provider)) return;
+    settingsModelsCache.push({
+      id: m.id || m.name,
+      name: m.name || m.id,
+      alias: m.alias || '',
+      provider: m.provider,
+      provider_name: m.provider_name || '',
+      base_url: m.base_url,
+      api_key: m.api_key,
+      context_window: m.context_window,
+      capabilities: m.capabilities || [],
+    });
+    added++;
+  });
+  if (settingsModelsCache.length > 0 && !settingsModelsCache.find(m => m._isDefault)) {
+    settingsModelsCache[0]._isDefault = true;
+  }
+  renderSettingsModelsList();
+  saveModelsImmediate();
+  if (window.toast) window.toast.success('已添加 ' + added + ' 个模型');
+}
+
+// ===== 自动保存 =====
+async function saveModelsImmediate() {
+  const modelsToSave = settingsModelsCache.map(m => ({
+    id: m.id || m.name,
+    name: m.name,
+    alias: m.alias || '',
+    provider: m.provider,
+    provider_name: m.provider_name || '',
+    base_url: m.base_url,
+    api_key: m.api_key,
+    context_window: m.context_window,
+    capabilities: m.capabilities || [],
+    is_default: m._isDefault || false,
+    ttft: m.ttft || null,
+    latency: m._latency || m.latency || null,
+    streaming: m.streaming || null,
+    context_window_tested: m.context_window_tested || null,
+    json_mode: m.json_mode || null,
+  }));
+  try {
+    const r = await fetch('/api/models/global', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ models: modelsToSave }),
+    });
+    const d = await r.json();
+    if (!d.success && window.toast) window.toast.error('保存失败: ' + (d.error || 'unknown'));
+  } catch(e) { if (window.toast) window.toast.error('保存失败: ' + e.message); }
+}
+
+export function autoSaveModels() {
+  if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(async () => {
+    await saveModelsImmediate();
+  }, 300);
+}
+
+// ===== Provider 预设 =====
 const PROVIDER_URLS = {
-  openai: 'https://api.openai.com/v1',
-  anthropic: 'https://api.anthropic.com/v1',
-  deepseek: 'https://api.deepseek.com/v1',
-  moonshot: 'https://api.moonshot.cn/v1',
-  qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  longcat: '',
-  zhipuai: 'https://open.bigmodel.cn/api/paas/v4',
-  minimax: 'https://api.minimax.chat/v1',
-  groq: 'https://api.groq.com/openai/v1',
-  openrouter: 'https://openrouter.ai/api/v1',
-  ollama: '',
-  custom: '',
+  openai: 'https://api.openai.com/v1', anthropic: 'https://api.anthropic.com/v1',
+  deepseek: 'https://api.deepseek.com/v1', moonshot: 'https://api.moonshot.cn/v1',
+  qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1', longcat: '',
+  zhipuai: 'https://open.bigmodel.cn/api/paas/v4', minimax: 'https://api.minimax.chat/v1',
+  groq: 'https://api.groq.com/openai/v1', openrouter: 'https://openrouter.ai/api/v1',
+  ollama: '', custom: '',
 };
 const LOCKED_PROVIDERS = new Set(['openai','anthropic','deepseek','moonshot','qwen','zhipuai','minimax','groq','openrouter']);
 
@@ -189,285 +695,249 @@ export function applyProviderPreset() {
   }
 }
 
-export function discoverModels() {
-  const urlInput = document.getElementById('discoverBaseUrl');
-  const keyInput = document.getElementById('discoverApiKey');
-  const resultEl = document.getElementById('discoverResult');
-  const btn = document.querySelector('[onclick="window.discoverModels()"]');
-  if (!urlInput || !resultEl) return;
-  const baseUrl = urlInput.value.trim();
-  const apiKey = keyInput ? keyInput.value.trim() : '';
-  if (!baseUrl) { alert('请输入 Base URL'); urlInput.focus(); return; }
-  resultEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-text-dim)">正在获取模型列表...</div>';
-  if (btn) btn.disabled = true;
-  fetch('/api/models/discover', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({base_url: baseUrl, api_key: apiKey})
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (btn) btn.disabled = false;
-    if (!data.success) {
-      resultEl.innerHTML = '<div style="padding:20px;color:var(--color-danger)">获取失败: ' + data.error + '</div>';
-      return;
-    }
-    if (!data.models || data.models.length === 0) {
-      resultEl.innerHTML = '<div style="padding:20px;color:var(--color-text-dim)">未发现模型</div>';
-      return;
-    }
-    let html = '<div style="padding:8px 0;font-size:12px;color:var(--color-text-dim)">发现 ' + data.count + ' 个模型 (' + data.provider + ')</div>';
-    data.models.forEach(m => {
-      const caps = (m.capabilities || []).map(c => '<span class="cap-badge">' + c + '</span>').join('');
-      html += '<div class="model-card" style="margin-bottom:6px;padding:8px 10px;cursor:pointer" onclick="window.addDiscoveredModel(\'' + (m.id || '').replace(/'/g, "\\'") + '\')">' +
-        '<div class="model-card-header"><span class="model-name-text">' + (m.id || '') + '</span></div>' +
-        '<div class="model-card-caps">' + caps + '</div></div>';
+// ===== 重置 =====
+export function resetSettingsModels() {
+  if (typeof window.showConfirm === 'function') {
+    window.showConfirm({
+      title: '重置模型',
+      msg: '确定要清除所有模型配置吗？',
+      impact: '⚠ 将删除 models.db 数据库，清空所有模型、默认模型、Provider 配置。此操作不可恢复！',
+      danger: true,
+      okText: '确认清除',
+      onConfirm: async () => {
+        try {
+          const r = await fetch('/api/models/reset', { method: 'POST' });
+          const d = await r.json();
+          if (d.success) {
+            settingsModelsCache = []; discoveredModelsCache = [];
+            renderSettingsModelsList();
+            if (window.toast) window.toast.success('已清除所有模型配置', 2000);
+          } else { if (window.toast) window.toast.error(d.error || '重置失败'); }
+        } catch(e) { if (window.toast) window.toast.error('重置失败: ' + (e.message || e)); }
+      }
     });
-    html += '<button class="siper-btn primary" style="width:100%;margin-top:8px" onclick="window.addAllDiscoveredModels()">全部添加 (' + data.count + ' 个)</button>';
-    resultEl.innerHTML = html;
-    resultEl._discoveredModels = data.models;
-  })
-  .catch(e => {
-    if (btn) btn.disabled = false;
-    resultEl.innerHTML = '<div style="padding:20px;color:var(--color-danger)">请求失败: ' + e.message + '</div>';
-  });
-}
-
-export function addDiscoveredModel(modelId) {
-  const el = document.getElementById('discoverResult');
-  if (!el || !el._discoveredModels) return;
-  const model = el._discoveredModels.find(m => m.id === modelId);
-  if (!model) return;
-  const card = el.querySelector(`[onclick*="${modelId}"]`);
-  if (card) { card.style.opacity = '0.4'; card.style.pointerEvents = 'none'; }
-  fetch('/api/models/global', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({models: [model]})
-  }).then(r => r.json()).then(() => {
-    if (typeof window.loadSettingsModels === 'function') window.loadSettingsModels();
-  }).catch(e => console.error('[model-settings] add model failed:', e));
-}
-
-export function addAllDiscoveredModels() {
-  const el = document.getElementById('discoverResult');
-  if (!el || !el._discoveredModels) return;
-  const models = el._discoveredModels;
-  fetch('/api/models/global', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({models: models})
-  }).then(r => r.json()).then(() => {
-    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-success)">✅ 已添加 ' + models.length + ' 个模型</div>';
-    el._discoveredModels = null;
-    if (typeof window.loadSettingsModels === 'function') window.loadSettingsModels();
-  }).catch(e => {
-    el.innerHTML += '<div style="color:var(--color-danger)">添加失败: ' + e.message + '</div>';
-  });
-}
-
-export function chatFilterDiscovered() {
-  const input = document.getElementById('discoverFilter');
-  const el = document.getElementById('discoverResult');
-  if (!input || !el || !el._discoveredModels) return;
-  const q = input.value.trim().toLowerCase();
-  const cards = el.querySelectorAll('.model-card');
-  cards.forEach((card, i) => {
-    const name = el._discoveredModels[i] ? el._discoveredModels[i].id.toLowerCase() : '';
-    card.style.display = (!q || name.includes(q)) ? '' : 'none';
-  });
-}
-
-export function chatClearDiscoverFilter() {
-  const input = document.getElementById('discoverFilter');
-  if (input) { input.value = ''; }
-  chatFilterDiscovered();
-}
-
-// ===== 模型列表管理 =====
-let _settingsSearchVal = '';
-let _settingsCapFilter = new Set();
-let _settingsSortDir = 'asc';
-
-export function loadSettingsModels() {
-  fetch('/api/models/global').then(r => r.json()).then(data => {
-    const models = data.models || [];
-    window.settingsModelsCache = models;
-    window.renderSettingsModelsList = _renderSettingsModels;
-    _renderSettingsModels(models);
-  }).catch(e => console.error('[model-settings] load failed:', e));
-}
-
-function _renderSettingsModels(models) {
-  const el = document.getElementById('settingsModelsList');
-  if (!el) return;
-  let filtered = models;
-  if (_settingsSearchVal) {
-    const q = _settingsSearchVal.toLowerCase();
-    filtered = filtered.filter(m => (m.name || m.id || '').toLowerCase().includes(q));
+  } else {
+    if (!confirm('重置所有模型配置？此操作不可恢复。')) return;
+    fetch('/api/models/reset', { method: 'POST' }).then(r => r.json()).then(() => {
+      loadSettingsModels();
+    }).catch(e => console.error('[model-settings] reset failed:', e));
   }
-  if (_settingsCapFilter.size > 0) {
-    filtered = filtered.filter(m => {
-      const caps = m.capabilities || [];
-      return [..._settingsCapFilter].every(c => caps.includes(c));
-    });
-  }
-  const sortKey = document.getElementById('modelSortBy');
-  const key = sortKey ? sortKey.value : 'name';
-  const dir = _settingsSortDir === 'asc' ? 1 : -1;
-  filtered.sort((a, b) => {
-    let va, vb;
-    if (key === 'name') { va = (a.name || a.id || '').toLowerCase(); vb = (b.name || b.id || '').toLowerCase(); return va < vb ? -dir : va > vb ? dir : 0; }
-    if (key === 'ttft') { va = a.ttft || 99999; vb = b.ttft || 99999; }
-    if (key === 'latency') { va = a.latency || 99999; vb = b.latency || 99999; }
-    if (key === 'context') { va = a.context_window || 0; vb = b.context_window || 0; }
-    if (key === 'caps') { va = (a.capabilities || []).length; vb = (b.capabilities || []).length; }
-    return (va - vb) * dir;
-  });
-  if (filtered.length === 0) {
-    el.innerHTML = '<div class="empty-state">无匹配模型</div>';
+}
+
+// ===== 验证 =====
+export function verifySingleModel(idx) {
+  const m = settingsModelsCache[idx];
+  if (!m) return;
+  if (!m.base_url || !m.api_key) {
+    if (window.toast) window.toast.warning((m.name || m.id) + ' 未配置 base_url 或 api_key');
     return;
   }
-  let html = '';
-  filtered.forEach((m, i) => {
-    const caps = (m.capabilities || []).map(c => '<span class="cap-badge">' + c + '</span>').join('');
-    const ttftColor = m.ttft ? (m.ttft < 500 ? '#2d9e6a' : m.ttft < 1500 ? '#b7950b' : '#c0392b') : 'var(--color-text-dim)';
-    const verifyClass = m._verified === 'pending' ? ' model-card-verifying' : (m._verified ? '' : '');
-    html += '<div class="model-card' + verifyClass + '" data-idx="' + i + '">' +
-      '<div class="model-card-header">' +
-        '<span class="model-name-text">' + escapeHtml(m.name || m.id || '') + '</span>' +
-        '<span class="model-default-badge" style="' + (m.is_default ? '' : 'display:none') + '">默认</span>' +
-        '<div class="model-card-actions"><span style="color:' + ttftColor + ';font-size:12px">' + (m.ttft ? m.ttft + 'ms' : '--') + '</span></div>' +
-      '</div>' +
-      '<div class="model-card-caps">' + caps + '</div>' +
-      '<div class="model-card-actions-bottom">' +
-        '<button class="btn-sm" onclick="window.verifySingleModel(' + i + ')">验证</button>' +
-        '<button class="btn-sm danger" onclick="window.deleteModel(' + i + ')">删除</button>' +
-      '</div></div>';
+  if (window.toast) window.toast.info('正在验证 ' + (m.name || m.id) + '...');
+  m._verified = 'pending';
+  renderSettingsModelsList();
+
+  fetch('/api/models/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ base_url: m.base_url, api_key: m.api_key, model: m.name || m.id, provider_id: m.provider || 0 }),
+  }).then(r => r.json()).then(d => {
+    if (d.success) {
+      const caps = d.capabilities || [];
+      if (caps.length) m.capabilities = Array.from(new Set([...(m.capabilities || []), ...caps]));
+      m._verified = true; m._latency = d.latency_ms; m._ttft = d.ttft_ms; m.ttft = d.ttft_ms;
+      m.streaming = d.streaming; m._streaming = d.streaming || d._streaming;
+      m.json_mode = d.json_mode; m._json_mode = d.json_mode || d._json_mode;
+      m.context_window_tested = d.context_window_tested; m._context_window_tested = d.context_window_tested || d._context_window_tested;
+      m._error = null;
+      if (d.context_window_tested && d.context_window_tested > (m.context_window || 0)) m.context_window = d.context_window_tested;
+      renderSettingsModelsList();
+      saveModelsImmediate();
+      const info = [d.latency_ms + 'ms'];
+      if (d.ttft_ms) info.push('TTFT ' + d.ttft_ms + 'ms');
+      if (d.streaming) info.push('流式');
+      if (d.context_window_tested) {
+        info.push('ctx ' + (d.context_window_tested >= 1000000 ? (d.context_window_tested/1000000).toFixed(1)+'M' : (d.context_window_tested/1000).toFixed(0)+'K'));
+      }
+      if (window.toast) window.toast.success((m.name || m.id) + ' 验证通过 (' + info.join(' · ') + ')', 4000);
+    } else {
+      m._verified = false; m._error = d.error || '连接失败';
+      renderSettingsModelsList();
+      if (window.toast) window.toast.error((m.name || m.id) + ' 验证失败: ' + (d.error || '连接失败'), 4000);
+    }
+  }).catch(e => {
+    m._verified = false; m._error = e.message || '请求失败';
+    renderSettingsModelsList();
   });
-  el.innerHTML = html;
-}
-
-export function filterModelsList() {
-  const input = document.getElementById('modelSearchInput');
-  _settingsSearchVal = input ? input.value.trim() : '';
-  _renderSettingsModels(window.settingsModelsCache || []);
-}
-
-export function clearModelSearch() {
-  const input = document.getElementById('modelSearchInput');
-  if (input) input.value = '';
-  _settingsSearchVal = '';
-  _renderSettingsModels(window.settingsModelsCache || []);
-}
-
-export function toggleCapFilterDropdown() {
-  const menu = document.getElementById('capFilterMenu');
-  if (!menu) return;
-  menu.style.display = menu.style.display !== 'none' ? 'none' : 'block';
-}
-
-export function selectCapFilter(cap) {
-  if (_settingsCapFilter.has(cap)) _settingsCapFilter.delete(cap);
-  else _settingsCapFilter.add(cap);
-  const label = document.getElementById('capFilterLabel');
-  if (label) label.textContent = _settingsCapFilter.size ? _settingsCapFilter.size + ' 项' : '全部功能';
-  document.querySelectorAll('.cap-filter-option').forEach(function(el) {
-    const cb = el.querySelector('input[type="checkbox"]');
-    if (cb) cb.checked = _settingsCapFilter.has(el.dataset.cap);
-  });
-}
-
-export function clearCapFilter() {
-  _settingsCapFilter.clear();
-  const label = document.getElementById('capFilterLabel');
-  if (label) label.textContent = '全部功能';
-  document.querySelectorAll('.cap-filter-option input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
-}
-
-export function applyCapFilter() {
-  const menu = document.getElementById('capFilterMenu');
-  if (menu) menu.style.display = 'none';
-  _renderSettingsModels(window.settingsModelsCache || []);
-}
-
-export function toggleSortDir() {
-  _settingsSortDir = _settingsSortDir === 'asc' ? 'desc' : 'asc';
-  const btn = document.getElementById('sortDirBtn');
-  if (btn) btn.textContent = _settingsSortDir === 'asc' ? '↑' : '↓';
-  _renderSettingsModels(window.settingsModelsCache || []);
 }
 
 export function verifyAllModels() {
-  const models = window.settingsModelsCache || [];
-  if (models.length === 0) return;
-  if (typeof window.toast !== 'undefined' && window.toast.info) window.toast.info('开始验证 ' + models.length + ' 个模型...');
-  models.forEach(function(m, i) {
-    setTimeout(function() {
-      if (typeof window.verifySingleModel === 'function') window.verifySingleModel(i);
-    }, i * 600);
-  });
-}
+  if (!settingsModelsCache.length) { if (window.toast) window.toast.warning('没有可验证的模型'); return; }
+  if (window.toast) window.toast.info('开始验证全部 ' + settingsModelsCache.length + ' 个模型...');
 
-export function verifySingleModel(idx) {
-  const models = window.settingsModelsCache;
-  if (!models || !models[idx]) return;
-  const m = models[idx];
-  m._verified = 'pending';
-  _renderSettingsModels(models);
-  fetch('/api/models/test', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({base_url: m.base_url, api_key: m.api_key, model: m.name || m.id, provider_id: m.provider || 0})
-  }).then(function(r) { return r.json(); }).then(function(d) {
-    if (d.success) {
-      const caps = d.capabilities || [];
-      if (caps.length) {
-        m.capabilities = Array.from(new Set([...(m.capabilities || []), ...caps]));
+  const CONCURRENCY = 3;
+  const queue = [...settingsModelsCache.entries()].filter(([, m]) => m.base_url && m.api_key);
+  let done = 0;
+  const total = queue.length;
+
+  queue.forEach(([, m]) => { m._verified = 'pending'; });
+  renderSettingsModelsList();
+
+  let idx = 0;
+  const workers = Array(Math.min(CONCURRENCY, total)).fill(null).map(async () => {
+    while (idx < total) {
+      const i = idx++;
+      const m = queue[i][1];
+      try {
+        const r = await fetch('/api/models/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ base_url: m.base_url, api_key: m.api_key, model: m.name || m.id, provider_id: m.provider || 0 }),
+        });
+        const d = await r.json();
+        if (d.success) {
+          const caps = d.capabilities || [];
+          if (caps.length) m.capabilities = Array.from(new Set([...(m.capabilities || []), ...caps]));
+          m._verified = true; m._latency = d.latency_ms; m._ttft = d.ttft_ms; m.ttft = d.ttft_ms;
+          m.streaming = d.streaming; m._streaming = d.streaming || d._streaming;
+          m.json_mode = d.json_mode; m._json_mode = d.json_mode || d._json_mode;
+          m.context_window_tested = d.context_window_tested;
+          m._context_window_tested = d.context_window_tested || d._context_window_tested;
+          m._error = null;
+          if (d.context_window_tested && d.context_window_tested > (m.context_window || 0)) m.context_window = d.context_window_tested;
+        } else {
+          m._verified = false; m._error = d.error || '连接失败';
+        }
+      } catch(err) {
+        m._verified = false; m._error = err.message || '请求失败';
       }
-      m._verified = true;
-      m.ttft = d.ttft_ms;
-      m.latency = d.latency_ms;
-      m.streaming = d.streaming;
-      m.context_window_tested = d.context_window_tested;
-      // 保存验证结果到 models.db
-      fetch('/api/models/global', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({models: [m]})
-      }).catch(function(e) { console.error('[model-settings] save verify result failed:', e); });
-      if (typeof window.toast !== 'undefined' && window.toast.success) {
-        window.toast.success(m.name + ' 验证通过 (' + (d.latency_ms || '?') + 'ms)');
-      }
-    } else {
-      m._verified = false;
-      m._error = d.error;
-      if (typeof window.toast !== 'undefined' && window.toast.error) {
-        window.toast.error(m.name + ' 验证失败: ' + (d.error || ''));
-      }
+      done++;
+      renderSettingsModelsList();
     }
-    _renderSettingsModels(models);
-  }).catch(function(e) {
-    m._verified = false;
-    m._error = e.message;
-    _renderSettingsModels(models);
-    if (typeof window.toast !== 'undefined' && window.toast.error) window.toast.error(m.name + ' 请求失败');
+  });
+  Promise.all(workers).then(() => {
+    autoSaveModels();
+    const passed = settingsModelsCache.filter(m => m._verified === true).length;
+    const failed = settingsModelsCache.filter(m => m._verified === false).length;
+    if (window.toast) window.toast.success('验证完成: ' + passed + ' 通过, ' + failed + ' 失败', 3000);
   });
 }
 
-export function deleteModel(idx) {
-  const models = window.settingsModelsCache;
-  if (!models || !models[idx]) return;
-  const m = models[idx];
-  if (!confirm('确定删除 "' + (m.name || m.id) + '"？')) return;
-  fetch('/api/models/' + encodeURIComponent(m.name || m.id), { method: 'DELETE' })
-    .then(function(r) { return r.json(); }).then(function() {
-      loadSettingsModels();
-    }).catch(function(e) { console.error('[model-settings] delete failed:', e); });
+// ===== 辅助函数 =====
+function escapeHtml(s) {
+  if (typeof s !== 'string') return '';
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
-export function resetSettingsModels() {
-  if (!confirm('重置所有模型配置？此操作不可恢复。')) return;
-  fetch('/api/models/reset', { method: 'POST' }).then(function(r) { return r.json(); }).then(function() {
-    loadSettingsModels();
-  }).catch(function(e) { console.error('[model-settings] reset failed:', e); });
+
+function escapeAttr(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+
+// ===== 事件委托 =====
+// 验证按钮
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('.btn-verify');
+  if (!btn || btn.dataset.idx === undefined) return;
+  e.preventDefault(); e.stopPropagation();
+  if (!btn.closest('.models-grid')) return;
+  const idx = parseInt(btn.dataset.idx, 10);
+  if (!isNaN(idx)) verifySingleModel(idx);
+});
+
+// 复制模型名按钮
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('.btn-copy-model');
+  if (!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  const name = btn.dataset.name;
+  if (name) copyModelName(e, name);
+});
+
+// 关闭 cap filter dropdown
+document.addEventListener('click', function(e) {
+  const dropdown = document.getElementById('capFilterDropdown');
+  const menu = document.getElementById('capFilterMenu');
+  if (menu && dropdown && !dropdown.contains(e.target)) {
+    menu.style.display = 'none';
+  }
+});
+
+// 走马灯 — mouseenter
+document.addEventListener('mouseenter', function(e) {
+  const nameEl = e.target.closest('.model-name-scroll');
+  if (nameEl && !nameEl._marqueeTimer && nameEl.scrollWidth > nameEl.clientWidth + 1) {
+    const overflow = nameEl.scrollWidth - nameEl.clientWidth;
+    const duration = Math.max(1500, overflow * 20);
+    const text = nameEl.querySelector('.model-name-text');
+    if (text) {
+      text.style.transition = 'transform ' + duration + 'ms linear';
+      text.style.transform = 'translateX(-' + overflow + 'px)';
+      nameEl._marqueeTimer = setTimeout(() => {
+        text.style.transition = 'none';
+        nameEl._marqueeTimer = null;
+      }, duration);
+    }
+  }
+  // caps 走马灯
+  const scrollEl = e.target.closest('.model-caps-scroll');
+  if (scrollEl && !scrollEl._marqueeTimer) {
+    const inner = scrollEl.querySelector('.model-caps-inner');
+    if (inner && inner.scrollWidth > scrollEl.clientWidth + 1) {
+      const overflow = inner.scrollWidth - scrollEl.clientWidth;
+      const duration = Math.max(1500, overflow * 20);
+      inner.style.transition = 'transform ' + duration + 'ms linear';
+      inner.style.transform = 'translateX(-' + overflow + 'px)';
+      scrollEl._marqueeTimer = setTimeout(() => {
+        inner.style.transition = 'none';
+        scrollEl._marqueeTimer = null;
+      }, duration);
+    }
+  }
+}, true);
+
+// 走马灯 — mouseleave
+document.addEventListener('mouseleave', function(e) {
+  const nameEl = e.target.closest('.model-name-scroll');
+  if (nameEl) {
+    if (nameEl._marqueeTimer) { clearTimeout(nameEl._marqueeTimer); nameEl._marqueeTimer = null; }
+    const text = nameEl.querySelector('.model-name-text');
+    if (text) {
+      text.style.transition = 'transform 300ms ease-out';
+      text.style.transform = 'translateX(0)';
+    }
+  }
+  const scrollEl = e.target.closest('.model-caps-scroll');
+  if (scrollEl) {
+    if (scrollEl._marqueeTimer) { clearTimeout(scrollEl._marqueeTimer); scrollEl._marqueeTimer = null; }
+    const inner = scrollEl.querySelector('.model-caps-inner');
+    if (inner) {
+      inner.style.transition = 'transform 300ms ease-out';
+      inner.style.transform = 'translateX(0)';
+    }
+  }
+}, true);
+
+// ===== Window 挂载 =====
+window.switchModelTab = switchModelTab;
+window.loadSettingsModels = loadSettingsModels;
+window.renderSettingsModelsList = renderSettingsModelsList;
+window.filterModelsList = filterModelsList;
+window.clearModelSearch = clearModelSearch;
+window.toggleCapFilterDropdown = toggleCapFilterDropdown;
+window.selectCapFilter = selectCapFilter;
+window.applyCapFilter = applyCapFilter;
+window.clearCapFilter = clearCapFilter;
+window.clearModelFilter = clearModelFilter;
+window.toggleSortDir = toggleSortDir;
+window.editProviderName = editProviderName;
+window.removeSettingsModel = removeSettingsModel;
+window.resetSettingsModels = resetSettingsModels;
+window.discoverModels = discoverModels;
+window.addDiscoveredModel = addDiscoveredModel;
+window.addAllDiscoveredModels = addAllDiscoveredModels;
+window.chatFilterDiscovered = chatFilterDiscovered;
+window.chatClearDiscoverFilter = chatClearDiscoverFilter;
+window.applyProviderPreset = applyProviderPreset;
+window.verifySingleModel = verifySingleModel;
+window.verifyAllModels = verifyAllModels;
+window.copyModelName = copyModelName;
+window.autoSaveModels = autoSaveModels;
