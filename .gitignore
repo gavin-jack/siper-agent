@@ -63,3 +63,5 @@ webui/js/app-*.js
 *.db
 *.db-shm
 *.db-wal
+backup/
+*.tar.gz
