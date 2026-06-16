@@ -333,21 +333,41 @@ class ModelsDB:
         providers_seen = set()
         for m in models:
             prov_id = m.get("provider", 0)
-            if not isinstance(prov_id, int):
-                prov_id = int(prov_id) if prov_id else 0
-            if not prov_id:
+            base_url = m.get("base_url", "")
+            api_key = m.get("api_key", "")
+            prov_name = m.get("provider_name", "") or m.get("provider", "")
+            prov_alias = m.get("provider_alias", "")
+
+            # Handle string provider name: auto-find or create provider
+            if isinstance(prov_id, str) or (isinstance(prov_id, int) and prov_id <= 0):
+                # Try to find existing provider by base_url
+                provs = self.get_all_providers()
+                matched = next((p for p in provs if p["base_url"] == base_url), None) if base_url else None
+                if matched:
+                    prov_id = matched["id"]
+                    # Update api_key if provided
+                    if api_key:
+                        self.upsert_provider(base_url, api_key, prov_name, prov_alias)
+                else:
+                    # Auto-create provider
+                    if base_url:
+                        prov_id = self.upsert_provider(base_url, api_key, prov_name, prov_alias)
+                    else:
+                        continue  # No base_url, cannot save
+
+            # Sanity check
+            if not isinstance(prov_id, int) or prov_id <= 0:
                 continue
 
             if prov_id not in providers_seen:
-                # 通过 id 查找 provider 的 base_url
                 provs = self.get_all_providers()
                 prov = next((p for p in provs if p["id"] == prov_id), None)
                 if prov:
                     self.upsert_provider(
                         prov["base_url"],
-                        m.get("api_key", ""),
-                        m.get("provider_name", "") or m.get("provider", ""),
-                        m.get("provider_alias", ""),
+                        api_key,
+                        prov_name,
+                        prov_alias,
                     )
                 providers_seen.add(prov_id)
 

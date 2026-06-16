@@ -438,7 +438,9 @@
 /* Common page layout */.page-header {
   padding: 16px 24px; border-bottom: 1px solid var(--color-border);
   display: flex; align-items: center; justify-content: space-between;
-}.page-header h2 { font-size: 16px; font-weight: 600; }.page-header .actions { display: flex; gap: 8px; }.btn-sm {
+}.page-header h2 { font-size: 16px; font-weight: 600; }.page-header .actions { display: flex; gap: 8px; }
+.page-body { flex: 1; overflow-y: auto; min-height: 0; padding: 16px 24px; }
+.btn-sm {
   padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;
   border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text);
   transition: background-color, color
@@ -1102,6 +1104,8 @@
 .siper-content.siper-full-content > * {
   flex-shrink: 0;
 }
+
+#monitorContent { flex: 1; overflow-y: auto; min-height: 0; }
 
 /* ===== Settings Tabs ===== */
 .siper-settings-tabs {
@@ -1896,4 +1900,78 @@
 .tool-param-more { color:var(--color-text-dim); font-style:italic; }
 .tool-total-badge { font-size:12px; color:var(--color-text-dim); background:var(--color-surface); border:1px solid var(--color-border); border-radius:12px; padding:4px 12px; }
 .tool-header-badge { font-size:13px; font-weight:400; color:var(--color-text-dim); background:var(--color-border); border-radius:10px; padding:2px 10px; margin-left:8px; }
+
+/* ===== Model Card Styles (for model-settings page) ===== */
+.model-card {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  height: 96px;
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out, border-color 180ms ease-out;
+}
+.model-card:hover { transform: translateY(-1px); box-shadow: 0 2px 8px var(--shadow-sm); border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border)); }
+.model-card-verifying { border-color: var(--color-warning); box-shadow: 0 0 8px color-mix(in srgb, var(--color-warning) 30%, transparent); }
+.model-name-text { font-weight: 600; font-size: 13px; white-space: nowrap; display: inline-block; letter-spacing: 0.01em; }
+.model-default-badge { font-size: 12px; padding: 1px 5px; border-radius: 3px; background: var(--color-primary); color: var(--white); flex-shrink: 0; font-weight: 500; }
+.model-card-caps { display: flex; flex-wrap: wrap; gap: 3px; overflow: hidden; height: 18px; }
+.cap-badge { font-size: 12px; padding: 1px 5px; border-radius: 3px; background: color-mix(in srgb, var(--color-text-dim) 18%, transparent); color: var(--color-text-dim); border: 1px solid color-mix(in srgb, var(--color-text-dim) 35%, transparent); margin-right: 2px; cursor: default; line-height: 1.4; }
+.model-card.card-left-accent.model-verify-pass { border-left-color: var(--color-success); }
+.model-card.card-left-accent.model-verify-fail { border-left-color: var(--color-danger); }
+
+/* ===== Model Card Enhancements ===== */
+.model-name-scroll { flex: 1; min-width: 0; position: relative; overflow: hidden; }
+.model-name-text {
+  font-weight: 600; font-size: 13px; white-space: nowrap; display: inline-block;
+  letter-spacing: 0.01em; overflow: visible; max-width: 100%;
+}
+.model-name-text.marquee {
+  animation: modelNameMarquee 8s linear infinite;
+  padding-right: 20px;
+}
+@keyframes modelNameMarquee {
+  0% { transform: translateX(0); }
+  90% { transform: translateX(calc(-100% + 80px)); }
+  100% { transform: translateX(calc(-100% + 80px)); }
+}
+.btn-copy-model {
+  padding: 2px 5px; flex-shrink: 0; line-height: 1; border-radius: 4px;
+  transition: background-color 150ms ease; min-width: 24px; text-align: center;
+  font-size: 12px; display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--color-text-dim);
+}
+.btn-copy-model:hover { background-color: color-mix(in srgb, var(--color-text-dim) 12%, transparent); }
+.model-card-header { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.model-card-header .model-card-actions { display: flex; gap: 2px; align-items: center; flex-shrink: 0; margin-left: auto; }
+.model-card-actions-bottom {
+  display: flex; gap: 4px; justify-content: flex-end; margin-top: 2px; align-items: center;
+}
+.model-card-actions .btn-sm, .model-card-actions-bottom .btn-sm {
+  padding: 2px 8px; font-size: 11px; border-radius: 4px; min-width: 40px;
+  height: 22px; line-height: 1; display: inline-flex; align-items: center;
+  justify-content: center; text-align: center; flex-shrink: 0; cursor: pointer;
+  border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text);
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.model-card-actions .btn-sm:hover, .model-card-actions-bottom .btn-sm:hover {
+  background: var(--color-hover); border-color: var(--color-primary); color: var(--color-text);
+}
+.model-card-actions .btn-sm.danger, .model-card-actions-bottom .btn-sm.danger { color: var(--color-danger); border-color: color-mix(in srgb, var(--color-danger) 30%, var(--color-border)); }
+.model-card-actions .btn-sm.danger:hover, .model-card-actions-bottom .btn-sm.danger:hover {
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  border-color: var(--color-danger); color: var(--color-danger);
+}
+.model-card-pending { font-size: 12px; color: var(--color-primary); padding: 2px 0; display: flex; align-items: center; gap: 4px; }
+.model-card-error { font-size: 12px; color: var(--color-danger); margin-top: 4px; }
+.model-card-animate { animation: modelCardFadeIn 250ms ease-out both; }
+@keyframes modelCardFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .tool-nav-badge { font-size:11px; color:var(--color-text-dim); background:var(--color-border); border-radius:10px; padding:1px 7px; margin-left:6px; font-weight:600; }

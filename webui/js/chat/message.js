@@ -1,13 +1,17 @@
 // chat/message.js — 消息渲染与管理
 import { getWs } from '../core.js';
 import {
-  chatSessionId, chatCurrentAgent, chatExpandedAgents,
-  chatCurrentModel, chatModelContextWindow,
+  _chatSessionId, _chatCurrentAgent,
+  _chatCurrentModel, _chatModelContextWindow,
   _chatStreamAcc, _chatStreamRow, _chatStreamBubble,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending,
   fmtTokens,
   markSessionReady,
   syncStreamFromCurrent, syncStreamToCurrent,
+  getChatSessionId, getChatCurrentAgent,
+  setChatCurrentModel, setChatModelContextWindow,
+  setChatSessionId, getIsSending, getStreamState,
+  _isSending,
 } from '../chat/state.js';
 import { resetSendState } from '../chat/session.js';
 import { chatThinkingHide } from '../chat/thinking.js';
@@ -86,8 +90,8 @@ export function chatAppendAgentMsg(text, meta) {
   const row = document.createElement('div');
   row.className = 'siper-msg-row agent';
   const timeStr = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  const avatarUrl = chatCurrentAgent && chatCurrentAgent.name
-    ? '/api/avatar?agent=' + encodeURIComponent(chatCurrentAgent.name)
+  const avatarUrl = _chatCurrentAgent && _chatCurrentAgent.name
+    ? '/api/avatar?agent=' + encodeURIComponent(_chatCurrentAgent.name)
     : '/static/default_avatar.webp';
   row.innerHTML = `
     <img src="${avatarUrl}" class="siper-msg-avatar" alt="" onerror="this.src='/static/default_avatar_256.png'">
@@ -273,8 +277,8 @@ export function updateCtxInfoDisplay() {
   const valEl = document.getElementById('chatCtxValue');
   const pctEl = document.getElementById('chatCtxPct');
   if (!valEl || !pctEl) return;
-  const tokens = window.chatCtxTokens || { used: 0, total: chatModelContextWindow || 0 };
-  const total = tokens.total || chatModelContextWindow || 0;
+  const tokens = window.chatCtxTokens || { used: 0, total: _chatModelContextWindow || 0 };
+  const total = tokens.total || _chatModelContextWindow || 0;
   const used = tokens.used || 0;
   const pct = total > 0 ? Math.round((used / total) * 100) : 0;
   valEl.textContent = total > 0 ? fmtTokens(used) + '/' + fmtTokens(total) : '--/--';

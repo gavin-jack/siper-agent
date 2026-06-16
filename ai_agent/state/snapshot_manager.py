@@ -39,6 +39,7 @@ class SnapshotManager:
         self.MAX_THINKING_STEPS = 20
         self.CACHE_TTL = 30
         self.CACHE_MAX_BYTES = 200_000
+        self.CACHE_WHITELIST = ["memory", "agent_config", "theme", "monitor"]
 
         # 启动时从 SQLite 恢复
         self._load_from_db()
@@ -182,11 +183,17 @@ class SnapshotManager:
         """启动定时持久化（每 interval 秒检查 _dirty 并写入 SQLite）"""
         loop = asyncio.get_event_loop()
         self._save_task = loop.create_task(self._periodic_save_loop(interval))
+        self._gc_counter = 0
 
     async def _periodic_save_loop(self, interval: float):
         try:
             while True:
                 await asyncio.sleep(interval)
+                self._gc_counter += 1
+                # 每 30s (6×5s) 执行一次 gc
+                if self._gc_counter >= 6:
+                    await self.gc()
+                    self._gc_counter = 0
                 if self._dirty:
                     self._save_to_db()
         except asyncio.CancelledError:
@@ -198,6 +205,45 @@ class SnapshotManager:
             self._save_to_db()
         if hasattr(self, '_save_task'):
             self._save_task.cancel()
+
+    # ===== 垃圾回收 =====
+
+    async def gc(self):
+        """清理已消费数据，防止内存随运行时间增长"""
+        async with self._lock:
+            # 1. 截断 _deltas（只保留最近 100 条）
+            if len(self._deltas) > 100:
+                self._deltas = self._deltas[-100:]
+            # 2. 清空 thinking_steps（瞬态数据）
+            if self._snap.get("thinking_steps"):
+                self._snap["thinking_steps"] = []
+            # 3. 清空 toasts（已显示的通知）
+            if self._snap.get("toasts"):
+                self._snap["toasts"] = []
+            # 4. 清空 dialog（对话框关闭后应清空）
+            if self._snap.get("dialog"):
+                self._snap["dialog"] = None
+            self._dirty = True
+
+    # ===== 启动预填充 =====
+
+    async def hot_start(self, agent):
+        """服务启动时从 DB 预填充内存，不等 WS 连接."""
+        from ai_agent.state.session_sync import (
+            sync_agents, sync_sessions, sync_memory, sync_agent_configs, sync_system_stats,
+        )
+        _agents = sync_agents(self)
+        await self.set("agents", _agents)
+        _sessions = sync_sessions(self, agent)
+        await self.set("sessions", _sessions)
+        _expanded = [a["name"] for a in _agents if a.get("expanded", True)]
+        await self.set("expanded_agents", _expanded)
+        _memory_data = sync_memory(self, agent)
+        await self.set_page_cache("memory", _memory_data)
+        _config_data = sync_agent_configs(self, agent)
+        await self.set_page_cache("agent_config", _config_data)
+        _stats_data = await sync_system_stats(self, agent)
+        await self.set_page_cache("monitor", _stats_data)
 
     # ===== 推送控制 =====
 
@@ -224,21 +270,28 @@ class SnapshotManager:
     # ===== 客户端管理 =====
 
     async def register(self, conn_id: str, adapter: Any):
-        """新连接 → 发全量快照"""
+        """新连接 → 发全量快照（排除 page_cache，页面数据由 _push_page_data 按需推送）"""
         self._clients[conn_id] = adapter
-        await adapter.send_state_full(self.get_snapshot())
+        await self._send_snapshot(adapter)
 
     async def register_resumed(self, conn_id: str, adapter: Any, last_ver: int):
         """断线重连 → 补发缺失 deltas 或全量"""
         self._clients[conn_id] = adapter
         if last_ver <= 0 or (self._version - last_ver > 100):
-            await adapter.send_state_full(self.get_snapshot())
+            await self._send_snapshot(adapter)
         else:
             missing = self._deltas[last_ver:]
             if missing:
                 await adapter.send_state_deltas(last_ver, self._version, missing)
             else:
-                await adapter.send_state_full(self.get_snapshot())
+                await self._send_snapshot(adapter)
+
+    async def _send_snapshot(self, adapter: Any):
+        """发送全量快照（排除 page_cache，页面数据由 _push_page_data 按需推送）"""
+        snap = self.get_snapshot()
+        snap.pop("page_cache", None)
+        snap.pop("_cache_ts", None)
+        await adapter.send_state_full(snap)
 
     async def unregister(self, conn_id: str):
         self._clients.pop(conn_id, None)
@@ -310,10 +363,10 @@ class SnapshotManager:
 
         Args:
             current_page: 当前页面名称，不会被清除.
-            whitelist: 额外保留的页面键列表，默认为 ["memory", "agent_config", "theme"].
+            whitelist: 额外保留的页面键列表，默认为 self.CACHE_WHITELIST.
         """
         if whitelist is None:
-            whitelist = ["memory", "agent_config", "theme"]
+            whitelist = self.CACHE_WHITELIST
         keep = {current_page, *whitelist}
         async with self._lock:
             stale = [k for k in self._snap["page_cache"] if k not in keep]

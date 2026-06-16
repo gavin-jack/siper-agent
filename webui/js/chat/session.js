@@ -4,7 +4,7 @@
  */
 import {
     _chatSessionId, _chatCurrentAgent, _isSending, _chatCurrentModel,
-    _chatModelContextWindow, _chatAgents,
+    _chatModelContextWindow,
     setIsSending, setChatSessionId, setChatCurrentAgent,
     setChatCurrentModel, setChatModelContextWindow,
     setCurrentModel,

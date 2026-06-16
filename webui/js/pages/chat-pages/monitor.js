@@ -1,6 +1,15 @@
 // chat-pages/monitor.js — 统计页面（性能 + 词元 + 日志）
 // 目录已提升为独立页面
 
+// 注册 page_cache 回调：后端推送新数据时自动刷新
+if (typeof window.__onPageCacheRegister === 'function') {
+  window.__onPageCacheRegister('monitor', function(data) {
+    if (data.perf && typeof _applyPerfData === 'function') _applyPerfData(data.perf);
+    if (data.token && typeof _applyTokenData === 'function') _applyTokenData(data.token);
+    if (data.logs && typeof _applyLogsData === 'function') _applyLogsData(data.logs);
+  });
+}
+
 export function switchMonitorTab(tab) {
   const tabs = document.querySelectorAll('#monitorTabs .siper-settings-tab');
   tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
@@ -226,9 +235,21 @@ function _renderMemHistory() {
 }
 
 function _loadPerfData() {
+  // 优先从 page_cache 读取
+  const cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('monitor') : null;
+  if (cached && cached.perf) {
+    _applyPerfData(cached.perf);
+    return;
+  }
   fetch('/api/stats').then(r => r.json()).then(data => {
-    // 系统概览
-    if (data.system) {
+    _applyPerfData(data);
+  }).catch(e => { console.error('[monitor] _loadPerfData failed:', e); });
+}
+
+function _applyPerfData(data) {
+  if (!data) return;
+  // 系统概览
+  if (data.system) {
       const sys = data.system;
       if (sys.os) {
         const osStr = sys.os + (sys.os_version ? ' ' + sys.os_version : '');
@@ -321,11 +342,20 @@ function _loadPerfData() {
     if (data.session_count != null) document.getElementById('perfSessionsCount').textContent = data.session_count + ' 个会话';
     if (data.token_usage_count != null) document.getElementById('perfTokenCount').textContent = data.token_usage_count + ' 条记录';
     if (data.model_count != null) document.getElementById('perfModelsCount').textContent = data.model_count + ' 个模型';
-  }).catch(e => { console.error('[monitor] _loadPerfData failed:', e); });
 }
 
 // ===== Monitor Page Shell =====
-export function renderMonitorPageChat(container) {
+export async function renderMonitorPageChat(container) {
+  // 按需加载 echarts（index.html 已移除全量加载）
+  if (typeof window.echarts === 'undefined') {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = '/static/js/echarts.min.js';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
   container.className = 'siper-content siper-full-content';
   container.innerHTML = `
 <div class="siper-page-toolbar js-toolbar-flex-wrap">
@@ -358,19 +388,32 @@ export function renderMonitorTokenTab() {
   <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">📅 活跃时段热力图</div><div id="monitorChartHeatmap" class="js-chart-box"></div></div>
 </div>
 <div class="siper-token-chart-card card-hover js-mt-12" style="width:100%"><div class="siper-token-chart-title">⚡ 模型效率对比</div><div id="monitorChartEfficiency" class="js-chart-box" style="height:300px"></div></div>`;
+  // 优先从 page_cache 读取
+  const cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('monitor') : null;
+  if (cached && cached.token) {
+    _applyTokenData(cached.token);
+    return;
+  }
   fetch('/api/token').then(r => r.json()).then(data => {
-    const stats = document.getElementById('monitorTokenStats');
-    if (stats && data) {
-      stats.innerHTML = `<div class="siper-token-charts-row">
+    _applyTokenData(data);
+    // 图表渲染延迟到 switchMonitorTab 中执行（等容器可见）
+  }).catch(e => { console.error('[monitor] renderMonitorTokenTab failed:', e); });
+}
+
+function _applyTokenData(data) {
+  if (!data) return;
+  const stats = document.getElementById('monitorTokenStats');
+  if (stats) {
+    stats.innerHTML = `<div class="siper-token-charts-row">
         <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">总请求数</div><div class="siper-token-value">${data.total_requests || 0}</div></div>
         <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">总词元</div><div class="siper-token-value">${_mFmt(data.total_tokens)}</div></div>
         <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">提示词元</div><div class="siper-token-value" style="color:var(--color-success)">${_mFmt(data.total_prompt_tokens)}</div></div>
         <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">完成词元</div><div class="siper-token-value" style="color:var(--color-warning)">${_mFmt(data.total_completion_tokens)}</div></div>
       </div>`;
-    }
-    _mTokenData = data;
-    // 图表渲染延迟到 switchMonitorTab 中执行（等容器可见）
-  }).catch(e => { console.error('[monitor] renderMonitorTokenTab failed:', e); });
+  }
+  _mTokenData = data;
+  // 数据就绪后直接渲染图表（此时容器可见）
+  _renderTokenCharts();
 }
 
 // ===== ECharts =====
@@ -415,7 +458,7 @@ function _mFmt(n) {
   return String(n);
 }
 
-function renderMonitorCharts(data) {
+export function renderMonitorCharts(data) {
   if (typeof window.echarts === 'undefined') return;
   if (_mChartModel) { _mChartModel.dispose(); _mChartModel = null; }
   if (_mChartDate) { _mChartDate.dispose(); _mChartDate = null; }
@@ -565,3 +608,76 @@ function _mResizeCharts() {
   if (_mChartEfficiency) _mChartEfficiency.resize();
   if (_mChartHeatmap) _mChartHeatmap.resize();
 }
+
+// ===== Logs Tab =====
+let _logSearchDebounce = null;
+
+export function refreshLogs(force) {
+  const container = document.getElementById('chatLogsList');
+  if (!container) return;
+  if (!force && container.dataset.loaded === '1') return;
+  container.innerHTML = '<div class="siper-loading">加载中...</div>';
+  const level = document.getElementById('chatLogLogLevel') ? document.getElementById('chatLogLogLevel').value : '';
+  const source = document.getElementById('logSourceFilter') ? document.getElementById('logSourceFilter').value : '';
+  const search = document.getElementById('chatLogSearchInput') ? document.getElementById('chatLogSearchInput').value : '';
+  let url = '/api/logs?limit=100';
+  if (level) url += '&levels=' + encodeURIComponent(level);
+  if (source) url += '&source=' + encodeURIComponent(source);
+  if (search) url += '&search=' + encodeURIComponent(search);
+  fetch(url).then(r => r.json()).then(data => {
+    if (!data || !data.logs) {
+      container.innerHTML = '<div class="empty-state">加载失败</div>';
+      return;
+    }
+    container.dataset.loaded = '1';
+    if (data.logs.length === 0) {
+      container.innerHTML = '<div class="empty-state">暂无日志</div>';
+      return;
+    }
+    container.innerHTML = data.logs.map(e => {
+      const lvl = (e.level || '').toUpperCase();
+      const cls = lvl === 'ERROR' ? 'log-error' : lvl === 'WARN' ? 'log-warn' : lvl === 'DEBUG' ? 'log-debug' : 'log-info';
+      return '<div class="log-entry ' + cls + '">'
+        + '<span class="log-time">' + escapeHtml(e.time || '') + '</span>'
+        + '<span class="log-level">' + escapeHtml(lvl) + '</span>'
+        + '<span class="log-source">[' + escapeHtml(e.logger || '') + ']</span>'
+        + '<span class="log-msg">' + escapeHtml(e.message || '') + '</span>'
+        + '</div>';
+    }).join('');
+    const stats = document.getElementById('chatLogStats');
+    if (stats) stats.textContent = '共 ' + data.total + ' 条';
+    const srcFilter = document.getElementById('logSourceFilter');
+    if (srcFilter && data.sources) {
+      const cur = srcFilter.value;
+      srcFilter.innerHTML = '<option value="">全部来源</option>'
+        + data.sources.map(s => '<option value="' + escapeHtml(s) + '"' + (s === cur ? ' selected' : '') + '>' + escapeHtml(s) + '</option>').join('');
+    }
+  }).catch(() => {
+    container.innerHTML = '<div class="empty-state">加载失败</div>';
+  });
+}
+
+window.refreshLogs = refreshLogs;
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+export function applyLogLogsDebounced() {
+  if (_logSearchDebounce) clearTimeout(_logSearchDebounce);
+  _logSearchDebounce = setTimeout(() => refreshLogs(true), 300);
+}
+
+export function applyChatLogLevelFilter() {
+  refreshLogs(true);
+}
+
+export function applyLogFilters() {
+  refreshLogs(true);
+}
+
+window.applyLogLogsDebounced = applyLogLogsDebounced;
+window.applyChatLogLevelFilter = applyChatLogLevelFilter;
+window.applyLogFilters = applyLogFilters;

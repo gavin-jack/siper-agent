@@ -182,13 +182,15 @@ export function registerAllHandlers() {
     });
 
     register('sessions', (v) => {
-        if (typeof window.renderMiddleList === 'function') {
+        // 中栏容器存在时才渲染（避免 renderFull 早于 initChatPage 时无效重建）
+        if (document.getElementById('chatMiddleList') && typeof window.renderMiddleList === 'function') {
             window.renderMiddleList();
         }
     });
 
     register('messages', (v) => {
-        if (typeof window.renderChatMessages === 'function') {
+        // 消息容器存在时才渲染
+        if (document.getElementById('chatMessages') && typeof window.renderChatMessages === 'function') {
             window.renderChatMessages(v);
         }
     });

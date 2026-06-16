@@ -1,8 +1,8 @@
 // chat/input.js — 输入框、文件上传、模型选择
 import { getWs, setWs } from '../core.js';
 import {
-  chatSessionId, chatCurrentAgent, chatCurrentPage,
-  chatCurrentModel, chatModelContextWindow, chatAgents,
+  _chatSessionId, _chatCurrentAgent, _chatCurrentPage,
+  _chatCurrentModel, _chatModelContextWindow,
   setCurrentModel, setModelContextWindow, setChatCurrentModel, setChatModelContextWindow, setIsSending,
   updateStreamingBadge,
   getIsSending,
@@ -12,6 +12,15 @@ import {
   markSessionReady,
   setChatSessionId,
 } from '../chat/state.js';
+
+// 从 page_cache 读取 agents 列表（替代已删除的 chatAgents 变量）
+function _getAgents() {
+  if (typeof window.__getPageCache === 'function') {
+    const agents = window.__getPageCache('agents');
+    if (agents) return agents;
+  }
+  return [];
+}
 import { resetSendState } from '../chat/session.js';
 import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js';
 import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js';
@@ -189,8 +198,9 @@ export async function loadChatModels() {
   try {
     let models = [];
     let noModels = false;
-    if (chatCurrentAgent && chatCurrentAgent.name) {
-      const agent = chatAgents.find(a => a.name === chatCurrentAgent.name);
+    if (_chatCurrentAgent && _chatCurrentAgent.name) {
+      const agents = _getAgents();
+      const agent = agents.find(a => a.name === _chatCurrentAgent.name);
       if (agent && agent.available_models && agent.available_models.length > 0) {
         models = agent.available_models;
       } else if (agent) {
@@ -254,13 +264,13 @@ export function renderChatModelDropdown(models, showNoModels) {
     return;
   }
   if (btnName) {
-    const cur = models.find(m => m.name === chatCurrentModel);
+    const cur = models.find(m => m.name === _chatCurrentModel);
     btnName.textContent = cur ? (cur.alias || cur.name) : '默认模型';
   }
   for (const m of models) {
     const item = document.createElement('div');
     item.className = 'siper-model-item';
-    if (m.name === chatCurrentModel) item.classList.add('active');
+    if (m.name === _chatCurrentModel) item.classList.add('active');
     item.innerHTML = `<span class="siper-model-item-name">${chatEscapeHtml(m.alias || m.name)}</span><span class="siper-model-item-provider">${chatEscapeHtml(m.provider_name || m.provider || '')}</span>${_renderCapBadges(m.capabilities)}`;
     item.addEventListener('click', () => {
       setChatCurrentModel(m.name);
@@ -292,19 +302,20 @@ export function closeChatModelDropdown() {
  */
 export function updateChatHeader() {
   const headerName = document.getElementById('chatRightHeaderName');
-  if (!headerName || chatCurrentPage !== 'chat' || !chatSessionId || !chatCurrentAgent) return;
+  if (!headerName || _chatCurrentPage !== 'chat' || !_chatSessionId || !_chatCurrentAgent) return;
   // 从 session list 查找当前会话标题
-  const agent = chatAgents.find(a => a.name === chatCurrentAgent.name);
-  let sessionTitle = chatSessionId.substring(0, 8);
+  const agents = _getAgents();
+  const agent = agents.find(a => a.name === _chatCurrentAgent.name);
+  let sessionTitle = _chatSessionId.substring(0, 8);
   if (agent && agent.sessions) {
-    const sess = agent.sessions.find(s => s.session_id === chatSessionId);
+    const sess = agent.sessions.find(s => s.session_id === _chatSessionId);
     if (sess && sess.title) sessionTitle = sess.title;
   }
-  const agentDisplay = chatCurrentAgent.display_name || chatCurrentAgent.name;
+  const agentDisplay = _chatCurrentAgent.display_name || _chatCurrentAgent.name;
   // 从 models 中查找当前模型的能力图标
   let capBadges = '';
   if (agent && agent.available_models) {
-    const m = agent.available_models.find(m => m.name === chatCurrentModel);
+    const m = agent.available_models.find(m => m.name === _chatCurrentModel);
     if (m && m.capabilities) capBadges = _renderCapBadges(m.capabilities);
   }
   // 用户输入部分转义，capBadges 是可信 HTML
@@ -325,7 +336,7 @@ export async function chatSendMessage() {
   chatThinkingAddTextRow('正在思考...');
   // Wait for session to be ready before sending
   await ensureSessionReady();
-  if (!chatSessionId) return; // still no session, abort
+  if (!_chatSessionId) return; // still no session, abort
   // Wait for WS to be connected
   const ws = getWs();
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
@@ -336,7 +347,7 @@ export async function chatSendMessage() {
   if (stopBtn) { stopBtn.classList.remove('hidden'); stopBtn.classList.add('btn-pop'); setTimeout(() => stopBtn.classList.remove('btn-pop'), 300); }
   chatAppendUserMsg(text || '[文件]');
   // Start streaming wave badge on session immediately (before LLM responds)
-  if (chatSessionId) updateStreamingBadge(chatSessionId, true);
+  if (_chatSessionId) updateStreamingBadge(_chatSessionId, true);
   setIsThinking(true);
   const filesToUpload = [...chatPendingFiles];
   if (filesToUpload.length > 0) {
@@ -353,15 +364,15 @@ export async function chatSendMessage() {
     // 异步上传文件到磁盘（不阻塞 WS 发送）
     chatUploadFiles(filesToUpload).catch(e => { console.error('[input] background upload failed:', e); });
     // 立即通过 WS 发送（不等上传完成）
-    const payload = { type: 'message', content, session_id: chatSessionId };
+    const payload = { type: 'message', content, session_id: _chatSessionId };
     if (images.length > 0) payload.images = images;
-    if (chatCurrentAgent) payload.agent = chatCurrentAgent.name;
-    if (chatCurrentModel) payload.model = chatCurrentModel;
+    if (_chatCurrentAgent) payload.agent = _chatCurrentAgent.name;
+    if (_chatCurrentModel) payload.model = _chatCurrentModel;
     ws.send(JSON.stringify(payload));
   } else {
-    const payload = { type: 'message', content: text, session_id: chatSessionId };
-    if (chatCurrentAgent) payload.agent = chatCurrentAgent.name;
-    if (chatCurrentModel) payload.model = chatCurrentModel;
+    const payload = { type: 'message', content: text, session_id: _chatSessionId };
+    if (_chatCurrentAgent) payload.agent = _chatCurrentAgent.name;
+    if (_chatCurrentModel) payload.model = _chatCurrentModel;
     ws.send(JSON.stringify(payload));
   }
   input.value = '';
@@ -377,7 +388,7 @@ export function bindChatInput() {
   input.addEventListener('input', function() {
     _adjustInputHeight(this);
     const baseUsed = (window.chatCtxTokens && window.chatCtxTokens.used) ? window.chatCtxTokens.used : 0;
-    const total = chatModelContextWindow || 0;
+    const total = _chatModelContextWindow || 0;
     const inputTokens = this.value ? Math.max(1, Math.ceil(this.value.length / 4)) : 0;
     const estimated = baseUsed + inputTokens;
     const pct = total > 0 ? Math.min(100, Math.round((estimated / total) * 100)) : 0;

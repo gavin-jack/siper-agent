@@ -364,13 +364,44 @@ async function navigateToPage(page, tab) {
     }
 
     // 挂载页面特有的全局函数（供 HTML onclick 调用）
+    if (page === 'agent-config' && typeof mod.loadAgentSettings === 'function') {
+      window.loadAgentSettings = mod.loadAgentSettings;
+      window.saveAgentSettings = mod.saveAgentSettings;
+      window.refreshConfigAgentPanel = mod.refreshConfigAgentPanel;
+      window.switchConfigAgentPageTab = mod.switchConfigAgentPageTab;
+    }
+    // 模板克隆页面 — 挂载需要的函数到 window
+    if (page === 'sessions' && typeof mod.renderSessions === 'function') {
+      window.renderSessions = mod.renderSessions;
+    }
+    if (page === 'memory' && typeof mod.renderMemoryContent === 'function') {
+      window.renderMemoryContent = mod.renderMemoryContent;
+    }
     if (page === 'model-settings' && typeof mod.switchModelTab === 'function') {
       window.switchModelTab = mod.switchModelTab;
+      window.applyProviderPreset = mod.applyProviderPreset;
+      window.discoverModels = mod.discoverModels;
+      window.addDiscoveredModel = mod.addDiscoveredModel;
+      window.addAllDiscoveredModels = mod.addAllDiscoveredModels;
+      window.chatFilterDiscovered = mod.chatFilterDiscovered;
+      window.chatClearDiscoverFilter = mod.chatClearDiscoverFilter;
+      window.loadSettingsModels = mod.loadSettingsModels;
+      window.filterModelsList = mod.filterModelsList;
+      window.clearModelSearch = mod.clearModelSearch;
+      window.toggleCapFilterDropdown = mod.toggleCapFilterDropdown;
+      window.selectCapFilter = mod.selectCapFilter;
+      window.clearCapFilter = mod.clearCapFilter;
+      window.applyCapFilter = mod.applyCapFilter;
+      window.toggleSortDir = mod.toggleSortDir;
+      window.verifyAllModels = mod.verifyAllModels;
+      window.verifySingleModel = mod.verifySingleModel;
+      window.deleteModel = mod.deleteModel;
+      window.resetSettingsModels = mod.resetSettingsModels;
     }
     if (page === 'monitor' && typeof mod.switchMonitorTab === 'function') {
       window.switchMonitorTab = mod.switchMonitorTab;
     }
-    if (page === 'settings' && typeof mod.switchSettingsTab === 'function') {
+    if ((page === 'settings' || page === 'global-settings') && typeof mod.switchSettingsTab === 'function') {
       window.switchSettingsTab = mod.switchSettingsTab;
       window.resetSystemParams = mod.resetSystemParams;
       window.refreshGlobalSettings = mod.refreshGlobalSettings;
@@ -420,8 +451,11 @@ function initRouter() {
   }
 
   const rawHash = location.hash.replace('#/', '').replace('#', '');
-  if (rawHash && rawHash !== 'chat') {
-    navigateToPage(rawHash);
+  const hashParts = rawHash.split('?');
+  const hashPage = hashParts[0] || '';
+  const hashTab = hashParts[1] ? hashParts[1].replace('tab=', '') : null;
+  if (hashPage && hashPage !== 'chat') {
+    navigateToPage(hashPage, hashTab);
   } else {
     document.getElementById('page-chat').style.display = 'flex';
     document.getElementById('page-standalone').style.display = 'none';

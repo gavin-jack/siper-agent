@@ -3625,6 +3625,12 @@ async def main():
     _router_mod.api_router = api_router
     logger.info("[起源] SnapshotManager / CarrierManager / Router / DatabaseManager 已初始化")
 
+    # 启动预填充：从 DB 加载 agents/sessions 到内存，不等 WS 连接
+    import asyncio as _asyncio
+    _loop = _asyncio.get_event_loop()
+    _loop.create_task(snapshot_mgr.hot_start(agent))
+    logger.info("[起源] 启动预填充已调度")
+
     # 起源：注册 API 路由（一次性，在 main() 中完成）
     from ai_agent.api.router import register_routes as _register_routes
     from ai_agent.api.handlers import api_get_system_stats, api_get_project_structure, api_get_tools
@@ -3796,40 +3802,40 @@ async def main():
         # 起源：注册载体适配器
         if snapshot_mgr and carrier_mgr:
             _adapter = WebUIAdapter(ws)
-            # 起源：初始数据同步（agents with sessions）— 必须在 register 前完成
-            logger.info(f"[起源] WS {conn_id} 开始初始同步...")
-            from ai_agent.state.session_sync import sync_agents
-            try:
-                _agents = sync_agents(snapshot_mgr)
-                await snapshot_mgr.set("agents", _agents)
-                logger.info(f"[起源] 初始同步: {len(_agents)} agents")
-                # 同步 sessions 到快照
-                from ai_agent.state.session_sync import sync_sessions as _sync_sessions
+            # 起源：初始数据同步 — 快照已有数据时跳过重复 DB 读取
+            _existing_agents = snapshot_mgr.get_snapshot().get("agents", [])
+            if _existing_agents:
+                logger.info(f"[起源] WS {conn_id} 快照已有 {len(_existing_agents)} agents，跳过重复同步")
+            else:
+                logger.info(f"[起源] WS {conn_id} 开始初始同步...")
+                from ai_agent.state.session_sync import sync_agents
                 try:
-                    _sessions = _sync_sessions(snapshot_mgr, agent)
-                    await snapshot_mgr.set("sessions", _sessions)
-                    logger.info(f"[起源] 初始同步: {len(_sessions)} sessions")
+                    _agents = sync_agents(snapshot_mgr)
+                    await snapshot_mgr.set("agents", _agents)
+                    logger.info(f"[起源] 初始同步: {len(_agents)} agents")
+                    # 同步 sessions 到快照
+                    from ai_agent.state.session_sync import sync_sessions as _sync_sessions
+                    try:
+                        _sessions = _sync_sessions(snapshot_mgr, agent)
+                        await snapshot_mgr.set("sessions", _sessions)
+                        logger.info(f"[起源] 初始同步: {len(_sessions)} sessions")
+                    except Exception as e:
+                        logger.warning(f"[起源] sync_sessions failed: {e}")
+                    _expanded = [a["name"] for a in _agents if a.get("expanded", True)]
+                    await snapshot_mgr.set("expanded_agents", _expanded)
+                    try:
+                        from ai_agent.state.session_sync import sync_memory, sync_agent_configs, sync_system_stats
+                        _memory_data = sync_memory(snapshot_mgr, agent)
+                        await snapshot_mgr.set_page_cache("memory", _memory_data)
+                        _config_data = sync_agent_configs(snapshot_mgr, agent)
+                        await snapshot_mgr.set_page_cache("agent_config", _config_data)
+                        _stats_data = await sync_system_stats(snapshot_mgr, agent)
+                        await snapshot_mgr.set_page_cache("monitor", _stats_data)
+                        logger.info(f"[起源] 页面缓存预加载完成")
+                    except Exception as e:
+                        logger.warning(f"[起源] 页面缓存预加载失败: {e}")
                 except Exception as e:
-                    logger.warning(f"[起源] sync_sessions failed: {e}")
-                # 同步 expanded_agents 到快照
-                _expanded = [a["name"] for a in _agents if a.get("expanded", True)]
-                await snapshot_mgr.set("expanded_agents", _expanded)
-                # 起源：预加载页面缓存数据到 page_snapshot
-                try:
-                    from ai_agent.state.session_sync import sync_memory, sync_agent_configs, sync_system_stats
-                    _memory_data = sync_memory(snapshot_mgr, agent)
-                    await snapshot_mgr.set_page_cache("memory", _memory_data)
-                    logger.info(f"[起源] 预加载 memory 缓存完成")
-                    _config_data = sync_agent_configs(snapshot_mgr, agent)
-                    await snapshot_mgr.set_page_cache("agent_config", _config_data)
-                    logger.info(f"[起源] 预加载 agent_config 缓存完成")
-                    _stats_data = await sync_system_stats(snapshot_mgr, agent)
-                    await snapshot_mgr.set_page_cache("monitor", _stats_data)
-                    logger.info(f"[起源] 预加载 monitor 缓存完成")
-                except Exception as e:
-                    logger.warning(f"[起源] 页面缓存预加载失败: {e}")
-            except Exception as e:
-                logger.error(f"[起源] initial sync failed: {e}", exc_info=True)
+                    logger.error(f"[起源] initial sync failed: {e}", exc_info=True)
             # register 发送 state_full，此时快照已填充
             await snapshot_mgr.register(conn_id, _adapter)
             carrier_mgr.add(conn_id, _adapter)

@@ -2,13 +2,16 @@
  * chat/state.js — 聊天模块共享状态 + getter/setter
  * 从 core.js 拆出，core.js 保留这些变量的引用。
  * 此文件只定义变量和 getter/setter，不处理 WS/流式/导航等逻辑。
+ *
+ * 设计原则：
+ *   - 只保留"纯聊天"交互必需的状态（发送、流式、思考、模型选择、连接）
+ *   - agents 数据由 page_cache 同步，不独立维护 _chatAgents
+ *   - expanded_agents 为纯 UI 状态（sidebar 展开/折叠），保留在 sidebar.js 中
  */
 
 // ===== Core Chat State =====
 export let _chatCurrentAgent = null;
 export let _isSending = false;
-export let _chatAgents = [];
-export let _chatExpandedAgents = {};
 export let _chatSidebarExpanded = true;
 
 // Streaming State
@@ -65,11 +68,6 @@ export function setChatCurrentAgent(agent) { _chatCurrentAgent = agent; }
 
 export function getIsSending() { return _isSending; }
 export function setIsSending(val) { _isSending = val; }
-
-export function getChatAgents() { return _chatAgents; }
-export function setChatAgents(agents) { _chatAgents = agents; }
-
-export function setChatExpandedAgents(expanded) { _chatExpandedAgents = expanded; }
 
 export function getChatSidebarExpanded() { return _chatSidebarExpanded; }
 export function setChatSidebarExpanded(v) { _chatSidebarExpanded = v; }
@@ -194,13 +192,27 @@ export function fmtTokens(n) {
     return String(n);
 }
 
+// ===== page_cache 同步 =====
+// agents 数据由 page_cache.agents 同步，不再独立维护 _chatAgents
+// 当 page_cache 更新 agents 时，通过 __onPageCacheUpdate 回调同步
+export function syncAgentsFromPageCache() {
+    if (typeof window.__getPageCache === 'function') {
+        const agents = window.__getPageCache('agents');
+        if (agents) {
+            // 更新当前 agent 引用
+            if (_chatCurrentAgent) {
+                const updated = agents.find(a => a.name === _chatCurrentAgent.name);
+                if (updated) _chatCurrentAgent = updated;
+            }
+        }
+    }
+}
+
 // ===== Legacy Aliases (backward compat — 旧代码从 core.js 导入的名称) =====
 // 所有变量均在 state.js 中有同名 export let，re-export 供旧代码使用
 export { _chatSessionId as chatSessionId };
 export { _chatCurrentPage as chatCurrentPage };
 export { _chatCurrentAgent as chatCurrentAgent };
-export { _chatAgents as chatAgents };
-export { _chatExpandedAgents as chatExpandedAgents };
 export { _chatCurrentModel as chatCurrentModel };
 export { _chatModelContextWindow as chatModelContextWindow };
 export { _chatSidebarExpanded as chatSidebarExpanded };

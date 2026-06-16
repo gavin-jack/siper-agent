@@ -1,18 +1,28 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
 import { getWs } from '../core.js';
 import {
-  chatSessionId, chatCurrentAgent, chatAgents, chatExpandedAgents,
+  _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
   _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile,
   _ctxMenu,
-  setChatAgents, setChatSessionId, setChatCurrentAgent, setSelectedAgent, setAgentConfigName,
-  setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu, setChatExpandedAgents,
+  setChatSessionId, setChatCurrentAgent, setSelectedAgent, setAgentConfigName,
+  setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
 } from './state.js';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages } from './message.js';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay } from './message.js';
 import { updateChatHeader } from './input.js';
 import { toast, showInput } from '../components/toast.js';
+import { chatConfirm } from './toast.js';
+
+// ===== 从 page_cache 读取 agents 列表 =====
+function getAgentsFromCache() {
+  if (typeof window.__getPageCache === 'function') {
+    const agents = window.__getPageCache('agents');
+    if (agents) return agents;
+  }
+  return [];
+}
 
 // ===== Unread Badge =====
 
@@ -34,7 +44,7 @@ export function isSessionUnread(sessionId) {
 
 // ===== Middle Column Rendering =====
 
-// 展开状态用 Map 存储，不受 loadChatAgents 重建 agent 对象影响
+// 展开状态用 Map 存储，不受 agent 数据重建影响
 const _expandedAgents = new Map();
 
 /** 获取 agent 中最新有 updated_at 的会话时间，新会话（无 updated_at）不参与 agent 排序 */
@@ -54,17 +64,19 @@ export function renderMiddleList() {
   if (_renderMiddleTimer) { clearTimeout(_renderMiddleTimer); _renderMiddleTimer = null; }
   _doRenderMiddle();
 }
+
 function _doRenderMiddle() {
   const container = document.getElementById('chatMiddleList');
   if (!container) return;
   container.innerHTML = '';
-  if (!chatAgents.length) {
+  const agents = getAgentsFromCache();
+  if (!agents.length) {
     container.innerHTML = '<div class="text-dim" style="padding:20px;text-align:center;font-size:13px;">加载中...</div>';
     return;
   }
   // Sort agents by latest session updated_at descending
   // Only sessions with updated_at participate; new sessions (no updated_at) are skipped
-  const sortedAgents = [...chatAgents].sort((a, b) => {
+  const sortedAgents = [...agents].sort((a, b) => {
     const aLatest = _getAgentLatestUpdated(a);
     const bLatest = _getAgentLatestUpdated(b);
     return bLatest < aLatest ? -1 : bLatest > aLatest ? 1 : 0;
@@ -81,8 +93,8 @@ function _doRenderMiddle() {
         return bTime < aTime ? -1 : bTime > aTime ? 1 : 0;
       });
     }
-    const isExpanded = !!chatExpandedAgents[agent.name];
-    const isActiveAgent = chatCurrentAgent && chatCurrentAgent.name === agent.name;
+    const isExpanded = _expandedAgents.get(agent.name) === true;
+    const isActiveAgent = _chatCurrentAgent && _chatCurrentAgent.name === agent.name;
     const group = document.createElement('div');
     group.className = 'siper-agent-group' + (isExpanded ? ' expanded' : '');
     const header = document.createElement('div');
@@ -93,7 +105,7 @@ function _doRenderMiddle() {
       if (e.target.classList.contains('siper-agent-add-btn')) {
         e.stopPropagation();
         const agentName = e.target.dataset.agentName;
-        const agent = chatAgents.find(a => a.name === agentName);
+        const agent = agents.find(a => a.name === agentName);
         if (agent && typeof window.startNewChat === 'function') window.startNewChat(agent);
         return;
       }
@@ -124,7 +136,7 @@ function _doRenderMiddle() {
         const sessionsExpanded = _expandedAgents.get(agent.name) === true;
         agent.sessions.forEach((session, idx) => {
           const item = document.createElement('div');
-          const isActiveSession = chatSessionId === session.session_id;
+          const isActiveSession = _chatSessionId === session.session_id;
           const _unread = !isActiveSession && isSessionUnread(session.session_id);
           item.className = 'siper-session-item' + (isActiveSession ? ' active' : '') + (_unread ? ' unread' : '');
           item.dataset.sessionId = session.session_id;
@@ -180,10 +192,14 @@ export async function chatToggleAgent(agentName) {
   _switchingAgents.add(agentName);
   try {
     // 切换展开/折叠
-    chatExpandedAgents[agentName] = !chatExpandedAgents[agentName];
+    const current = _expandedAgents.get(agentName) === true;
+    _expandedAgents.set(agentName, !current);
+    // 重新渲染中间栏（更新展开/折叠状态和 active class）
+    renderMiddleList();
     // 选中 agent + 打开设置面板（不论展开/折叠）
     await switchToAgent(agentName);
-    selectChatAgent(agentName);
+    // Notify agent-config page about agent switch
+    if (typeof window.selectChatAgent === 'function') window.selectChatAgent(agentName);
   } finally {
     _switchingAgents.delete(agentName);
   }
@@ -205,7 +221,8 @@ async function switchToAgent(agentName) {
       return;
     }
     // 更新当前 agent
-    const agent = chatAgents.find(a => a.name === agentName);
+    const agents = getAgentsFromCache();
+    const agent = agents.find(a => a.name === agentName);
     if (agent) {
       setChatCurrentAgent(agent);
       setSelectedAgent(agentName);
@@ -236,8 +253,8 @@ export function selectChatSession(session, agent) {
   syncStreamToCurrent();
   // Hide stream row instead of removeChild — preserves DOM for seamless restore
   if (typeof _chatStreamRow !== 'undefined' && _chatStreamRow) _chatStreamRow.style.display = 'none';
-  const prevSid = chatSessionId;
-  const _prevAgent = chatCurrentAgent;
+  const prevSid = _chatSessionId;
+  const _prevAgent = _chatCurrentAgent;
   setChatSessionId(session.session_id);
   setChatCurrentAgent(agent);
   // 中栏只更新 active class，不触发全量 rebuild（debounce 的 renderMiddleList 已足够）
@@ -252,7 +269,7 @@ export function selectChatSession(session, agent) {
   clearSessionUnread(session.session_id);
   syncStreamFromCurrent();
   // 确保 agent 展开（点+创建新会话或切换会话时）
-  chatExpandedAgents[agent.name] = true;
+  _expandedAgents.set(agent.name, true);
   // 始终切换到 chat 页面确保右栏渲染消息列表+输入框
   if (typeof window.chatSwitchPage === 'function') window.chatSwitchPage('chat');
   if (typeof updateChatHeader === 'function') updateChatHeader();
@@ -348,7 +365,8 @@ export function startNewChat(agent) {
   // 乐观更新：立即在本地插入新会话 DOM，不等后端响应
   // 后端 session_created 到达后只更新 session_id，不重新渲染中栏
   if (agent) {
-    const targetAgent = chatAgents.find(a => a.name === agent.name);
+    const agents = getAgentsFromCache();
+    const targetAgent = agents.find(a => a.name === agent.name);
     if (targetAgent) {
       // 创建新会话占位对象（session_id 稍后由后端更新）
       // 不设 updated_at，保持"新会话"身份，不参与 agent 排序
@@ -367,6 +385,7 @@ export function startNewChat(agent) {
 
 export function handleChatSearch(query) {
   const q = query.toLowerCase().trim();
+  const agents = getAgentsFromCache();
   const container = document.getElementById('chatMiddleList');
   if (!container) return;
   const groups = container.querySelectorAll('.siper-agent-group');
@@ -378,8 +397,8 @@ export function handleChatSearch(query) {
     if (match && q) {
       const nameEl = header.querySelector('.siper-agent-name');
       if (nameEl) {
-        const agent = chatAgents.find(a => a.display_name === nameEl.textContent);
-        if (agent) chatExpandedAgents[agent.name] = true;
+        const agent = agents.find(a => a.display_name === nameEl.textContent);
+        if (agent) _expandedAgents.set(agent.name, true);
       }
     }
   }
@@ -438,7 +457,7 @@ export function deleteChatSessionConfirm(session, agent) {
           if (data.success) {
             var idx = agent.sessions.indexOf(session);
             if (idx >= 0) agent.sessions.splice(idx, 1);
-            if (chatSessionId === session.session_id) {
+            if (_chatSessionId === session.session_id) {
               setChatSessionId(null);
               chatClearMessages();
               var headerName = document.getElementById('chatRightHeaderName');
@@ -465,25 +484,22 @@ window.renderMiddleList = renderMiddleList;
 
 /**
  * Render agent list from backend snapshot data.
- * Updates chatAgents state and renders middle list.
+ * Updates page_cache and renders middle list.
  * @param {Array} agents - [{name, display_name, description, sessions: [...]}]
  */
 window.renderAgentList = function(agents) {
   if (!Array.isArray(agents)) return;
-  // Update state
-  setChatAgents(agents);
-  // Also update legacy sessions flat list for backward compat
-  const flatSessions = [];
-  for (const agent of agents) {
-    if (agent.sessions && Array.isArray(agent.sessions)) {
-      for (const s of agent.sessions) {
-        flatSessions.push({...s, agent_name: agent.name});
-      }
-    }
+  // 同步到 page_cache
+  if (typeof window.__onPageCacheUpdate === 'function') {
+    window.__onPageCacheUpdate('agents', agents);
   }
-  // Update session-related state if needed
-  if (typeof setChatSessionId === 'function' && flatSessions.length > 0) {
-    // Don't auto-select, just make data available
+  // 从 page_cache 同步当前 agent（不再依赖模块级 _chatCurrentAgent）
+  const _pcCurrent = window.__getPageCache ? window.__getPageCache('current_agent') : null;
+  if (_pcCurrent && _pcCurrent.name) {
+    const updated = agents.find(a => a.name === _pcCurrent.name);
+    if (updated && typeof window.__onPageCacheUpdate === 'function') {
+      window.__onPageCacheUpdate('current_agent', updated);
+    }
   }
   // Re-render middle list
   renderMiddleList();

@@ -1,16 +1,132 @@
-// chat-pages/chat.js — 聊天页面渲染
-// 从 pages/chat.js 拆分
+// chat-pages/chat.js — 聊天页面渲染 + 初始化器
+// 从 pages/chat.js 拆分，包含 initSidebar + initChatPage
 // 包含消息列表、输入框、思考面板、模型选择
 
 import * as Message from '../../chat/message.js';
 import * as Input from '../../chat/input.js';
 import * as Sidebar from '../../chat/sidebar.js';
-import { chatSessionId, chatCurrentAgent, chatAgents } from '../../chat/state.js';
+import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded } from '../../chat/state.js';
 
+// 从 page_cache 读取 agents（不再从 state.js import chatAgents）
+function _getAgents() {
+  if (typeof window.__getPageCache === 'function') {
+    const agents = window.__getPageCache('agents');
+    if (agents && Array.isArray(agents)) return agents;
+  }
+  return [];
+}
+
+// ===== 侧边栏初始化（常驻，只执行一次） =====
+let _sidebarInitialized = false;
+export function initSidebar() {
+  if (_sidebarInitialized) return;
+  _sidebarInitialized = true;
+  document.getElementById('sidebarContainer').innerHTML = `
+    <div class="siper-sidebar" id="chatSidebar">
+      <div class="siper-sidebar-header" onclick="toggleChatSidebar()" title="展开/折叠">
+        <img src="/static/default_avatar.webp" class="siper-sidebar-avatar" alt="avatar" width="36" height="36" onerror="this.src='/static/default_avatar_256.png'">
+        <span class="siper-sidebar-brand">SiPer</span>
+      </div>
+      <nav class="siper-sidebar-nav" role="navigation" aria-label="主导航">
+        <div class="siper-nav-section">
+          <div class="siper-nav-title" data-i18n="nav.agent">智能体</div>
+          <a class="siper-nav-item active" data-page="chat" href="#/chat"><span>💬</span><span class="siper-nav-item-label" data-i18n="nav.chat">对话</span></a>
+          <a class="siper-nav-item" data-page="tasks" href="#/tasks"><span>📋</span><span class="siper-nav-item-label" data-i18n="nav.tasks">任务</span></a>
+        </div>
+        <div class="siper-nav-section">
+          <div class="siper-nav-title" data-i18n="nav.support">支持</div>
+          <a class="siper-nav-item" data-page="model-settings" href="#/model-settings"><span>🤖</span><span class="siper-nav-item-label" data-i18n="nav.modelSettings">模型</span></a>
+          <a class="siper-nav-item" data-page="tools" href="#/tools"><span>🔧</span><span class="siper-nav-item-label" data-i18n="nav.tools">工具</span></a>
+          <a class="siper-nav-item" data-page="skills" href="#/skills"><span>🧩</span><span class="siper-nav-item-label" data-i18n="nav.skills">技能</span></a>
+          <a class="siper-nav-item" data-page="plugins" href="#/plugins"><span>🔌</span><span class="siper-nav-item-label" data-i18n="nav.plugins">插件</span></a>
+        </div>
+        <div class="siper-nav-section">
+          <div class="siper-nav-title" data-i18n="nav.monitor">监控</div>
+          <a class="siper-nav-item" data-page="monitor" href="#/monitor"><span>📊</span><span class="siper-nav-item-label" data-i18n="nav.monitorPage">统计</span></a>
+          <a class="siper-nav-item" data-page="directory" href="#/directory"><span>📁</span><span class="siper-nav-item-label" data-i18n="nav.directory">目录</span></a>
+          <a class="siper-nav-item" data-page="api-docs" href="#/api-docs"><span>📖</span><span class="siper-nav-item-label">API 文档</span></a>
+          <a class="siper-nav-item" data-page="global-settings" href="#/global-settings"><span>⚙️</span><span class="siper-nav-item-label" data-i18n="nav.globalSettings">全局</span></a>
+        </div>
+      </nav>
+      <div class="siper-sidebar-footer"></div>
+    </div>`;
+  document.querySelectorAll('.siper-nav-item').forEach(el => {
+    el.addEventListener('click', function(e) {
+      e.preventDefault();
+      const page = this.getAttribute('data-page');
+      if (page && typeof window.navigateToPage === 'function') window.navigateToPage(page);
+    });
+  });
+}
+window.initSidebar = initSidebar;
+
+// ===== Chat 页面初始化 =====
+let _chatInitialized = false;
+export function initChatPage() {
+  if (_chatInitialized) return;
+  _chatInitialized = true;
+  initSidebar();
+  const pageChat = document.getElementById('page-chat');
+  pageChat.innerHTML = `
+    <!-- 中栏 -->
+    <div class="siper-middle" id="chatMiddle">
+      <div class="siper-middle-header">
+        <div class="siper-search-box">
+          <span>🔍</span>
+          <input type="text" class="siper-search-input" id="chatSearchInput" placeholder="搜索智能体..." oninput="chatHandleSearch(this.value)" aria-label="搜索智能体">
+        </div>
+      </div>
+      <div class="siper-middle-list" id="chatMiddleList"></div>
+    </div>
+    <!-- 右栏 -->
+    <div class="siper-chat" id="chatRight">
+      <div class="siper-chat-header" id="chatRightHeader">
+        <span class="siper-chat-header-name" id="chatRightHeaderName">SiPer</span>
+      </div>
+      <div class="siper-content" id="chatContentArea"></div>
+    </div>`;
+  const content = document.getElementById('chatContentArea');
+  if (typeof window.renderChatPage === 'function') {
+    window.renderChatPage(content);
+  }
+}
+window.initChatPage = initChatPage;
+
+// selectChatAgent — 选中 agent 时在右栏显示 agent 配置
+window.selectChatAgent = function(agentName) {
+  var rightCol = document.getElementById('page-chat');
+  if (!rightCol) return;
+  // 清空右栏，渲染 agent 配置
+  rightCol.innerHTML = '<div class="siper-content" style="flex:1;display:flex;flex-direction:column;overflow:hidden">' +
+    '<div class="page-header" style="flex-shrink:0"><h3>' + (agentName || '智能体设置') + '</h3>' +
+    '<button class="btn-sm" onclick="window.chatSwitchPage(\'chat\')">← 返回对话</button></div>' +
+    '<div id="agentConfigContent" style="flex:1;overflow-y:auto;padding:16px 24px"></div></div>';
+  // 确保侧边栏显示
+  document.getElementById('sidebarContainer').style.display = '';
+  // 从 agent-config 模块加载内容
+  if (typeof window.loadAgentSettings === 'function') {
+    window.loadAgentSettings(agentName);
+  }
+};
+
+// chatSwitchPage — 右栏页面展示控制
+window.chatSwitchPage = function(page) {
+  if (page === 'chat') {
+    // chat 页面已有内容，确保右栏显示 chat 内容
+    navigateToPage('chat');
+    return;
+  }
+  // 其他页面通过 hash 路由导航
+  if (page === 'agent-config' || page === 'model-settings') {
+    if (typeof window.navigateToPage === 'function') window.navigateToPage(page);
+  }
+};
+
+// ===== 渲染聊天页面内容 =====
 export function renderChatPage(container, skipSidebar) {
   container.className = 'siper-content siper-chat-mode';
-  const hasSession = !!chatSessionId;
-  const hasAgent = !!chatCurrentAgent;
+  const hasSession = !!_chatSessionId;
+  const hasAgent = !!_chatCurrentAgent;
   const showInput = hasSession && hasAgent;
   if (!showInput) {
     const headerName = document.getElementById('chatRightHeaderName');
@@ -64,7 +180,7 @@ export function renderChatPage(container, skipSidebar) {
     setTimeout(() => Input.bindChatInput(), 0);
   }
   if (!skipSidebar) {
-    if (chatAgents.length === 0) {
+    if (_getAgents().length === 0) {
       // WS 推送 agents 后 renderAgentList 会自动渲染，此处无需操作
     }
     else Sidebar.renderMiddleList();

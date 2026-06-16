@@ -1,6 +1,19 @@
 /**
  * tools.js — 工具管理页面（卡片式展示所有已注册工具）
+ * 优先从 page_cache 读取，后端推送时自动刷新
  */
+
+// 注册 page_cache 回调
+if (typeof window.__onPageCacheRegister === 'function') {
+  window.__onPageCacheRegister('tools', function(data) {
+    if (data.tools) {
+      const el = document.getElementById('toolsContainer');
+      if (el) _renderTools(el, data.tools, data.categories || {});
+      var badge = document.getElementById('toolHeaderBadge');
+      if (badge) badge.textContent = (data.total || data.tools.length) + ' 个';
+    }
+  });
+}
 
 // 分类图标映射
 const _CAT_ICONS = {
@@ -45,6 +58,14 @@ export function renderToolsPage(container) {
 function _loadTools() {
   const el = document.getElementById('toolsContainer');
   if (!el) return;
+  // 优先从 page_cache 读取
+  const cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('tools') : null;
+  if (cached && cached.tools) {
+    _renderTools(el, cached.tools, cached.categories || {});
+    var badge = document.getElementById('toolHeaderBadge');
+    if (badge) badge.textContent = (cached.total || cached.tools.length) + ' 个';
+    return;
+  }
   fetch('/api/tools').then(r => r.json()).then(data => {
     if (!data || !data.tools || data.tools.length === 0) {
       el.innerHTML = '<div style="padding:20px;color:var(--color-error-text)">暂无工具</div>';

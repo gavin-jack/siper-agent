@@ -1,10 +1,10 @@
 # SiPer AI Agent
 
-> **一个独立的 AI Agent 框架 — 有状态 UI · 多模型 · 多技能 · 多智能体 · 28 个内置工具**
+> **一个独立的 AI Agent 框架 — 有状态 UI · 多模型 · 多 Agent · 25 个内置工具 · 三语言**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org) [![Version](https://img.shields.io/badge/Version-v0.2.0-green.svg)](https://github.com/gavin-jack/siper-agent/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org) [![Version](https://img.shields.io/badge/Version-v0.2.1-green.svg)](https://github.com/gavin-jack/siper-agent/releases)
 
-**核心仅依赖 `openai` + `websockets` + `jinja2`，28 个工具中 25 个纯 stdlib。**
+**核心仅依赖 `openai` + `websockets` + `jinja2`，25 个工具中大部分纯 stdlib。**
 
 启动后访问 **http://localhost:9724**
 
@@ -67,10 +67,10 @@
 不同载体（Web UI / CLI / Desktop / Mobile）只需实现 5 个回调函数即可接入：
 
 ```
-on_state_full()  → 接收全量快照
-on_state_deltas()→ 接收断线补发
-on_stream_delta()→ 接收流式文本
-on_stream_end()  → 接收流式完成
+on_state_full()   → 接收全量快照
+on_state_deltas() → 接收断线补发
+on_stream_delta() → 接收流式文本
+on_stream_end()   → 接收流式完成
 on_tool_progress()→ 接收工具进度
 ```
 
@@ -83,21 +83,21 @@ on_tool_progress()→ 接收工具进度
 | 层级 | 技术 | 说明 |
 |------|------|------|
 | 后端 | Python 3.8+ | 纯 stdlib + openai SDK |
-| 前端 | 原生 JS (ESM) | 无框架依赖，44 个模块 |
-| 样式 | CSS 变量 | 9 种主题 + 自定义 |
+| 前端 | 原生 JS (ESM) | 无框架依赖，38 个模块 |
+| 样式 | CSS 变量 + 自定义主题 | 1 种预设 + 自定义导入/导出 |
 | 通信 | WebSocket + HTTP | 双通道，实时 + 按需 |
-| 持久化 | SQLite + WAL | 4 个数据库，并发安全 |
+| 持久化 | SQLite + WAL | 多数据库，并发安全 |
 | 渲染 | DOM 快照 | 后端驱动，前端纯展示 |
 
 ### 代码统计
 
 | 模块 | 文件数 | 行数 |
 |------|--------|------|
-| Python 后端 | 55 个 .py | ~13,200 行 |
-| JS 前端 | 44 个 .js | ~8,800 行 |
-| CSS | 1 个 | ~4,760 行 |
-| HTML | 1 个 | ~420 行 |
-| **总计** | **101 个文件** | **~27,180 行** |
+| Python 后端 | 64 个 .py | ~21,000 行 |
+| JS 前端 | 38 个 .js | ~8,600 行 |
+| CSS | 3 个 | ~4,900 行 |
+| HTML | 1 个 | ~44 行 |
+| **总计** | **106 个源文件** | **~34,500 行** |
 
 ### 架构图
 
@@ -115,7 +115,7 @@ on_tool_progress()→ 接收工具进度
 │  WS: state_full / state_delta        │
 │  HTTP: REST API (40+ 端点)           │
 ├────────────────┼─────────────────────┤
-│       状态管理层                      │
+│        状态管理层                      │
 │  ┌─────────────▼───────────┐         │
 │  │   SnapshotManager       │         │
 │  │   (内存快照 + delta)    │         │
@@ -126,9 +126,10 @@ on_tool_progress()→ 接收工具进度
 │  │Config│  │Config│  │System│      │
 │  └─────┘   └─────┘   └──────┘      │
 ├─────────────────────────────────────┤
-│       持久化层                       │
+│        持久化层                      │
 │  sessions.db │ token.db │ models.db │
-│  memory.db   │ 文件配置            │
+│  memory.db   │ skill_call_log.db    │
+│  snapshot.db │ 配置文件             │
 └─────────────────────────────────────┘
 ```
 
@@ -139,47 +140,43 @@ on_tool_progress()→ 接收工具进度
 ### 🧠 多模型 LLM 管理
 
 - **OpenAI 兼容接口**：支持任意 OpenAI API 兼容的 LLM Provider，统一调用链路
-- **多 Provider 管理**：同时配置多个 Provider，独立 base_url / api_key
-- **模型配置 SQLite 持久化**：WAL 模式，并发安全，支持别名
-- **15 种模型能力标签**：chat / reasoning / code / vision / long_context / translation / ocr / summarization / sentiment / ner / math / chart / document / function_calling / tts
+- **多 Provider 管理**：同时配置多个 Provider，独立 base_url / api_key，SQLite WAL 持久化
+- **模型发现**：输入 Provider 信息 → 批量拉取模型列表 → 筛选 → 批量添加
+- **模型能力标签**：chat / reasoning / code / vision / long_context / translation / function_calling / tts 等
 - **12 个 Provider 预设**：OpenAI / Anthropic / DeepSeek / Qwen / 智谱 / MiniMax / Groq / OpenRouter / Ollama / Moonshot / LongCat / 自定义
-- **模型管理独立页面**：搜索（名称/能力）/ 筛选（多能力复选）/ 排序（名称/TTFT/延迟/上下文/能力数）/ 分组切换
-- **模型卡片 UI**：左侧能力色块、TTFT 颜色编码（<500ms 蓝 / 500-1500ms 橙 / >1500ms 红）、能力 badge、验证状态
-- **模型发现**：输入 Provider 信息 → 批量获取模型列表 → 筛选 → 批量添加
-- **辅助模型**：预留辅助模型配置入口（代码生成、数据分析等专用模型）
+- **模型管理独立页面**：搜索（名称/能力）/ 筛选（多能力复选）/ 排序（名称/TTFT/延迟/上下文/能力数）
+- **模型卡片 UI**：TTFT 颜色编码（<500ms 蓝 / 500-1500ms 橙 / >1500ms 红）、能力 badge、验证状态
+- **模型验证**：单模型验证 / 批量验证，实时反馈
 
 ### 💬 流式响应
 
 - **WebSocket 实时流式输出**：token 级流式推送，低延迟
 - **流式光标指示**：闪烁 ▊ 光标，实时反馈生成状态
-- **思考面板（CoT）**：Chain-of-Thought 步骤可视化，支持折叠展开
-- **打字指示器**：弹性圆点动画（scale bounce）
-- **停止生成**：stop_event 机制，防止竞态条件，立即中断 LLM 调用
+- **思考面板（CoT）**：Chain-of-Thought 步骤可视化，折叠展开
+- **停止生成**：stop_event 机制，立即中断 LLM 调用
 - **streaming 重试**：APIConnectionError / JSONDecodeError / 空流自动重试（1s/2s/4s 指数退避）
 - **双层重试架构**：SDK 内置 max_retries=3（网络层）+ 手动 3 次（应用层）
 - **max_tokens 截断检测**：finish_reason=="length" 时自动追加截断提示
+- **RateLimitError (429) 重试**：指数退避，应用层 + SDK 双重保障
 
-### 🔧 28 个内置工具
+### 🔧 27 个内置工具
 
 | 类别 | 工具 | 说明 |
 |------|------|------|
-| **文件操作** | `read_file` / `write_file` / `patch` / `search_files` | 读写编辑搜索，批量操作 |
-| **代码执行** | `execute_code` / `terminal` | Python 沙箱 + Shell 命令 |
-| **网络搜索** | `web_search` / `web_extract` | SearXNG + DuckDuckGo + URL 提取 |
-| **浏览器控制** | `browser_*` (10个) | 导航/点击/输入/截图/滚动/标签页/JS执行/网络拦截 |
-| **技能系统** | `skills_list` / `skills_view` / `skill_call` | 自动加载、语义预筛选、上下文注入 |
+| **文件操作** | `read_file` / `write_file` / `patch` / `search_files` / `list_dir` | 读写编辑搜索，批量操作 |
+| **代码执行** | `execute_code` / `execute_command` | Python 沙箱 + Shell 命令 |
+| **网络搜索** | `web_search` / `web_fetch` | SearXNG + DuckDuckGo + URL 提取 |
+| **浏览器控制** | `browser_*`（导航/点击/输入/截图/滚动/JS执行） | 全功能浏览器自动化 |
+| **技能系统** | `skills_list` / `skill_view` / `skill_manage` | 自动加载、语义预筛选、上下文注入 |
 | **记忆系统** | `memory` / `session_search` | 跨会话持久化、知识空间、FTS5 全文搜索 |
-| **图像生成** | `image_gen` | AI 图片生成，多 Provider 支持 |
-| **语音合成** | `text_to_speech` | TTS，支持 edge-tts 等多 Provider |
-| **会话管理** | `create_session` / `switch_session` / `rename_session` / `delete_session` | CRUD + 乐观更新 |
-| **定时任务** | `cronjob` | cron 调度，支持一次性和周期性 |
+| **图像视觉** | `vision_analyze` / `image_gen` | 图片理解 + AI 图片生成 |
+| **语音合成** | `text_to_speech` | TTS，多 Provider 支持 |
 | **子代理** | `delegate_task` | 并行委派、结果汇总、多代理协作 |
-| **任务管理** | `todo` | 任务列表持久化，支持添加/完成/取消 |
-| **视觉分析** | `vision_analyze` | 图片理解和分析 |
-| **交互** | `clarify` / `send_message` | 主动询问、消息推送 |
+| **任务管理** | `todo` / `cronjob` / `clarify` | 任务列表 + 定时任务 + 主动询问 |
+| **通信** | `send_message` / `clarify` | 消息推送、用户交互 |
 | **元操作** | `session_search` / `skills_manage` | 跨会话搜索、技能生命周期管理 |
 
-### 🤖 多智能体系统
+### 🤖 多 Agent 系统
 
 - **独立配置**：每个 Agent 拥有 `config.json`（配置）+ `soul.md`（人格）+ `agent.md`（行为指令）
 - **独立会话**：per-agent `sessions.db`，会话数据完全隔离
@@ -187,40 +184,40 @@ on_tool_progress()→ 接收工具进度
 - **Agent CRUD**：创建 / 切换 / 新增 / 删除 / 头像上传
 - **Agent 配置页面**：6 个标签页（关于 / 属性文件 / 记忆 / 限制 / 模型 / 头像）
 - **Agent 限制配置**：超时 / 重试 / max_tokens / 工具轮次 / 工具数量 / 会话超时 / 历史消息数
-- **Agent 模型选择**：默认对话模型 / 默认视觉模型 / 从全局模型加载
+- **Agent 模型选择**：默认对话模型 / 默认视觉模型，从全局模型加载
 
 ### 🖥️ Web UI
 
 - **实时聊天**：WebSocket 流式输出、消息气泡入场动画（slide up + fade in）
-- **模型管理**：独立页面、搜索/筛选/排序、分组/平铺切换、卡片 UI
+- **模型管理**：独立页面、搜索/筛选/排序、卡片 UI、批量验证
 - **会话管理**：列表折叠/展开、重命名（双击编辑）、未读标记、波浪背景动画
-- **Token 统计**：echarts 图表 — 分模型 / 24小时趋势 / 每日趋势 / 效率对比 / 热力图
-- **系统设置**：运行时参数、Agent 管理、全局模型配置
-- **主题系统**：9 种预设主题 + 自定义颜色 + 主题模板保存/导入/导出
+- **Token 统计**：ECharts 图表 — 分模型 / 24h 趋势 / 每日趋势 / 热力图
+- **系统监控**：运行时参数、内存/CPU、DB 大小、运行时长
+- **主题系统**：自定义颜色 + 布局滑块 + 模板保存/导入/导出
 - **技能管理**：技能卡片、搜索筛选、技能详情、调用统计
-- **记忆管理**：Markdown 编辑器、记忆整合配置、预览效果
+- **记忆管理**：Markdown 编辑器、记忆整合配置
 - **系统日志**：多级别过滤（DEBUG/INFO/WARN/ERROR）、分页、自动刷新
 - **Dict Modal**：完整响应数据查看，语法高亮，搜索/导航
-- **侧边栏**：可折叠、智能体分组、会话列表、未读标记
-- **三语言 i18n**：中文 / 英文 / 日文，运行时切换
-- **14 项前端动效**：消息入场、流式光标、弹性按钮、代码块展开、工具调用折叠、Toast 滑入、输入框聚焦光环、页面切换淡入、气泡 hover 上浮、连接状态脉冲、滚动按钮弹性入场、打字指示器弹性圆点、会话列表错开入场、prefers-reduced-motion 支持
+- **侧边栏**：可折叠、Agent 分组、会话列表、未读标记
+- **三语言 i18n**：简体中文 / English / 繁體中文，运行时切换
+- **14 项前端动效**：消息入场、流式光标、弹性按钮、代码块展开、工具调用折叠、Toast 滑入、输入框聚焦光环、页面切换淡入、连接状态脉冲、打字指示器弹性圆点、会话列表错开入场、prefers-reduced-motion 支持
 
 ### 💾 数据持久化
 
-- **SQLite + WAL 模式**：会话（sessions.db）、记忆（memory.db）、模型配置（models.db）、技能调用记录（skill_call_log.db）
+- **SQLite + WAL 模式**：sessions.db / memory.db / models.db / token.db / skill_call_log.db / snapshot.db
 - **乐观更新**：会话列表操作后立即更新 UI，后台同步数据库
-- **快速重启**：`siper.sh restart` 脚本，1 秒完成重启
-- **内存控制**：active_sessions LRU（MAX=200）、active_tasks deque(maxlen=1000)、page_cache TTL 30s / 200KB 上限
-- **数据库迁移**：向后兼容的迁移脚本，自动升级旧版数据库
+- **快速重启**：`siper.sh restart` 脚本，重启服务保留 session
+- **内存控制**：active_sessions LRU（MAX=200）、active_tasks deque(maxlen=1000）、page_cache TTL + 大小限制
+- **快照持久化**：`SnapshotManager` 定期保存页面状态到 SQLite，重启恢复
 
 ### 🔒 安全
 
 - **HTML 转义**：所有用户输入经 `escapeHtml` 处理，防止 XSS
-- **路径安全检查**：防止路径穿越攻击（`path_safety` / `url_safety`）
+- **路径安全检查**：防止路径穿越攻击
 - **WS 消息校验**：未知消息类型静默忽略，防止注入
 - **API Key 脱敏**：前端显示 `***` 掩码，不暴露真实密钥
 - **RateLimitError 重试**：429 错误指数退避重试（1s/2s/4s）
-- **CORS / 请求大小限制**：HTTP 请求大小限制，防止 DoS
+- **请求大小限制**：HTTP 请求大小限制，防止 DoS
 
 ---
 
@@ -258,59 +255,56 @@ python3 siper_web.py
 siper/
 ├── siper_web.py              # 主入口（WS 服务器 + HTTP + 路由）
 ├── requirements.txt           # Python 依赖（3 个包）
-├── setup.py                   # pip 安装配置
 ├── siper.sh                   # 服务管理脚本
 ├── README.md                  # 本文件
 ├── CHANGELOG.md               # 详细变更记录
 ├── LICENSE                    # MIT License
 │
-├── ai_agent/                  # Agent 核心
+├── ai_agent/                  # Agent 核心（64 个 .py）
 │   ├── core/
 │   │   ├── agent.py           #   Agent 主循环（工具调用/多轮对话/流式输出）
 │   │   └── llm_client.py      #   LLM 客户端（OpenAI 兼容/重试/超时）
-│   ├── state/                 #   状态管理（起源架构）
+│   ├── state/                 #   状态管理
 │   │   ├── snapshot_manager.py#   DOM 快照管理器
 │   │   ├── session_sync.py    #   DB → 快照同步
 │   │   └── carrier.py         #   载体适配器
-│   ├── api/                   #   HTTP API
-│   │   └── router.py          #   路由注册器
+│   ├── api/                   #   HTTP API（40+ 端点）
+│   │   ├── router.py          #   路由注册器
+│   │   └── handlers.py        #   API 处理器
 │   ├── sessions/              #   会话管理（SQLite + WAL + LRU）
-│   ├── tools/                 #   28 个工具实现
+│   ├── tools/                 #   27 个工具实现
 │   ├── skills/                #   技能系统（自动加载/预筛选/上下文注入）
 │   └── memory/                #   记忆系统（跨会话持久化）
 │
-├── agents/                    # 智能体数据（运行时自动生成）
-│   ├── default/               #   默认智能体
-│   ├── token.db               #   Token 统计 DB
-│   └── {agent_name}/          #   自定义智能体
-│       ├── config.json        #     配置
-│       ├── soul.md            #     人格定义
-│       ├── sessions.db        #     会话 DB
-│       └── memory.db          #     记忆 DB
+├── agents/                    # Agent 数据（运行时自动生成）
+│   ├── default/               #   默认 Agent
+│   │   ├── config.json        #     配置
+│   │   ├── soul.md            #     人格定义
+│   │   ├── sessions.db        #     会话 DB
+│   │   └── memory.db          #     记忆 DB
+│   └── {agent_name}/          #   自定义 Agent（同上结构）
 │
 ├── webui/                     # Web 前端
-│   ├── index.html             #   SPA 入口
-│   ├── css/style.css          #   全局样式（~4760 行，17 个 @keyframes）
-│   └── js/                    #   ESM 模块化 JS（44 个文件）
-│       ├── app.js             #     唯一 ESM 入口
-│       ├── core.js/            #     WS + 消息分发
-│       ├── renderer.js         #     统一 DOM 渲染
-│       ├── chat/              #     聊天模块（message/stream/input/state/sidebar/toast）
-│       ├── pages/             #     页面模块（sessions/memory/agent-config/settings/models/theme/skills/token/logs）
+│   ├── index.html             #   SPA 入口（44 行，纯容器）
+│   ├── css/
+│   │   ├── chat.css           #   聊天页面样式
+│   │   ├── page.css           #   独立页面样式
+│   │   └── base.css           #   基础样式
+│   └── js/                    #   ESM 模块化 JS（38 个文件）
+│       ├── app.js             #     唯一 ESM 入口 + 路由 + 页面管理
+│       ├── core.js            #     WebSocket 连接 + 消息收发
+│       ├── renderer.js        #     统一 DOM 渲染
+│       ├── chat/              #     聊天模块（message/stream/input/state/sidebar/thinking）
+│       ├── pages/             #     页面模块（含 chat-pages/ 子目录）
 │       ├── components/        #     公共组件（toast/model-test/agent-models）
-│       └── utils/             #     工具函数（dom/escape/api/i18n）
+│       └── utils/             #     工具函数（escape/i18n/api/dom）
 │
-├── skills/                    # 内置技能
-│   ├── code-review/           #   代码审查
-│   ├── company-research/      #   企业研究
-│   └── file-operations/       #   文件操作
+├── skills/                    # 内置技能目录
 │
 ├── docs/                      # 架构文档
-│   └── origin-complete-plan.md#   起源完整架构方案
 │
-├── models.db                  # 模型配置数据库
-├── knowledge-space/           # 知识空间
-└── scripts/                   # 部署脚本
+├── *.db                       # 数据库（运行时生成）
+└── knowledge-space/           # 知识空间
 ```
 
 ---
@@ -323,8 +317,8 @@ siper/
 |------|------|
 | `models.db` | 模型和提供商配置（SQLite，项目根目录） |
 | `settings.json` | 系统参数（端口、心跳、日志等） |
-| `agents/{name}/config.json` | 智能体配置 |
-| `agents/{name}/soul.md` | 智能体人格定义 |
+| `agents/{name}/config.json` | Agent 配置 |
+| `agents/{name}/soul.md` | Agent 人格定义 |
 | `agents/{name}/sessions.db` | 会话数据库（运行时生成） |
 | `agents/{name}/memory.db` | 记忆数据库（运行时生成） |
 
@@ -332,54 +326,22 @@ siper/
 
 ## 更新记录
 
+### v0.2.1 (2026-07-28)
+
+- **README 全面更新**：代码统计与实际对齐（~21K Python + ~8.6K JS + ~4.9K CSS + ~44 HTML）
+- CSS 文件结构审计：清理死文件 `style.css`（~160KB 从未加载）+ 未引用大图 `default_avatar.png`
+- 前端模块数量与实际对齐（38 个 .js 文件）
+
 ### v0.2.0 (2026-06-15)
 
-**起源架构 + 数据审计 + P0 修复**
-
-- 起源架构 Phase 1-4 实施完成，README 全面重写（设计理念/架构图/代码统计）
-- sessions.db FTS 瘦身（676MB→94KB 实际数据）+ active_sessions LRU 淘汰（MAX=200）
+- 起源架构 Phase 1-4 实施完成，README 全面重写
+- sessions.db FTS 瘦身 + active_sessions LRU 淘汰（MAX=200）
 - 快照同步完善（agents/sessions/expanded_agents）+ Skills 刷新 API
 - 内存泄漏修复：active_tasks → deque(maxlen=1000)、page_cache TTL 限制
-- 前端优化：消息气泡布局统一、Dict Modal、classList.toggle 修复
 
-### v0.1.7 (2026-06-14)
+### v0.1.x 系列
 
-- 侧边栏新增"插件"导航项
-- 页面加载 loading 状态
-- Tab 样式统一 + 粘滞置顶
-- Agent 配置空模型优化
-
-### v0.1.6 (2026-06-13)
-
-- 模型数据库 v6 迁移
-- tool_call_steps 防膨胀（结果截断 ≤200 字符）
-- 前端消息气泡布局统一 + Dict Modal
-- RateLimitError 指数退避重试
-
-### v0.1.5 (2026-07-30)
-
-- 14 项前端动效
-- 会话 item UI 优化
-- 快速重启脚本
-
-### v0.1.4 (2026-07-30)
-
-- 模型管理独立页面
-- 模型卡片 UI 优化
-- 搜索/筛选/排序增强
-
-### v0.1.3 (2026-06-12)
-
-- 模型存储 SQLite 化
-- 15 种模型能力标签
-
-### v0.1.1 (2026-06-11)
-
-- 131 个 commit 完整变更记录见 CHANGELOG.md
-
-### v0.1.0 (2026-06-07)
-
-- 首个正式版本发布
+- 131+ commits，详见 CHANGELOG.md
 
 ---
 

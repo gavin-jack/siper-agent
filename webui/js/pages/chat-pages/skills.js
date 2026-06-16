@@ -1,7 +1,17 @@
 // chat-pages/skills.js — 技能页面渲染
+// 优先从 page_cache 读取，后端推送时自动刷新
 import { t } from '../../utils/i18n.js';
 
 let _skills = [];
+
+// 注册 page_cache 回调
+if (typeof window.__onPageCacheRegister === 'function') {
+  window.__onPageCacheRegister('skills', function(data) {
+    if (data.skills && typeof renderSkills === 'function') {
+      renderSkills(data.skills);
+    }
+  });
+}
 
 function renderSkills(skills) {
   _skills = skills || [];
@@ -56,6 +66,12 @@ export function renderSkillsPageChat(container) {
 }
 
 async function refreshSkills() {
+  // 优先从 page_cache 读取
+  const cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('skills') : null;
+  if (cached && cached.skills) {
+    renderSkills(cached.skills);
+    return;
+  }
   try {
     const r = await fetch('/api/skills');
     const d = await r.json();

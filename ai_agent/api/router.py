@@ -50,7 +50,7 @@ class Router:
             return fn
         return deco
 
-    async def dispatch(self, method: str, path: str, body=None):
+    async def dispatch(self, method: str, path: str, body=None, full_path=None):
         """Dispatch 请求到匹配的路由处理函数。
 
         支持路径参数：/api/sessions/{sid} 匹配 /api/sessions/abc123
@@ -67,6 +67,14 @@ class Router:
                         return await fn(body) if _pass_body else await fn()
                     return fn(body) if _pass_body else fn()
                 except TypeError:
+                    # GET routes may expect full_path (e.g. /api/logs?level=ERROR)
+                    if method == "GET" and full_path is not None:
+                        try:
+                            if asyncio.iscoroutinefunction(fn):
+                                return await fn(full_path)
+                            return fn(full_path)
+                        except TypeError:
+                            pass
                     if asyncio.iscoroutinefunction(fn):
                         return await fn()
                     return fn()
@@ -126,6 +134,7 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
     # 注入全局变量到 handlers 模块
     from ai_agent.api import handlers as _h
     import siper_web as _sw
+    import os as _os
     if agent_ref:
         _h.agent = agent_ref
     if hasattr(_sw, 'PROJECT_ROOT'):
@@ -421,3 +430,15 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
     @router.post("/api/theme/import")
     def api_theme_import(body):
         return local_handlers["api_theme_import"](body)
+
+    # --- API 文档 ---
+    @router.get("/api/openapi.json")
+    def api_openapi_spec():
+        """返回 OpenAPI 3.0 JSON 规范"""
+        import json as _json
+        spec_path = _os.path.join(_os.path.dirname(__file__), "openapi.json")
+        try:
+            with open(spec_path, "r", encoding="utf-8") as f:
+                return _json.load(f)
+        except FileNotFoundError:
+            return {"error": "openapi.json not found. Run scripts/generate_openapi.py to generate it."}

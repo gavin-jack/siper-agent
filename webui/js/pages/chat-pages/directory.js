@@ -1,7 +1,14 @@
 // chat-pages/directory.js — 项目目录独立页面
-// 调用 /api/project-structure 获取目录树 + 文件大小
+// 优先从 page_cache 读取，后端推送时自动刷新
 
 import { escapeHtml } from '../../utils/escape.js';
+
+// 注册 page_cache 回调
+if (typeof window.__onPageCacheRegister === 'function') {
+  window.__onPageCacheRegister('directory', function(data) {
+    if (data.tree) _renderTree(data.tree);
+  });
+}
 
 export function renderDirectoryPageChat(container) {
   container.className = 'siper-content siper-full-content';
@@ -25,12 +32,27 @@ function _loadDirectory() {
   const treeEl = document.getElementById('dirTree');
   if (!treeEl) return;
   treeEl.innerHTML = '<div style="padding:20px;color:var(--color-text-dim)">加载中...</div>';
+  // 优先从 page_cache 读取
+  const cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('directory') : null;
+  if (cached && cached.tree) {
+    _renderTree(cached.tree);
+    return;
+  }
   fetch('/api/project-structure').then(r => r.json()).then(data => {
     if (!data || (!data.dirs && !data.files)) {
       treeEl.innerHTML = '<div style="padding:20px;color:var(--color-error-text)">加载失败</div>';
       return;
     }
-    let html = '';
+    _renderTree(data);
+  }).catch(() => {
+    treeEl.innerHTML = '<div style="padding:20px;color:var(--color-error-text)">加载失败，请刷新重试</div>';
+  });
+}
+
+function _renderTree(data) {
+  const treeEl = document.getElementById('dirTree');
+  if (!treeEl) return;
+  let html = '';
     // Directories
     if (data.dirs && data.dirs.length > 0) {
       html += '<div class="siper-dir-section"><div class="siper-dir-section-title">📂 目录</div>';
@@ -59,9 +81,6 @@ function _loadDirectory() {
       html += '</div>';
     }
     treeEl.innerHTML = html;
-  }).catch(() => {
-    treeEl.innerHTML = '<div style="padding:20px;color:var(--color-error-text)">加载失败，请刷新重试</div>';
-  });
 }
 
 window._dirRefresh = function() {
