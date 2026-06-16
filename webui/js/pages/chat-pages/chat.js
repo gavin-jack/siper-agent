@@ -124,7 +124,6 @@ window.selectChatAgent = function(agentName) {
   document.getElementById('sidebarContainer').style.display = '';
   // 加载 agent 数据 + 填充表单
   if (typeof window.selectConfigAgent === 'function') {
-    // selectConfigAgent 会设置 currentConfigAgent + 加载文件
     window.selectConfigAgent(agentName);
   }
   if (typeof window.loadAgentSettings === 'function') {
@@ -135,63 +134,46 @@ window.selectChatAgent = function(agentName) {
 // chatSwitchPage — 右栏页面展示控制
 window.chatSwitchPage = function(page) {
   if (page === 'chat') {
-    // chat 页面已有内容，确保右栏显示 chat 内容
     navigateToPage('chat');
     return;
   }
-  // 其他页面通过 hash 路由导航
   if (page === 'agent-config' || page === 'model-settings') {
     if (typeof window.navigateToPage === 'function') window.navigateToPage(page);
   }
 };
 
 // ===== 渲染聊天页面内容 =====
+// 输入框独立于消息内容区，固定在 chatRight 底部
+var _inputAreaCreated = false;
+
 export function renderChatPage(container, skipSidebar) {
   container.className = 'siper-content siper-chat-mode';
-  const hasSession = !!_chatSessionId;
-  const hasAgent = !!_chatCurrentAgent;
-  const showInput = hasSession && hasAgent;
+  var hasSession = !!_chatSessionId;
+  var hasAgent = !!_chatCurrentAgent;
+  var showInput = hasSession && hasAgent;
+
   if (!showInput) {
-    const headerName = document.getElementById('chatRightHeaderName');
+    var headerName = document.getElementById('chatRightHeaderName');
     if (headerName) headerName.textContent = '选择一个 Agent 开始对话';
-  } else if (typeof Input.updateChatHeader === 'function') {
-    Input.updateChatHeader();
+    // 隐藏输入框
+    var _inputArea = document.getElementById('chatInputArea');
+    if (_inputArea) _inputArea.style.display = 'none';
+  } else {
+    if (typeof Input.updateChatHeader === 'function') Input.updateChatHeader();
+    renderInputArea(showInput);
   }
-  container.innerHTML = `
-    <div class="siper-thinking-panel" id="chatThinkingPanel">
-      <div class="siper-thinking-header"><span class="siper-thinking-icon">💭</span><span>正在思考</span></div>
-      <div class="siper-thinking-body" id="chatThinkingBody"></div>
-    </div>
-    <div class="siper-messages" id="chatMessages" aria-live="polite" aria-atomic="false">
-      <div class="siper-empty-state" id="chatEmptyState"><div class="siper-empty-state-icon">💬</div><div>通过agent发送消息</div></div>
-    </div>
-    ${showInput ? `\n    <div class="siper-input-area">
-      <div class="siper-input-toolbar">
-        <input type="file" id="chatFileInput" multiple class="hidden" onchange="handleChatFileSelect(event)" aria-label="上传文件">
-        <button class="siper-attach-btn" onclick="document.getElementById('chatFileInput').click()" title="上传文件">📎</button>
-        <div class="siper-model-dropdown" id="chatModelDropdown">
-          <button class="siper-model-btn" id="chatModelBtn" onclick="toggleChatModelDropdown()">
-            <span class="siper-model-btn-name" id="chatModelBtnName">默认模型</span>
-            <span class="siper-model-btn-arrow">▾</span>
-          </button>
-          <div class="siper-model-menu" id="chatModelMenu"></div>
-        </div>
-        <div class="siper-ctx-info" id="chatCtxInfo" title="当前会话上下文使用量">
-          <span class="siper-ctx-label">上下文</span>
-          <span class="siper-ctx-value" id="chatCtxValue">--/--</span>
-          <span class="siper-ctx-pct" id="chatCtxPct">--%</span>
-        </div>
-      </div>
-      <div id="chatFilePreviewContainer" class="siper-file-preview-container hidden"></div>
-      <div class="siper-input-row">
-        <textarea id="chatInput" placeholder="输入消息... (Enter 发送, Shift+Enter 换行)" rows="1" aria-label="聊天输入"></textarea>
-        <button class="siper-send-btn" id="chatSendBtn" onclick="chatSendMessage()">发送</button>
-        <button class="siper-stop-btn hidden" id="chatStopBtn" onclick="chatStopGeneration()" title="停止生成">⏹</button>
-      </div>
-    </div>` : ''}
-  `;
+
+  container.innerHTML = '' +
+    '<div class="siper-thinking-panel" id="chatThinkingPanel">' +
+      '<div class="siper-thinking-header"><span class="siper-thinking-icon">💭</span><span>正在思考</span></div>' +
+      '<div class="siper-thinking-body" id="chatThinkingBody"></div>' +
+    '</div>' +
+    '<div class="siper-messages" id="chatMessages" aria-live="polite" aria-atomic="false">' +
+      '<div class="siper-empty-state" id="chatEmptyState"><div class="siper-empty-state-icon">💬</div><div>通过agent发送消息</div></div>' +
+    '</div>';
+
   if (!showInput) {
-    const addBtn = document.createElement('button');
+    var addBtn = document.createElement('button');
     addBtn.className = 'siper-btn js-btn-add-agent';
     addBtn.textContent = '+ 新增智能体';
     addBtn.tabIndex = 0;
@@ -200,14 +182,54 @@ export function renderChatPage(container, skipSidebar) {
     container.appendChild(addBtn);
   }
   if (showInput) {
-    setTimeout(() => Input.bindChatInput(), 0);
+    setTimeout(function() { if (typeof Input.bindChatInput === 'function') Input.bindChatInput(); }, 0);
   }
   if (!skipSidebar) {
     if (_getAgents().length === 0) {
-      // WS 推送 agents 后 renderAgentList 会自动渲染，此处无需操作
+      // WS 推送 agents 后 renderAgentList 会自动渲染
+    } else {
+      Sidebar.renderMiddleList();
     }
-    else Sidebar.renderMiddleList();
   }
   Input.loadChatModels();
+}
+
+/** 输入框区域：独立于 siper-content 外，作为 chatRight 的直接子元素固定在底部 */
+function renderInputArea(show) {
+  var area = document.getElementById('chatInputArea');
+  if (area) {
+    area.style.display = show ? '' : 'none';
+    return;
+  }
+  if (!show) return;
+  var chatRight = document.getElementById('chatRight');
+  if (!chatRight) return;
+  var div = document.createElement('div');
+  div.id = 'chatInputArea';
+  div.className = 'siper-input-area';
+  div.innerHTML = '' +
+    '<div class="siper-input-toolbar">' +
+      '<input type="file" id="chatFileInput" multiple class="hidden" onchange="handleChatFileSelect(event)" aria-label="上传文件">' +
+      '<button class="siper-attach-btn" onclick="document.getElementById(\'chatFileInput\').click()" title="上传文件">📎</button>' +
+      '<div class="siper-model-dropdown" id="chatModelDropdown">' +
+        '<button class="siper-model-btn" id="chatModelBtn" onclick="toggleChatModelDropdown()">' +
+          '<span class="siper-model-btn-name" id="chatModelBtnName">默认模型</span>' +
+          '<span class="siper-model-btn-arrow">▾</span>' +
+        '</button>' +
+        '<div class="siper-model-menu" id="chatModelMenu"></div>' +
+      '</div>' +
+      '<div class="siper-ctx-info" id="chatCtxInfo" title="当前会话上下文使用量">' +
+        '<span class="siper-ctx-label">上下文</span>' +
+        '<span class="siper-ctx-value" id="chatCtxValue">--/--</span>' +
+        '<span class="siper-ctx-pct" id="chatCtxPct">--%</span>' +
+      '</div>' +
+    '</div>' +
+    '<div id="chatFilePreviewContainer" class="siper-file-preview-container hidden"></div>' +
+    '<div class="siper-input-row">' +
+      '<textarea id="chatInput" placeholder="输入消息... (Enter 发送, Shift+Enter 换行)" rows="1" aria-label="聊天输入"></textarea>' +
+      '<button class="siper-send-btn" id="chatSendBtn" onclick="chatSendMessage()">发送</button>' +
+      '<button class="siper-stop-btn hidden" id="chatStopBtn" onclick="chatStopGeneration()" title="停止生成">⏹</button>' +
+    '</div>';
+  chatRight.appendChild(div);
 }
 window.renderChatPage = renderChatPage;
