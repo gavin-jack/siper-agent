@@ -4,7 +4,58 @@
 
 ---
 
-## v0.1.7 (2026-06-14)
+## v0.2.1 (2026-06-17)
+
+### 新功能 (feat)
+
+- **Hash 路由系统**：全面 SPA Hash 路由（`#/chat` / `#/model-settings` / `#/monitor?tab=token`），支持浏览器前进 / 后退 / 书签
+- **CSS 按需加载**：`base.css` / `chat.css` / `page.css` 三文件拆分，按页面动态加载，`loadCss()` 添 `?v=` 缓存破坏
+- **SnapshotManager 内存容器**：启动预填充 + 增量同步 + 周期性 GC（30s）+ 快照持久化（5s），断线自动补发 delta
+- **三模板 SPA 架构**：`#page-chat` / `#page-standalone` / `#page-dynamic` 三容器路由，侧边栏常驻
+- **模型卡片 UI 增强**：能力标签走马灯 / TTFT 速度颜色编码（<500ms 蓝 / 500-1500ms 橙 / >1500ms 红）/ 入场动画 / 分组合并
+- **模型验证结果持久化**：验证后自动保存到 `models.db`
+- **模型删除 API 双端修复**：Router dispatch DELETE 参数化路由 body 覆盖路径参数问题修复
+- **负载均衡器心跳优化**：ws_handler 检查快照已有 agents → 跳过重复 DB 读取
+- **page_cache 前端消费模式**：WS `state_delta` 推送 page 数据到前端，免 HTTP fetch
+
+### Bug 修复 (fix)
+
+- **消息页布局修复**: `.siper-content` CSS 缺失（规则在 `style.css` 但 chat 页面不加载）→ 消息区无限增长 → 输入框被顶出页面
+- **消息页无滑块**: `.siper-messages` 缺 `min-height:0` → `overflow-y:auto` 不创建滚动条
+- **「正在思考」面板始终可见**: `display:none` 规则仅存在于 `style.css`，chat 页面不加载
+- **复制/嵌入按钮失效**: `copyChatMsg` / `insertChatMsg` 函数随 ESM 重构丢失，未挂载到 `window`
+- **模型验证按钮点击错位**: 分组 / 筛选后 `data-idx` 索引错位 → 按 `data-name` 名称查找修复，新增 `removeSettingsModelByName`
+- **模型删除 "model 不能为空"**: Router dispatch 对参数化 DELETE 路由传递 `body={}` 覆盖路径参数
+- **会话切换后消息不显示**: `renderChatPage` 未挂载 `window`，`selectChatSession` 切换后无渲染 + 无 HTTP fetch fallback
+- **侧边栏点击 agent 不展开会话**: `chatToggleAgent` 更新 `_expandedAgents` 后未调 `renderMiddleList()`
+- **模型验证 `/api/models/test` 双类索引**：`OpenAIClient.chat_completion` 中 `int("openai")` ValueError
+- **ESM 重构导入断裂**: `state.js` 批量加 `_` 前缀导致 3 个文件 295+ 行 import 断裂
+- **CSS 动态加载无缓存破坏**: `loadCss()` 无 `?v=` 参数，修改 CSS 后浏览器不更新
+- **Router GET 路由不传 `full_path`**: `api_get_logs` 和 `api_theme_load` 需要 query string 的场景失效
+- **消息页滑块初始化**: 首次进入消息页面时无消息，再次切换会话后滑块不显示
+- **前端日志 tab `refreshLogs` 函数缺失**: monitor 页面日志 tab 的 `switchMonitorTab('logs')` 调用 undefined
+- **CSS `transition` 缺省时长**: 20+ 处 `transition: x, y` 无 `0.2s` → 过渡动画完全不生效
+- **CSS `footer` 兼容性**: `margin-block-start` 在 Safari 中不生效
+- **navigateToPage('chat') 不调用 initChatPage**: 从独立页面导航回 chat 时右栏空
+
+### 重构 (refactor)
+
+- **index.html 精简**: 删除硬编码页面 HTML，只保留空容器（44 行），所有页面由 JS 渲染
+- **CSS 拆分**: `style.css`（164KB，不被任何页面加载）→ `base.css`（82KB） + `chat.css`（16KB） + `page.css`（66KB）
+- **三模板 SPA**: `navigateToPage()` 统一路由，`PAGE_LAZY` / `PAGE_TEMPLATE` / `PAGE_RENDER_FN` 三模式
+- **页面代码清理**: 删除废弃 `pages/settings.js` / `token.js` / `skills.js` / `logs.js`
+- **CSS `transition` 时长补全**: 20+ 处缺省时长补 `0.2s`
+- **sideba.html-onclick-window-mount 审计**: 删除旧文件前检查 HTML onclick 引用，防止 undefined function
+- **CSS hover 不可见修复**: `dispatchEvent(mouseenter)` 不触发 CSS `:hover`
+
+### 架构改进 (arch)
+
+- **全面独立于 Hermes Agent**: SiPer 是完全独立的 Python 应用，仅依赖 openai + websockets + jinja2
+- **per-Agent 数据库隔离**: sessions.db / memory.db 迁移到 `agents/{name}/` 目录
+- **内存泄漏修复**: `active_tasks` → `deque(maxlen=1000)`、`page_cache` TTL + 大小限制
+- **会话 FTS5 瘦身**: FTS5 表分离为独立虚拟表，主表瘦身 40%
+- **Router GET full_path 传参**: `api_get_logs` / `api_theme_load` 依赖 query string 的场景修复
+- **CSS 死文件检测流程**: 安全删除 CSS 文件的 4 步流程（页面访问 → 404 检查 → performance API → 确认后删除）
 
 ### 新功能 (feat)
 
