@@ -196,10 +196,8 @@ export async function chatToggleAgent(agentName) {
     _expandedAgents.set(agentName, !current);
     // 重新渲染中间栏（更新展开/折叠状态和 active class）
     renderMiddleList();
-    // 选中 agent + 打开设置面板（不论展开/折叠）
+    // 选中 agent + 加载会话
     await switchToAgent(agentName);
-    // Notify agent-config page about agent switch
-    if (typeof window.selectChatAgent === 'function') window.selectChatAgent(agentName);
   } finally {
     _switchingAgents.delete(agentName);
   }
@@ -314,6 +312,19 @@ export function selectChatSession(session, agent) {
     if (typeof updateStreamingBadge === 'function' && _chatStreamAcc) updateStreamingBadge(session.session_id, true);
   }
   // WS messages 推送到达后由 renderer.js 渲染，无需 HTTP 兜底
+  // 但首次点击会话时，需要主动请求消息（WS 推送可能在当前 agent 未连接时不会自动发送）
+  // 调用 POST /api/sessions/{sid} 获取消息
+  const _sid = session.session_id;
+  if (_sid) {
+    fetch('/api/sessions/' + encodeURIComponent(_sid))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.success && Array.isArray(d.messages) && typeof window.renderChatMessages === 'function') {
+          window.renderChatMessages(d.messages);
+        }
+      })
+      .catch(function(e) { console.error('[sidebar] load session messages failed:', e); });
+  }
 }
 
 export function renameChatSession(session, agent) {
