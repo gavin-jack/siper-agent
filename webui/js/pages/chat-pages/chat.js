@@ -96,14 +96,37 @@ window.initChatPage = initChatPage;
 window.selectChatAgent = function(agentName) {
   var rightCol = document.getElementById('page-chat');
   if (!rightCol) return;
-  // 清空右栏，渲染 agent 配置
+  // 渲染完整的 agent 配置模板（与 app.js tplAgentConfig 一致）
   rightCol.innerHTML = '<div class="siper-content" style="flex:1;display:flex;flex-direction:column;overflow:hidden">' +
     '<div class="page-header" style="flex-shrink:0"><h3>' + (agentName || '智能体设置') + '</h3>' +
-    '<button class="btn-sm" onclick="window.chatSwitchPage(\'chat\')">← 返回对话</button></div>' +
-    '<div id="agentConfigContent" style="flex:1;overflow-y:auto;padding:16px 24px"></div></div>';
-  // 确保侧边栏显示
+    '<div class="actions"><button class="btn-sm primary" onclick="window.chatSwitchPage(\'chat\')">← 返回对话</button></div></div>' +
+    '<div id="agentConfigContent" style="flex:1;overflow-y:auto;padding:16px 24px">' +
+      '<div id="agentConfigTitle" class="agent-config-title"></div>' +
+      '<div class="agent-tabs">' +
+        '<button class="agent-tab active" data-tab="about" id="agentTabAbout" onclick="window.switchConfigAgentPageTab(\'about\')">关于</button>' +
+        '<button class="agent-tab" data-tab="files" id="agentTabFiles" onclick="window.switchConfigAgentPageTab(\'files\')">属性文件</button>' +
+        '<button class="agent-tab" data-tab="memory" id="agentTabMemory" onclick="window.switchConfigAgentPageTab(\'memory\')">记忆</button>' +
+        '<button class="agent-tab" data-tab="limits" onclick="window.switchConfigAgentPageTab(\'limits\')">限制</button>' +
+        '<button class="agent-tab" data-tab="models" onclick="window.switchConfigAgentPageTab(\'models\')">模型</button>' +
+        '<button class="agent-tab" data-tab="avatar" onclick="window.switchConfigAgentPageTab(\'avatar\')">头像</button>' +
+      '</div>' +
+      '<div class="agent-tab-content active" id="agentTabContentAbout"></div>' +
+      '<div class="agent-tab-content" id="agentTabContentFiles"></div>' +
+      '<div class="agent-tab-content" id="agentTabContentMemory"></div>' +
+      '<div class="agent-tab-content" id="tab-limits"></div>' +
+      '<div class="agent-tab-content" id="tab-models"></div>' +
+      '<div class="agent-tab-content" id="tab-avatar"></div>' +
+    '</div>' +
+    '<div class="agent-config-footer" style="flex-shrink:0;padding:8px 24px;border-top:1px solid var(--color-border)">' +
+      '<button class="btn-sm danger" onclick="if(typeof window.confirmDeleteAgent===\'function\'&&window.currentConfigAgent)window.confirmDeleteAgent(window.currentConfigAgent)">删除智能体</button>' +
+      '<button class="btn-sm primary" onclick="window.saveAllChatAgentConfig()">保存全部</button>' +
+    '</div></div>';
   document.getElementById('sidebarContainer').style.display = '';
-  // 从 agent-config 模块加载内容
+  // 加载 agent 数据 + 填充表单
+  if (typeof window.selectConfigAgent === 'function') {
+    // selectConfigAgent 会设置 currentConfigAgent + 加载文件
+    window.selectConfigAgent(agentName);
+  }
   if (typeof window.loadAgentSettings === 'function') {
     window.loadAgentSettings(agentName);
   }
