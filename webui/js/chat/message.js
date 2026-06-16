@@ -323,4 +323,43 @@ window.renderChatMessages = function(messages) {
       msg.message_id || null
     );
   }
+  // 所有消息渲染完毕后滚动到底部
+  requestAnimationFrame(function() {
+    container.scrollTop = container.scrollHeight;
+  });
+};
+
+// ===== 复制/插入消息 =====
+window.copyChatMsg = function(btn) {
+  var row = btn && typeof btn.closest === 'function' ? btn.closest('.siper-msg-row') : null;
+  var text = row ? row.dataset.rawText : '';
+  if (!text) return;
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(text).then(function() {
+      if (typeof window.toast !== 'undefined' && window.toast && window.toast.success) window.toast.success('已复制');
+    });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;left:0;top:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); if (window.toast && window.toast.success) window.toast.success('已复制'); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+};
+
+window.insertChatMsg = function(btn) {
+  var row = btn && typeof btn.closest === 'function' ? btn.closest('.siper-msg-row') : null;
+  var text = row ? row.dataset.rawText : '';
+  if (!text) return;
+  var input = document.getElementById('chatInput');
+  if (input) {
+    input.value = text;
+    input.focus();
+    // Trigger input event for auto-resize
+    var evt = document.createEvent('Event');
+    evt.initEvent('input', true, true);
+    input.dispatchEvent(evt);
+  }
 };
