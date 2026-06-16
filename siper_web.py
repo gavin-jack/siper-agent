@@ -951,7 +951,7 @@ async def main():
             else:
                 # JSON API 端点 — Router 分发
                 from ai_agent.api.router import api_router
-                resp = await api_router.dispatch(method, path, body)
+                resp = await api_router.dispatch(method, path, body, full_path)
 
             # ===== Static files for /uploads/ path =====
             if path.startswith("/uploads/"):
@@ -3616,6 +3616,7 @@ async def main():
     # api_router is imported from ai_agent.api.router as a singleton
     global snapshot_mgr, carrier_mgr, db_mgr, api_router
     snapshot_mgr = SnapshotManager()
+    snapshot_mgr.start_periodic_save(interval=5.0)  # 每5秒检查并持久化
     carrier_mgr = CarrierManager()
     db_mgr = _DBMgr(PROJECT_ROOT)
     api_router = Router(prefix="")
@@ -3709,6 +3710,84 @@ async def main():
     # Map conn_id -> processing event (set while reply is in progress)
     _processing_events: Dict[str, asyncio.Event] = {}
 
+    async def _push_page_data(ws, conn_id, snapshot_mgr, page: str, tab: str):
+        """页面切换时推送页面数据到 page_cache.
+
+        根据 page/tab 调用对应的 API 获取数据，写入 page_snapshot，
+        然后通过 WebSocket 推送 state_delta 给前端.
+        """
+        from ai_agent.api.handlers import api_get_system_stats, api_get_project_structure, api_get_logs, api_get_token_stats
+
+        # 推送前先清除过期页面缓存（只保留白名单和当前页面）
+        try:
+            await snapshot_mgr.evict_stale_page_cache(current_page=page)
+        except Exception as e:
+            logger.warning(f"evict_stale_page_cache failed: {e}")
+
+        page_data: dict = {}
+        try:
+            if page == "monitor":
+                if tab in ("performance", ""):
+                    try:
+                        stats = api_get_system_stats()
+                        page_data["perf"] = stats
+                    except Exception as e:
+                        logger.warning(f"push_page_data perf failed: {e}")
+                if tab in ("token", ""):
+                    try:
+                        token = api_get_token_stats()
+                        page_data["token"] = token
+                    except Exception as e:
+                        logger.warning(f"push_page_data token failed: {e}")
+                if tab in ("logs", ""):
+                    try:
+                        logs = api_get_logs(full_path="/api/logs?limit=200")
+                        page_data["logs"] = logs
+                    except Exception as e:
+                        logger.warning(f"push_page_data logs failed: {e}")
+            elif page == "directory":
+                try:
+                    structure = api_get_project_structure()
+                    page_data["tree"] = structure
+                except Exception as e:
+                    logger.warning(f"push_page_data directory failed: {e}")
+            elif page == "model-settings":
+                from ai_agent.api.handlers import api_get_global_models
+                try:
+                    models = api_get_global_models()
+                    page_data["models"] = models
+                except Exception as e:
+                    logger.warning(f"push_page_data model-settings failed: {e}")
+            elif page == "tools":
+                from ai_agent.api.handlers import api_get_tools
+                try:
+                    tools_data = api_get_tools()
+                    page_data["tools"] = tools_data.get("tools", [])
+                    page_data["categories"] = tools_data.get("categories", {})
+                    page_data["total"] = tools_data.get("total", 0)
+                except Exception as e:
+                    logger.warning(f"push_page_data tools failed: {e}")
+            elif page == "skills":
+                from ai_agent.api.handlers import api_get_skills
+                try:
+                    skills_data = api_get_skills()
+                    page_data["skills"] = skills_data.get("skills", skills_data) if isinstance(skills_data, dict) else skills_data
+                except Exception as e:
+                    logger.warning(f"push_page_data skills failed: {e}")
+        except Exception as e:
+            logger.warning(f"_push_page_data 采集数据失败: {e}")
+
+        if page_data:
+            try:
+                await snapshot_mgr.set_page_cache(page, page_data)
+                await ws.send(json.dumps({
+                    "type": "state_delta",
+                    "version": snapshot_mgr.version,
+                    "changes": [{"op": "replace", "path": f"page_cache.{page}", "value": page_data}]
+                }))
+            except Exception as e:
+                logger.warning(f"_push_page_data 推送失败: {e}")
+
     async def ws_handler(ws):
         conn_id = str(id(ws))
         sys.stdout.flush()
@@ -3735,6 +3814,20 @@ async def main():
                 # 同步 expanded_agents 到快照
                 _expanded = [a["name"] for a in _agents if a.get("expanded", True)]
                 await snapshot_mgr.set("expanded_agents", _expanded)
+                # 起源：预加载页面缓存数据到 page_snapshot
+                try:
+                    from ai_agent.state.session_sync import sync_memory, sync_agent_configs, sync_system_stats
+                    _memory_data = sync_memory(snapshot_mgr, agent)
+                    await snapshot_mgr.set_page_cache("memory", _memory_data)
+                    logger.info(f"[起源] 预加载 memory 缓存完成")
+                    _config_data = sync_agent_configs(snapshot_mgr, agent)
+                    await snapshot_mgr.set_page_cache("agent_config", _config_data)
+                    logger.info(f"[起源] 预加载 agent_config 缓存完成")
+                    _stats_data = await sync_system_stats(snapshot_mgr, agent)
+                    await snapshot_mgr.set_page_cache("monitor", _stats_data)
+                    logger.info(f"[起源] 预加载 monitor 缓存完成")
+                except Exception as e:
+                    logger.warning(f"[起源] 页面缓存预加载失败: {e}")
             except Exception as e:
                 logger.error(f"[起源] initial sync failed: {e}", exc_info=True)
             # register 发送 state_full，此时快照已填充
@@ -3838,6 +3931,11 @@ async def main():
                             "agent": agent_name,
                             "message": "New session created"
                         }))
+                    elif data.get("type") == "navigate":
+                        _page = data.get("page", "")
+                        _tab = data.get("tab", "")
+                        logger.info(f"[WS] navigate: page={_page}, tab={_tab}")
+                        await _push_page_data(ws, conn_id, snapshot_mgr, _page, _tab)
                     elif data.get("type") == "clarify_response":
                         session_id = data.get("session_id", "")
                         answer = data.get("answer", "")

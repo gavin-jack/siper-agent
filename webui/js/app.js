@@ -1,6 +1,6 @@
 // app.js — ESM 入口
 // 三模板 SPA: chat(默认) | standalone(懒加载) | sidebar(常驻)
-import { connectWS, setConnected } from './core.js';
+import { connectWS, setConnected, getWs } from './core.js';
 import { registerAllHandlers } from './renderer.js';
 
 // Utils
@@ -16,7 +16,7 @@ import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation 
 import * as AgentModels from './components/agent-models.js';
 
 // Chat core (must load before DOMContentLoaded)
-import * as Chat from './pages/chat.js';
+import * as Chat from './pages/chat-pages/chat.js';
 
 // Chat input
 import { toggleChatModelDropdown } from './chat/input.js';
@@ -42,6 +42,7 @@ import * as Logs from './pages/chat-pages/logs.js';
 import * as Monitor from './pages/chat-pages/monitor.js';
 import * as Tools from './pages/chat-pages/tools.js';
 import * as Directory from './pages/chat-pages/directory.js';
+import * as ApiDocs from './pages/chat-pages/api-docs.js';
 
 // ===== Window Global Mounts =====
 // Utils
@@ -95,6 +96,33 @@ window.resetTheme = Theme.resetTheme;
 
 window.refreshSessions = () => {};
 window.refreshMemoryPage = () => {};
+
+// ===== page_cache 基础设施 =====
+// page_cache 数据存储（由 renderer.js 的 page_cache handler 填充）
+window.__pageCacheData = {};
+// 页面回调注册表：pageName → function(data) 新数据到达时自动调用
+window.__pageCacheCallbacks = {};
+// 获取指定页面的缓存数据
+window.__getPageCache = function(page) {
+    return window.__pageCacheData && window.__pageCacheData[page];
+};
+// 注册页面缓存更新回调（页面模块调用，新数据到达时自动刷新）
+window.__onPageCacheRegister = function(page, callback) {
+    if (window.__pageCacheCallbacks) {
+        window.__pageCacheCallbacks[page] = callback;
+    }
+};
+// 页面缓存更新入口（renderer.js 调用，分发到各页面回调）
+window.__onPageCacheUpdate = function(page, data) {
+    if (window.__pageCacheData) {
+        window.__pageCacheData[page] = data;
+    }
+    // 如果页面注册了回调，自动触发刷新
+    if (window.__pageCacheCallbacks && window.__pageCacheCallbacks[page]) {
+        try { window.__pageCacheCallbacks[page](data); }
+        catch(e) { console.error('[app] page_cache callback failed for ' + page + ':', e); }
+    }
+};
 
 // ===== 懒加载映射：页面名 → () => import(模块) =====
 function tplSessions() {
@@ -238,6 +266,7 @@ const PAGE_LAZY = {
   'monitor':  Monitor,
   'tools':     Tools,
   'directory': Directory,
+  'api-docs':   ApiDocs,
 };
 
 // Template-clone pages 已全量加载，直接映射
@@ -261,6 +290,7 @@ const PAGE_RENDER_FN = {
   'monitor':  'renderMonitorPageChat',
   'tools':     'renderToolsPage',
   'directory': 'renderDirectoryPageChat',
+  'api-docs':   'renderApiDocsPageChat',
   'sessions': 'renderSessions',
   'memory':    'renderMemoryContent',
   'agent-config': 'showAddAgentModal',
@@ -279,6 +309,11 @@ function loadCss(href) {
 }
 
 async function navigateToPage(page, tab) {
+  // Ensure URL hash always reflects target page (including chat)
+  const hash = '#/' + page + (tab ? '?tab=' + tab : '');
+  if (location.hash !== hash) {
+      history.replaceState(null, '', hash);
+  }
   // 更新侧边栏 active 状态
   document.querySelectorAll('.siper-nav-item').forEach(el => {
     el.classList.toggle('active', el.getAttribute('data-page') === page);
@@ -352,11 +387,14 @@ async function navigateToPage(page, tab) {
       }
     }
 
-    // 更新 hash
-    var hash = '#/' + page + (tab ? '?tab=' + tab : '');
-    if (location.hash !== hash) {
-      history.replaceState(null, '', hash);
-    }
+    // 通知后端页面切换（后端推送页面数据到 page_cache）
+    try {
+      var _ws = typeof getWs === 'function' ? getWs() : (window.__ws || null);
+      if (_ws && _ws.readyState === 1) {
+        _ws.send(JSON.stringify({type: 'navigate', page: page, tab: tab || ''}));
+      }
+    } catch(e) {}
+
   } catch(e) {
     console.error('[app.js] navigateToPage failed:', e);
     container.innerHTML = '<div class="empty-state">加载失败: ' + escapeHtml(e.message) + '</div>';

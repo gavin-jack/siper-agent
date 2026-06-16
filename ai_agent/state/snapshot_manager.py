@@ -10,8 +10,11 @@ DOM 快照管理器 — 单一数据源
 import asyncio
 import copy
 import json
+import os
 import time
 from typing import Any, Dict, List, Optional, Tuple
+
+_SNAPSHOT_DB_PATH = os.path.join(os.path.dirname(__file__), "snapshot.db")
 
 
 class SnapshotManager:
@@ -27,6 +30,7 @@ class SnapshotManager:
         self._pending: list = []
         self._batch_timer: Optional[asyncio.Task] = None
         self._batch_ms = 50
+        self._dirty = False  # 标记是否有未持久化的变更
 
         # 内存控制常量
         self.MAX_SNAPSHOT_BYTES = 500_000
@@ -35,6 +39,72 @@ class SnapshotManager:
         self.MAX_THINKING_STEPS = 20
         self.CACHE_TTL = 30
         self.CACHE_MAX_BYTES = 200_000
+
+        # 启动时从 SQLite 恢复
+        self._load_from_db()
+
+    # ===== 持久化（SQLite） =====
+
+    def _db_init(self):
+        """初始化 SQLite 数据库"""
+        import sqlite3
+        conn = sqlite3.connect(_SNAPSHOT_DB_PATH)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("CREATE TABLE IF NOT EXISTS snapshot (id INTEGER PRIMARY KEY, data TEXT NOT NULL, updated_at REAL)")
+        conn.commit()
+        conn.close()
+
+    def _load_from_db(self):
+        """启动时从 SQLite 恢复快照"""
+        import sqlite3
+        self._db_init()
+        try:
+            conn = sqlite3.connect(_SNAPSHOT_DB_PATH)
+            row = conn.execute("SELECT data FROM snapshot WHERE id=1").fetchone()
+            conn.close()
+            if row:
+                data = json.loads(row[0])
+                # 只恢复 page_cache 和版本号（会话数据由 session_sync 重建）
+                if "page_cache" in data:
+                    self._snap["page_cache"] = data["page_cache"]
+                if "_cache_ts" in data:
+                    self._snap["_cache_ts"] = data.get("_cache_ts", {})
+                if "version" in data:
+                    self._version = data["version"]
+                    self._snap["version"] = self._version
+                if "current_page" in data:
+                    self._snap["current_page"] = data["current_page"]
+                if "active_session_id" in data:
+                    self._snap["active_session_id"] = data["active_session_id"]
+                if "sidebar_expanded" in data:
+                    self._snap["sidebar_expanded"] = data["sidebar_expanded"]
+        except Exception as e:
+            import logging
+            logging.warning(f"[SnapshotManager] load_from_db failed: {e}")
+
+    def _save_to_db(self):
+        """将快照持久化到 SQLite（仅保存轻量数据）"""
+        import sqlite3
+        try:
+            # 只持久化 page_cache + 轻量状态（不存 messages/sessions 等大对象）
+            persist = {
+                "version": self._version,
+                "current_page": self._snap.get("current_page", "chat"),
+                "active_session_id": self._snap.get("active_session_id"),
+                "sidebar_expanded": self._snap.get("sidebar_expanded", True),
+                "page_cache": self._snap.get("page_cache", {}),
+                "_cache_ts": self._snap.get("_cache_ts", {}),
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            }
+            conn = sqlite3.connect(_SNAPSHOT_DB_PATH)
+            conn.execute("INSERT OR REPLACE INTO snapshot (id, data, updated_at) VALUES (1, ?, ?)",
+                         (json.dumps(persist, ensure_ascii=False, default=str), time.time()))
+            conn.commit()
+            conn.close()
+            self._dirty = False
+        except Exception as e:
+            import logging
+            logging.error(f"[SnapshotManager] save_to_db failed: {e}")
 
     def _empty(self) -> dict:
         return {
@@ -64,6 +134,7 @@ class SnapshotManager:
             self._bump()
             delta = {"op": "replace", "path": path, "value": value}
             self._record(delta)
+            self._dirty = True
         await self._enqueue(delta)
         await self._check_size()
 
@@ -82,6 +153,7 @@ class SnapshotManager:
             self._bump()
             for d in deltas:
                 self._record(d)
+            self._dirty = True
         for d in deltas:
             await self._enqueue(d)
         await self._check_size()
@@ -103,6 +175,29 @@ class SnapshotManager:
             delta = {"op": "remove", "path": path, "index": index}
             self._record(delta)
         await self._enqueue(delta)
+
+    # ===== 持久化定时器 =====
+
+    def start_periodic_save(self, interval: float = 5.0):
+        """启动定时持久化（每 interval 秒检查 _dirty 并写入 SQLite）"""
+        loop = asyncio.get_event_loop()
+        self._save_task = loop.create_task(self._periodic_save_loop(interval))
+
+    async def _periodic_save_loop(self, interval: float):
+        try:
+            while True:
+                await asyncio.sleep(interval)
+                if self._dirty:
+                    self._save_to_db()
+        except asyncio.CancelledError:
+            pass
+
+    async def shutdown(self):
+        """关闭前强制写入"""
+        if self._dirty:
+            self._save_to_db()
+        if hasattr(self, '_save_task'):
+            self._save_task.cancel()
 
     # ===== 推送控制 =====
 
@@ -196,12 +291,35 @@ class SnapshotManager:
         async with self._lock:
             self._snap["page_cache"][page] = data
             self._snap["_cache_ts"][page] = time.time()
+            self._dirty = True
 
     async def clear_page_cache(self, page: str):
         """清除指定页面的缓存"""
         async with self._lock:
             self._snap["page_cache"].pop(page, None)
             self._snap["_cache_ts"].pop(page, None)
+
+    async def clear_all_page_cache(self):
+        """清空所有页面缓存"""
+        async with self._lock:
+            self._snap["page_cache"].clear()
+            self._snap["_cache_ts"].clear()
+
+    async def evict_stale_page_cache(self, current_page: str, whitelist: Optional[List[str]] = None):
+        """清除过期页面缓存，只保留白名单和当前页面的缓存.
+
+        Args:
+            current_page: 当前页面名称，不会被清除.
+            whitelist: 额外保留的页面键列表，默认为 ["memory", "agent_config", "theme"].
+        """
+        if whitelist is None:
+            whitelist = ["memory", "agent_config", "theme"]
+        keep = {current_page, *whitelist}
+        async with self._lock:
+            stale = [k for k in self._snap["page_cache"] if k not in keep]
+            for k in stale:
+                self._snap["page_cache"].pop(k, None)
+                self._snap["_cache_ts"].pop(k, None)
 
     # ===== 快照大小控制 =====
 

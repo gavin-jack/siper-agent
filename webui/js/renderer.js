@@ -225,4 +225,13 @@ export function registerAllHandlers() {
             window.showConfirm(v.title, v.message, v.onConfirm);
         }
     });
+
+    // page_cache 更新 → 通知所有页面
+    register('page_cache', (v) => {
+        if (typeof window.__onPageCacheUpdate === 'function' && v) {
+            for (const [page, data] of Object.entries(v)) {
+                window.__onPageCacheUpdate(page, data);
+            }
+        }
+    });
 }

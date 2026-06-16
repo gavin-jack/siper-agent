@@ -2,12 +2,15 @@
 状态同步 — 从 DB/内存加载数据到快照
 """
 import json
+import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from ai_agent.state.snapshot_manager import SnapshotManager
+
+logger = logging.getLogger(__name__)
 
 
 def sync_sessions(snapshot_mgr: "SnapshotManager", agent) -> list:
@@ -156,3 +159,103 @@ def _load_agent_sessions(agent_name: str, agents_dir: Path) -> list:
         return sessions
     except Exception:
         return []
+
+
+# ===== 页面缓存同步函数 =====
+
+
+def sync_memory(snapshot_mgr: "SnapshotManager", agent) -> Dict[str, Any]:
+    """从 agents/*/memory 目录加载记忆数据，返回结构化记忆信息.
+
+    遍历所有 agent 目录下的 memory/ 子目录，读取 memory.md 和
+    memory_config.json，汇总为 {"agents": [...]} 结构.
+    """
+    agents: List[Dict[str, Any]] = []
+    agents_dir = Path(os.path.dirname(__file__)).parent.parent / "agents"
+    if not agents_dir.exists():
+        return {"agents": agents}
+
+    for d in sorted(agents_dir.iterdir()):
+        if not d.is_dir():
+            continue
+        agent_name = d.name
+        mem_dir = d / "memory"
+        if not mem_dir.exists():
+            continue
+
+        # 读取 memory.md（如果存在）
+        content = ""
+        md_path = mem_dir / "memory.md"
+        if md_path.exists():
+            try:
+                content = md_path.read_text(encoding="utf-8").strip()
+            except Exception as e:
+                logger.warning(f"读取 {md_path} 失败: {e}")
+
+        # 读取 memory_config.json（如果存在）
+        config: Dict[str, Any] = {}
+        config_path = mem_dir / "config.json"
+        if config_path.exists():
+            try:
+                config = json.loads(config_path.read_text(encoding="utf-8"))
+            except Exception as e:
+                logger.warning(f"读取 {config_path} 失败: {e}")
+
+        agents.append({
+            "name": agent_name,
+            "content": content,
+            "config": config,
+        })
+
+    return {"agents": agents}
+
+
+def sync_agent_configs(snapshot_mgr: "SnapshotManager", agent) -> Dict[str, Any]:
+    """从 agents/*/config.json 加载 Agent 配置，返回结构化配置信息.
+
+    遍历所有 agent 目录，读取 config.json，汇总为 {"agents": [...]} 结构.
+    """
+    agents: List[Dict[str, Any]] = []
+    agents_dir = Path(os.path.dirname(__file__)).parent.parent / "agents"
+    if not agents_dir.exists():
+        return {"agents": agents}
+
+    for d in sorted(agents_dir.iterdir()):
+        if not d.is_dir():
+            continue
+        config_path = d / "config.json"
+        config: Dict[str, Any] = {}
+        if config_path.exists():
+            try:
+                config = json.loads(config_path.read_text(encoding="utf-8"))
+            except Exception as e:
+                logger.warning(f"读取 {config_path} 失败: {e}")
+
+        agents.append({
+            "name": d.name,
+            "config": config,
+        })
+
+    return {"agents": agents}
+
+
+async def sync_system_stats(snapshot_mgr: "SnapshotManager", agent) -> Dict[str, Any]:
+    """调用 api_get_system_stats / api_get_token_stats 获取系统统计.
+
+    返回 {"stats": {...}, "token_stats": {...}} 结构.
+    """
+    from ai_agent.api.handlers import api_get_system_stats, api_get_token_stats
+
+    result: Dict[str, Any] = {"stats": {}, "token_stats": {}}
+
+    try:
+        result["stats"] = api_get_system_stats()
+    except Exception as e:
+        logger.warning(f"sync_system_stats: api_get_system_stats 失败: {e}")
+
+    try:
+        result["token_stats"] = api_get_token_stats()
+    except Exception as e:
+        logger.warning(f"sync_system_stats: api_get_token_stats 失败: {e}")
+
+    return result
