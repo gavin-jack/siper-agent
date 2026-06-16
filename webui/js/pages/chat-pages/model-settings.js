@@ -299,7 +299,7 @@ function buildCardHtml(m, i) {
   const metaTags = [ctxTested, ttft, latencyOnly, streaming, jsonMode].filter(Boolean).map(t2 => '<span class="siper-meta-tag">' + t2 + '</span>').join('');
   const verifyBtnHtml = m._verified === "pending"
     ? '<button class="btn-sm btn-verify-pending" disabled title="检测中...">⏳</button>'
-    : `<button class="btn-sm btn-verify" data-idx="${i}" title="验证可用性">🔍</button>`;
+    : `<button class="btn-sm btn-verify" data-name="${escapeAttr(m.name)}" title="验证可用性">🔍</button>`;
   return `
     <div class="model-card card-left-accent${m._verified === 'pending' ? ' model-card-verifying' : m._verified === true ? ' model-verify-pass' : m._verified === false ? ' model-verify-fail' : ''}" data-model-name="${escapeAttr(m.name)}" data-caps="${escapeAttr((m.capabilities || []).join(','))}" data-ttft="${m.ttft || 99999}" data-latency="${m._latency || m.latency || 99999}" data-context="${m.context_window || 0}">
       <div class="model-card-header">
@@ -310,7 +310,7 @@ function buildCardHtml(m, i) {
           <button class="btn-sm btn-copy-model" data-name="${escapeAttr(m.name)}" title="复制模型名称">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><rect x="5" y="5" width="9" height="9" rx="1.5" opacity="0.6"/><rect x="2" y="2" width="9" height="9" rx="1.5"/></svg>
           </button>
-          <button class="btn-sm danger" onclick="window.removeSettingsModel(${i})" title="删除模型">✕</button>
+          <button class="btn-sm danger" onclick="window.removeSettingsModelByName('${escapeAttr(m.name)}')" title="删除模型">✕</button>
         </div>
       </div>
       <div class="siper-model-meta">${ctx ? '<span class="siper-meta-tag">ctx ' + ctx + '</span>' : ''}${metaTags}</div>
@@ -451,6 +451,17 @@ function _doRemove(idx) {
       renderSettingsModelsList();
       if (window.toast) window.toast.success('已删除模型: ' + m.name, 1500);
     }).catch(e => { if (window.toast) window.toast.error('删除失败: ' + e.message); });
+}
+
+/** 按名称删除模型（onclick 调用，避免索引错位） */
+export function removeSettingsModelByName(name) {
+  for (var _i = 0; _i < settingsModelsCache.length; _i++) {
+    if (settingsModelsCache[_i].name === name) {
+      removeSettingsModel(_i);
+      return;
+    }
+  }
+  if (window.toast) window.toast.error('未找到模型: ' + name);
 }
 
 // ===== 复制模型名 =====
@@ -725,8 +736,19 @@ export function resetSettingsModels() {
 }
 
 // ===== 验证 =====
-export function verifySingleModel(idx) {
-  const m = settingsModelsCache[idx];
+export function verifySingleModel(modelName) {
+  var idx = -1;
+  var m = null;
+  if (typeof modelName === 'string') {
+    // 按名称查找（来自事件委托的 data-name）
+    for (var _i = 0; _i < settingsModelsCache.length; _i++) {
+      if (settingsModelsCache[_i].name === modelName) { idx = _i; m = settingsModelsCache[_i]; break; }
+    }
+  } else if (typeof modelName === 'number') {
+    // 按索引查找（兼容 verifyAllModels 用）
+    idx = modelName;
+    m = settingsModelsCache[idx];
+  }
   if (!m) return;
   if (!m.base_url || !m.api_key) {
     if (window.toast) window.toast.warning((m.name || m.id) + ' 未配置 base_url 或 api_key');
@@ -837,11 +859,10 @@ function escapeAttr(s) {
 document.addEventListener('click', function(e) {
   var target = e.target;
   var btn = target && typeof target.closest === 'function' ? target.closest('.btn-verify') : null;
-  if (!btn || btn.dataset.idx === undefined) return;
+  if (!btn || !btn.dataset.name) return;
   e.preventDefault(); e.stopPropagation();
   if (!btn.closest('.models-grid')) return;
-  var idx = parseInt(btn.dataset.idx, 10);
-  if (!isNaN(idx)) verifySingleModel(idx);
+  verifySingleModel(btn.dataset.name);
 });
 
 // 复制模型名按钮

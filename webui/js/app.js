@@ -396,6 +396,7 @@ async function navigateToPage(page, tab) {
       window.verifyAllModels = mod.verifyAllModels;
       window.verifySingleModel = mod.verifySingleModel;
       window.removeSettingsModel = mod.removeSettingsModel;
+      window.removeSettingsModelByName = mod.removeSettingsModelByName;
       window.resetSettingsModels = mod.resetSettingsModels;
       window.renderSettingsModelsList = mod.renderSettingsModelsList;
       window.clearModelFilter = mod.clearModelFilter;
