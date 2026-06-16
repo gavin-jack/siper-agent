@@ -170,7 +170,7 @@ export async function chatUploadFiles(files) {
       });
       const data = await resp.json();
       if (data.success) results.push({ path: data.path, name: data.name, category: data.category || file.category });
-    } catch(e) {}
+    } catch(e) { console.error('[input] upload failed:', e); }
   }
   return results;
 }
@@ -351,7 +351,7 @@ export async function chatSendMessage() {
       }
     }
     // 异步上传文件到磁盘（不阻塞 WS 发送）
-    chatUploadFiles(filesToUpload).catch(() => {});
+    chatUploadFiles(filesToUpload).catch(e => { console.error('[input] background upload failed:', e); });
     // 立即通过 WS 发送（不等上传完成）
     const payload = { type: 'message', content, session_id: chatSessionId };
     if (images.length > 0) payload.images = images;

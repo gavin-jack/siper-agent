@@ -1125,11 +1125,12 @@ html { touch-action: manipulation; }
   cursor: pointer;
   font-size: 16px;
   color: var(--color-text-dim);
-  transition: background-color, color
+  transition: background-color 0.2s, color 0.2s;
   white-space: nowrap;
 }
 .siper-sidebar .siper-nav-item:hover {
-  background: color-mix(in srgb, var(--color-text) 70%, black);
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
+  color: var(--color-primary);
 }
 .siper-sidebar .siper-nav-item.active {
   background: var(--color-primary);

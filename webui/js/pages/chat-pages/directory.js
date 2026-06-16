@@ -1,7 +1,7 @@
 // chat-pages/directory.js — 项目目录独立页面
 // 调用 /api/project-structure 获取目录树 + 文件大小
 
-import { escapeHtml } from '../utils/escape.js';
+import { escapeHtml } from '../../utils/escape.js';
 
 export function renderDirectoryPageChat(container) {
   container.className = 'siper-content siper-full-content';

@@ -369,11 +369,11 @@ def _render_index() -> str:
             return f'<script src="{js_path}?v={int(os.path.getmtime(full))}"></script>'
         return match.group(0)
     html = _re.sub(r'<script src="(/static/(?:pages|js)/[^"]+)"></script>', _js_mtime, html)
-    # ESM entry: 路径级 cache-bust（文件名含 mtime，浏览器 ESM 缓存视为不同 URL）
+    # ESM entry: 用 start_time 作为 cache-buster（每次重启都变，确保浏览器不缓存旧版 app.js）
     _js_entry = PROJECT_ROOT / "webui" / "js" / "app.js"
     if _js_entry.exists():
-        _cb = str(int(os.path.getmtime(_js_entry)))
-        # 创建/更新符号链接 app-{mtime}.js → app.js
+        _cb = str(int(start_time * 1000))
+        # 创建/更新符号链接 app-{start_time}.js → app.js
         _symlink = PROJECT_ROOT / "webui" / "js" / f"app-{_cb}.js"
         if not _symlink.exists() or os.readlink(str(_symlink)) != "app.js":
             if _symlink.exists() or _symlink.is_symlink():

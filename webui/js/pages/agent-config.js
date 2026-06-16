@@ -397,17 +397,19 @@ export function refreshAgentFile(fileType) {
 }
 
 export async function loadAgentMemoryContent(name) {
+  let memTa;
   try {
     const r = await fetch('/api/agents/' + name + '/memory');
     const d = await r.json();
     cachedConfigMemoryContent = d.memory || '';
-    const memTa = document.getElementById('agentMemoryContent');
+    memTa = document.getElementById('agentMemoryContent');
     if (memTa) memTa.value = cachedConfigMemoryContent;
     // Also update memory path display
     const pathEl = document.getElementById('agentCfgMemoryPath');
     if (pathEl) pathEl.value = 'agents/' + name + '/memory.md';
   } catch(e) {
     console.error('loadAgentMemoryContent error:', e);
+    if (!memTa) memTa = document.getElementById('agentMemoryContent');
     if (memTa) memTa.value = '⚠️ 加载失败: ' + e.message;
   }
 }

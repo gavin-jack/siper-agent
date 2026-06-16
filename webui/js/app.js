@@ -31,6 +31,18 @@ import * as Memory from './pages/memory.js';
 import * as AgentConfig from './pages/agent-config.js';
 import * as Theme from './pages/theme.js';
 
+// Chat-pages (全量 import 避免 ESM 缓存导致动态 import 失败)
+import * as Tasks from './pages/chat-pages/tasks.js';
+import * as Skills from './pages/chat-pages/skills.js';
+import * as Plugins from './pages/chat-pages/plugins.js';
+import * as Token from './pages/chat-pages/token.js';
+import * as Settings from './pages/chat-pages/settings.js';
+import * as ModelSettings from './pages/chat-pages/model-settings.js';
+import * as Logs from './pages/chat-pages/logs.js';
+import * as Monitor from './pages/chat-pages/monitor.js';
+import * as Tools from './pages/chat-pages/tools.js';
+import * as Directory from './pages/chat-pages/directory.js';
+
 // ===== Window Global Mounts =====
 // Utils
 window.escapeHtml = escapeHtml;
@@ -213,18 +225,19 @@ function tplTheme() {
   </div>`;
 }
 
-// ===== 懒加载映射：页面名 → () => import(模块) =====
+// ===== 懒加载映射：页面名 → 模块对象（全量 import，无需动态 import） =====
 const PAGE_LAZY = {
-  'tasks':     () => import('./pages/chat-pages/tasks.js'),
-  'skills':    () => import('./pages/chat-pages/skills.js'),
-  'plugins':  () => import('./pages/chat-pages/plugins.js'),
-  'token':     () => import('./pages/chat-pages/token.js'),
-  'settings': () => import('./pages/chat-pages/settings.js'),
-  'model-settings': () => import('./pages/chat-pages/model-settings.js'),
-  'logs':      () => import('./pages/chat-pages/logs.js'),
-  'monitor':  () => import('./pages/chat-pages/monitor.js'),
-  'tools':     () => import('./pages/chat-pages/tools.js'),
-  'directory': () => import('./pages/chat-pages/directory.js'),
+  'tasks':     Tasks,
+  'skills':    Skills,
+  'plugins':  Plugins,
+  'token':     Token,
+  'settings': Settings,
+  'global-settings': Settings,
+  'model-settings': ModelSettings,
+  'logs':      Logs,
+  'monitor':  Monitor,
+  'tools':     Tools,
+  'directory': Directory,
 };
 
 // Template-clone pages 已全量加载，直接映射
@@ -242,6 +255,7 @@ const PAGE_RENDER_FN = {
   'plugins':  'renderPluginsPageChat',
   'token':     'renderTokenPageChat',
   'settings': 'renderSettingsPageChat',
+  'global-settings': 'renderSettingsPageChat',
   'model-settings': 'renderModelSettingsPageChat',
   'logs':      'renderLogsPageChat',
   'monitor':  'renderMonitorPageChat',
@@ -252,9 +266,6 @@ const PAGE_RENDER_FN = {
   'agent-config': 'showAddAgentModal',
   'theme':  'showThemeSettings',
 };
-
-// 缓存已加载的模块
-const _pageCache = {};
 
 // ===== CSS 按需加载 =====
 const _loadedCss = new Set();
@@ -268,12 +279,20 @@ function loadCss(href) {
 }
 
 async function navigateToPage(page) {
+  // 更新侧边栏 active 状态
+  document.querySelectorAll('.siper-nav-item').forEach(el => {
+    el.classList.toggle('active', el.getAttribute('data-page') === page);
+  });
+
   // Chat 页面 — 显示中栏+右栏，隐藏独立页面
   if (page === 'chat') {
     document.getElementById('page-chat').style.display = 'flex';
     document.getElementById('page-standalone').style.display = 'none';
     document.getElementById('sidebarContainer').style.display = '';
     loadCss('/css/chat.css');
+    if (typeof window.initChatPage === 'function') {
+      window.initChatPage();
+    }
     return;
   }
 
@@ -293,15 +312,12 @@ async function navigateToPage(page) {
       container.innerHTML = '<div class="empty-state">加载中...</div>';
     }
 
-    // 获取模块
+    // 获取模块（全量 import，直接取模块对象）
     let mod;
     if (PAGE_TEMPLATE[page]) {
       mod = PAGE_TEMPLATE[page];
     } else if (PAGE_LAZY[page]) {
-      if (!_pageCache[page]) {
-        _pageCache[page] = await PAGE_LAZY[page]();
-      }
-      mod = _pageCache[page];
+      mod = PAGE_LAZY[page];
     } else {
       return;
     }
@@ -315,6 +331,14 @@ async function navigateToPage(page) {
     // 挂载页面特有的全局函数（供 HTML onclick 调用）
     if (page === 'model-settings' && typeof mod.switchModelTab === 'function') {
       window.switchModelTab = mod.switchModelTab;
+    }
+    if (page === 'monitor' && typeof mod.switchMonitorTab === 'function') {
+      window.switchMonitorTab = mod.switchMonitorTab;
+    }
+    if (page === 'settings' && typeof mod.switchSettingsTab === 'function') {
+      window.switchSettingsTab = mod.switchSettingsTab;
+      window.resetSystemParams = mod.resetSystemParams;
+      window.refreshGlobalSettings = mod.refreshGlobalSettings;
     }
 
     // 更新 hash

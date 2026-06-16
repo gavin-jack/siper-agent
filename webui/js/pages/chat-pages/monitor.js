@@ -164,7 +164,7 @@ function _collectMemPoint() {
       if (_memHistory.length > _memHistoryMax) _memHistory.shift();
       _renderMemHistory();
     }
-  }).catch(() => {});
+  }).catch(e => { console.error('[monitor] _collectMemPoint failed:', e); });
 }
 
 function _renderMemHistory() {
@@ -317,7 +317,7 @@ function _loadPerfData() {
     if (data.session_count != null) document.getElementById('perfSessionsCount').textContent = data.session_count + ' 个会话';
     if (data.token_usage_count != null) document.getElementById('perfTokenCount').textContent = data.token_usage_count + ' 条记录';
     if (data.model_count != null) document.getElementById('perfModelsCount').textContent = data.model_count + ' 个模型';
-  }).catch(() => {});
+  }).catch(e => { console.error('[monitor] _loadPerfData failed:', e); });
 }
 
 // ===== Monitor Page Shell =====
@@ -366,7 +366,7 @@ export function renderMonitorTokenTab() {
     }
     _mTokenData = data;
     // 图表渲染延迟到 switchMonitorTab 中执行（等容器可见）
-  }).catch(() => {});
+  }).catch(e => { console.error('[monitor] renderMonitorTokenTab failed:', e); });
 }
 
 // ===== ECharts =====

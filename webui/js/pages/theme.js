@@ -5,6 +5,7 @@ import { t } from '../utils/i18n.js';
 import { showConfirm, showInput } from '../components/toast.js';
 import { toast } from '../components/toast.js';
 import { updateThemePaletteTrigger } from '../utils/dom.js';
+import { escapeHtml } from '../utils/escape.js';
 
 // ===== Theme Settings =====
 const THEME_DEFAULTS = {
@@ -128,7 +129,7 @@ export function renderTemplateList() {
     const row = document.createElement('div');
     row.className = 'theme-template-item';
     row.innerHTML = `
-      <span class="template-name">${tmpl.name}</span>
+      <span class="template-name">${escapeHtml(tmpl.name)}</span>
       <div class="template-actions">
         <button class="btn-sm" onclick="loadThemeTemplate(${i})" data-i18n="theme.loadTemplate">${t('theme.loadTemplate')}</button>
         <button class="btn-sm" onclick="exportSingleTemplate(${i})" data-i18n="theme.exportTemplate">${t('theme.exportTemplate')}</button>
