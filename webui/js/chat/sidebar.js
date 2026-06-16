@@ -270,6 +270,11 @@ export function selectChatSession(session, agent) {
   _expandedAgents.set(agent.name, true);
   // 始终切换到 chat 页面确保右栏渲染消息列表+输入框
   if (typeof window.chatSwitchPage === 'function') window.chatSwitchPage('chat');
+  // 每次切换会话时重新渲染右栏内容（确保 chatContentArea 有最新的消息容器）
+  var _contentArea = document.getElementById('chatContentArea');
+  if (_contentArea && typeof window.renderChatPage === 'function') {
+    window.renderChatPage(_contentArea, true);
+  }
   if (typeof updateChatHeader === 'function') updateChatHeader();
   window.chatCtxTokens = null;
   updateCtxInfoDisplay();

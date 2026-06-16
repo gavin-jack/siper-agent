@@ -210,3 +210,4 @@ export function renderChatPage(container, skipSidebar) {
   }
   Input.loadChatModels();
 }
+window.renderChatPage = renderChatPage;
