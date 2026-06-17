@@ -1,52 +1,36 @@
 #!/usr/bin/env python3
-"""从 router.py 的装饰器自动生成 OpenAPI 3.0 JSON 文档"""
+"""Generate the OpenAPI JSON spec from the router's register_routes function."""
+import re, json, sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-import re
-import json
-import sys
+from ai_agent.api.router import register_routes, Router
 
-def parse_router(filepath):
-    with open(filepath) as f:
+def parse_router(router_path):
+    with open(router_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    # Find @router.(method)("path") followed by def func(...)
-    # The decorator and def are separated by a newline
-    pattern = re.compile(
-        r'@router\.(get|post|put|delete|patch)\("([^"]+)"\)\s*\n'
-        r'    def\s+(\w+)\s*\(([^)]*)\)\s*:',
-        re.MULTILINE
-    )
+    # Match all @router.method('/api/xxx') decorated functions
+    pattern = r'@router\.(\w+)\(["\'](/api/[^"\']+)["\'].*?\)\s*\n\s*def\s+(\w+)\((.*?)\):'
+    matches = re.findall(pattern, content, re.DOTALL)
 
     routes = []
-    for m in pattern.finditer(content):
-        method, path, func_name, params = m.groups()
-
-        # Try to find a docstring after the def line
-        after = content[m.end():]
-        doc_match = re.match(r'\s*\n\s*"""([^"]*)"""', after)
-        docstring = doc_match.group(1).strip() if doc_match else ''
-
+    for method, path, func, params_str in matches:
+        method = method.upper()
+        if method not in ('GET', 'POST', 'PUT', 'DELETE', 'PATCH'):
+            continue
+        params = re.findall(r'(\w+)\s*:\s*[^=,]+(?:\s*=\s*[^,]+)?', params_str) if params_str.strip() else []
         routes.append({
-            'method': method.upper(),
+            'method': method,
             'path': path,
-            'func': func_name,
-            'params': params.strip(),
-            'description': docstring,
+            'func': func,
+            'params': params,
+            'description': func.replace('api_', '').replace('_', ' ').title(),
         })
-
     return routes
 
-def params_to_params(params_str):
-    """Convert function parameter list to OpenAPI parameters"""
-    if not params_str:
-        return []
+def params_to_params(params):
     result = []
-    for p in params_str.split(','):
-        p = p.strip()
-        if p in ('body', 'self'):
-            continue
-        if '=' in p:
-            p = p.split('=')[0].strip()
+    for p in params:
         result.append({
             'name': p,
             'in': 'query',
@@ -64,7 +48,6 @@ def generate_openapi(routes, title='SiPer AI Agent API', version='1.0.0'):
         if path not in paths:
             paths[path] = {}
 
-        # Extract path-level tag from /api/{tag}/...
         parts = path.strip('/').split('/')
         tag = parts[1] if len(parts) > 1 else 'default'
 
@@ -78,8 +61,7 @@ def generate_openapi(routes, title='SiPer AI Agent API', version='1.0.0'):
             },
         }
 
-        # Path parameters
-        path_params = re.findall(r'\{(\w+)\}', path)
+        path_params = re.findall(r'\{(\\w+)\}', path)
         params = []
         for pp in path_params:
             params.append({
@@ -89,9 +71,8 @@ def generate_openapi(routes, title='SiPer AI Agent API', version='1.0.0'):
                 'schema': {'type': 'string'},
             })
 
-        # Query/body parameters
         for p in params_to_params(r['params']):
-            if p['name'] not in [pp[0] for pp in re.findall(r'\{(\w+)\}', path)]:
+            if p['name'] not in [pp[0] for pp in re.findall(r'\{(\\w+)\}', path)]:
                 params.append(p)
 
         if params:
@@ -113,10 +94,10 @@ def generate_openapi(routes, title='SiPer AI Agent API', version='1.0.0'):
         'info': {
             'title': title,
             'version': version,
-            'description': 'SiPer AI Agent RESTful API — auto-generated from router.py decorators',
+            'description': 'SiPer AI Agent RESTful API — 由 router.py 装饰器自动生成',
         },
         'servers': [
-            {'url': 'http://127.0.0.1:9724', 'description': 'Development server'}
+            {'url': 'http://127.0.0.1:9724', 'description': '开发服务器'}
         ],
         'paths': dict(sorted(paths.items())),
     }
@@ -124,14 +105,15 @@ def generate_openapi(routes, title='SiPer AI Agent API', version='1.0.0'):
     return spec
 
 def main():
-    router_path = '/home/gavin/.siper/ai_agent/api/router.py'
+    router_path = os.path.join(os.path.dirname(__file__), '..', 'ai_agent', 'api', 'router.py')
     routes = parse_router(router_path)
 
     if not routes:
         print('ERROR: No routes found. Check regex pattern.', file=sys.stderr)
         sys.exit(1)
 
-    spec = generate_openapi(routes)
+    # Use Chinese localized title for OpenAPI spec
+    spec = generate_openapi(routes, title='SiPer AI Agent API', version='1.0.0')
     print(json.dumps(spec, indent=2, ensure_ascii=False))
     print(f'\n--- {len(routes)} routes parsed ---', file=sys.stderr)
 

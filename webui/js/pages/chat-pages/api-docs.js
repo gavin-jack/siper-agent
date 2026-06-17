@@ -54,11 +54,11 @@ function _loadSwaggerUI() {
   }
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css';
+  link.href = '/static/swagger/swagger-ui.css?v=' + Date.now();
   document.head.appendChild(link);
 
   const script = document.createElement('script');
-  script.src = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js';
+  script.src = '/static/swagger/swagger-ui-bundle.js?v=' + Date.now();
   script.onload = () => { _renderSwagger(); };
   script.onerror = () => {
     document.getElementById('swagger-ui').innerHTML =
