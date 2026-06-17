@@ -75,6 +75,15 @@
 /* ===== PAGE TOKEN ===== */
 
 /* ===== Token Page ===== */
+.siper-token-charts-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.siper-token-charts-row > .siper-token-chart-card {
+  flex: 1;
+  min-width: 0;
+}
 .siper-token-chart-card {
   overflow: hidden;
   min-height: 200px;
@@ -89,6 +98,13 @@
   color: var(--color-text);
   padding: 10px 12px 6px;
   margin-bottom: 0;
+}
+.siper-token-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-primary);
+  padding: 4px 12px 10px;
+  line-height: 1.2;
 }
 .siper-token-table {
   width: 100%;

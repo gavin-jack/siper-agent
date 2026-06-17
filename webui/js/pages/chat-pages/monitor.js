@@ -384,12 +384,16 @@ export function renderMonitorTokenTab() {
   if (!container) return;
   container.innerHTML = `<div id="monitorTokenStats" class="js-mb-12"></div>
 <div class="siper-token-charts-row">
-  <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">📊 分模型 Token 分布</div><div id="monitorChartModel" class="js-chart-box"></div></div>
-  <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">⏰ 24小时 Token 分布</div><div id="monitorChartHourly" class="js-chart-box"></div></div>
   <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">📈 每日 Token 趋势</div><div id="monitorChartDate" class="js-chart-box"></div></div>
+</div>
+<div class="siper-token-charts-row">
+  <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">⚡ 模型效率对比</div><div id="monitorChartEfficiency" class="js-chart-box"></div></div>
   <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">📅 活跃时段热力图</div><div id="monitorChartHeatmap" class="js-chart-box"></div></div>
 </div>
-<div class="siper-token-chart-card card-hover js-mt-12" style="width:100%"><div class="siper-token-chart-title">⚡ 模型效率对比</div><div id="monitorChartEfficiency" class="js-chart-box" style="height:300px"></div></div>`;
+<div class="siper-token-charts-row">
+  <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">📊 分模型 Token 分布</div><div id="monitorChartModel" class="js-chart-box"></div></div>
+  <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">⏰ 24小时 Token 分布</div><div id="monitorChartHourly" class="js-chart-box"></div></div>
+</div>`;
   // 优先从 page_cache 读取
   const cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('monitor') : null;
   if (cached && cached.token) {
