@@ -381,7 +381,7 @@ async function navigateToPage(page, tab) {
     // 调用渲染函数
     const fnName = PAGE_RENDER_FN[page];
     if (fnName && typeof mod[fnName] === 'function') {
-      mod[fnName](container);
+      await mod[fnName](container);
     }
 
     // 挂载页面特有的全局函数（供 HTML onclick 调用）
