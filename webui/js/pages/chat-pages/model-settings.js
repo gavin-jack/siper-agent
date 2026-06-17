@@ -958,11 +958,7 @@ export function verifyAllModels() {
 }
 
 // ===== 辅助函数 =====
-function escapeHtml(s) {
-  if (typeof s !== 'string') return '';
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
+// escapeHtml imported from utils/escape.js
 function escapeAttr(s) {
   return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }

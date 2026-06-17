@@ -3,6 +3,7 @@
  * 从 core.js 拆出。处理思考面板的显示/隐藏/添加步骤。
  */
 import { _thinkingSteps, setIsThinking } from './state.js';
+import { escapeHtml } from '../utils/escape.js';
 
 export function chatThinkingShow() {
     const panel = document.getElementById('chatThinkingPanel');
@@ -77,12 +78,5 @@ export function chatThinkingAddTextRow(text) {
     else _thinkingSteps.push({ type: 'text', text });
 }
 
-// 注意：chatEscapeHtml 在 message.js 中定义，thinking.js 使用内联版本避免循环依赖
-function chatEscapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
-
-// thinking.js 的 chatEscapeHtml 是内联版本，避免循环依赖
-// export { chatEscapeHtml as chatEscapeHtml_thinking }; // 无引用，已删除
+// 使用 utils/escape.js 的 escapeHtml
+const chatEscapeHtml = escapeHtml;

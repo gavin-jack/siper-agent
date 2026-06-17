@@ -82,12 +82,7 @@ window.newSession = newSession;
 
 // Template-clone page functions
 window.showAddAgentModal = AgentConfig.showAddAgentModal;
-window.switchConfigAgentPageTab = AgentConfig.switchConfigAgentPageTab;
-window.switchChatAgentTab = AgentConfig.switchChatAgentTab;
-window.toggleIconPicker = AgentConfig.toggleIconPicker;
-window.saveAgentFile = AgentConfig.saveChatAgentFile;
-window.resetAgentLimits = AgentConfig.resetAgentLimits;
-window.saveAllChatAgentConfig = AgentConfig.saveAllChatAgentConfig;
+// Theme
 window.renderTemplateList = Theme.renderTemplateList;
 window.saveThemeTemplate = Theme.saveThemeTemplate;
 window.exportTheme = Theme.exportTheme;

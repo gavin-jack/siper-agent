@@ -2,6 +2,8 @@
 // 目录已提升为独立页面
 
 // 注册 page_cache 回调：后端推送新数据时自动刷新
+import { escapeHtml } from '../../utils/escape.js';
+
 if (typeof window.__onPageCacheRegister === 'function') {
   window.__onPageCacheRegister('monitor', function(data) {
     if (data.perf && typeof _applyPerfData === 'function') _applyPerfData(data.perf);
@@ -659,11 +661,7 @@ export function refreshLogs(force) {
 
 window.refreshLogs = refreshLogs;
 
-function escapeHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = String(s);
-  return d.innerHTML;
-}
+// escapeHtml imported from utils/escape.js
 
 export function applyLogLogsDebounced() {
   if (_logSearchDebounce) clearTimeout(_logSearchDebounce);
