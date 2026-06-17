@@ -31,7 +31,7 @@ function _fmtSize(kb) {
 function _loadDirectory() {
   const treeEl = document.getElementById('dirTree');
   if (!treeEl) return;
-  treeEl.innerHTML = '<div style="padding:20px;color:var(--color-text-dim)">加载中...</div>';
+  treeEl.innerHTML = '<div class="siper-loading siper-loading--sm">加载中...</div>';
   // 优先从 page_cache 读取
   const cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('directory') : null;
   if (cached && cached.tree) {

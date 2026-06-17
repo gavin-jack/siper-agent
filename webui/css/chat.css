@@ -1,5 +1,13 @@
 /* ===== Chat (merged from style.css) ===== */
 
+/* prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* ===== Chat — Three Column Layout ===== */
 /* Left: collapsible nav sidebar | Middle: agent+session list | Right: chat area */
 
@@ -354,7 +362,7 @@
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background-color, color;
+  transition: background-color 0.15s, color 0.15s;
 }
 .siper-send-btn:hover { background: color-mix(in srgb, var(--color-primary) 80%, black); }
 .siper-send-btn:disabled { background: var(--color-border); cursor: not-allowed; }
@@ -369,7 +377,7 @@
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background-color, color
+  transition: background-color 0.15s, color 0.15s
   line-height: 1;
 }
 .siper-stop-btn:hover { background: color-mix(in srgb, var(--color-danger) 80%, black); }
@@ -395,7 +403,7 @@
   white-space: nowrap;
   flex-shrink: 0;
   cursor: default;
-  transition: background-color, color;
+  transition: background-color 0.15s, color 0.15s;
 }
 .siper-ctx-info:hover {
   background: var(--color-border);
@@ -466,7 +474,7 @@
   justify-content: space-between;
   padding: 8px 12px;
   cursor: pointer;
-  transition: background-color, color
+  transition: background-color 0.15s, color 0.15s
   font-size: 13px;
 }
 .siper-model-item.active { background: var(--color-hover); color: var(--color-primary); }
@@ -661,7 +669,7 @@
   padding: 4px 16px;
   gap: 10px;
   max-width: 70%;
-  transition: background-color, color
+  transition: background-color 0.15s, color 0.15s
   border-radius: 6px;
 }
 .siper-msg-row.agent {

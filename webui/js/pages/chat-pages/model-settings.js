@@ -152,7 +152,7 @@ export function renderModelSettingsPageChat(container) {
 // ===== 加载模型列表 =====
 export function loadSettingsModels() {
   const list = document.getElementById('settingsModelsList');
-  if (list) list.innerHTML = '<div class="js-empty-state-lg" style="padding:24px;text-align:center;">⏳ 加载模型数据中...</div>';
+  if (list) list.innerHTML = '<div class="siper-loading siper-loading--sm">加载模型数据中...</div>';
   fetch('/api/models/global').then(r => r.json()).then(data => {
     settingsModelsCache = (data.models || []).map(m => ({
       ...m,
@@ -264,10 +264,10 @@ export function renderSettingsModelsList() {
   list.innerHTML = html;
 
   // 入场动画（仅新卡片）
-  const currentCount = list.querySelectorAll('.model-card').length;
+  const currentCount = list.querySelectorAll('.siper-card.model-card').length;
   if (currentCount > _lastRenderCount) {
     requestAnimationFrame(() => {
-      const allCards = list.querySelectorAll('.model-card');
+      const allCards = list.querySelectorAll('.siper-card.model-card');
       for (let i = _lastRenderCount; i < allCards.length; i++) {
         const card = allCards[i];
         card.classList.add('model-card-animate');
@@ -308,7 +308,7 @@ function buildCardHtml(m, i) {
     ? '<button class="btn-sm btn-verify-pending" disabled title="检测中...">⏳</button>'
     : `<button class="btn-sm btn-verify" data-name="${escapeAttr(m.name)}" title="验证可用性">🔍</button>`;
   return `
-    <div class="model-card card-left-accent${m._verified === 'pending' ? ' model-card-verifying' : m._verified === true ? ' model-verify-pass' : m._verified === false ? ' model-verify-fail' : ''}" data-model-name="${escapeAttr(m.name)}" data-caps="${escapeAttr((m.capabilities || []).join(','))}" data-ttft="${m.ttft || 99999}" data-latency="${m._latency || m.latency || 99999}" data-context="${m.context_window || 0}">
+    <div class="siper-card model-card card-left-accent${m._verified === 'pending' ? ' model-card-verifying' : m._verified === true ? ' model-verify-pass' : m._verified === false ? ' model-verify-fail' : ''}" data-model-name="${escapeAttr(m.name)}" data-caps="${escapeAttr((m.capabilities || []).join(','))}" data-ttft="${m.ttft || 99999}" data-latency="${m._latency || m.latency || 99999}" data-context="${m.context_window || 0}">
       <div class="model-card-header">
         <div class="model-name-scroll">
           <span class="model-name-text" title="${escapeAttr(m.name)}">${escapeHtml(m.name)}</span>

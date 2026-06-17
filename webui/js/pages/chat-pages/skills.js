@@ -18,7 +18,7 @@ function renderSkills(skills) {
   const list = document.getElementById('chatSkillsList') || document.getElementById('skillsList');
   if (!list) return;
   if (!_skills.length) {
-    list.innerHTML = '<div class="js-empty-state-lg">' + t('skills.empty') + '</div>';
+    list.innerHTML = '<div class="siper-empty">' + t('skills.empty') + '</div>';
     return;
   }
   const mdSkills = _skills.filter(s => s.source === 'md');
@@ -46,7 +46,7 @@ function _renderSkillCard(s) {
   const enabledClass = s.enabled ? '' : 'skill-disabled';
   const activeClass = s.enabled ? 'skill-active' : '';
   return `
-    <div class="skill-card card-left-accent ${enabledClass} ${activeClass}">
+    <div class="siper-card skill-card card-left-accent ${enabledClass} ${activeClass}">
       <div class="skill-card-header">
         <span class="skill-source">${sourceLabel}</span>
         <span class="skill-name">${s.name}</span>

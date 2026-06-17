@@ -56,42 +56,42 @@ export function renderMonitorPerformance() {
   <div class="perf-section">
     <div class="perf-section-title">🖥️ 系统概览</div>
     <div class="perf-grid perf-grid-2">
-      <div class="perf-card card-hover">
+      <div class="siper-card perf-card card-hover">
         <div class="perf-card-header"><span class="perf-card-icon">💻</span><span class="perf-card-label">操作系统</span></div>
         <div class="perf-card-value perf-card-value-sm" id="perfOS">--</div>
         <div class="perf-card-detail" id="perfKernel"></div>
       </div>
-      <div class="perf-card card-hover">
+      <div class="siper-card perf-card card-hover">
         <div class="perf-card-header"><span class="perf-card-icon">🔧</span><span class="perf-card-label">CPU</span></div>
         <div class="perf-card-value perf-card-value-sm" id="perfCPU">--</div>
         <div class="perf-card-detail" id="perfCPUCores"></div>
       </div>
-      <div class="perf-card card-hover">
+      <div class="siper-card perf-card card-hover">
         <div class="perf-card-header"><span class="perf-card-icon">🎮</span><span class="perf-card-label">显卡</span></div>
         <div class="perf-card-value perf-card-value-sm" id="perfGPU">--</div>
         <div class="perf-card-detail" id="perfGPUUtil"></div>
       </div>
-      <div class="perf-card card-hover">
+      <div class="siper-card perf-card card-hover">
         <div class="perf-card-header"><span class="perf-card-icon">🧠</span><span class="perf-card-label">内存</span></div>
         <div class="perf-card-value perf-card-value-sm" id="perfRAM">--</div>
         <div class="perf-card-detail" id="perfRAMUsed"></div>
       </div>
-      <div class="perf-card card-hover">
+      <div class="siper-card perf-card card-hover">
         <div class="perf-card-header"><span class="perf-card-icon">💾</span><span class="perf-card-label">磁盘</span></div>
         <div class="perf-card-value perf-card-value-sm" id="perfDisk">--</div>
         <div class="perf-card-detail" id="perfDiskDetail"></div>
       </div>
-      <div class="perf-card card-hover">
+      <div class="siper-card perf-card card-hover">
         <div class="perf-card-header"><span class="perf-card-icon">🔄</span><span class="perf-card-label">交换分区</span></div>
         <div class="perf-card-value perf-card-value-sm" id="perfSwap">--</div>
         <div class="perf-card-detail" id="perfSwapDetail"></div>
       </div>
-      <div class="perf-card card-hover">
+      <div class="siper-card perf-card card-hover">
         <div class="perf-card-header"><span class="perf-card-icon">📊</span><span class="perf-card-label">系统负载</span></div>
         <div class="perf-card-value perf-card-value-sm" id="perfLoad">--</div>
         <div class="perf-card-detail" id="perfProcessCount"></div>
       </div>
-      <div class="perf-card card-hover">
+      <div class="siper-card perf-card card-hover">
         <div class="perf-card-header"><span class="perf-card-icon">🐍</span><span class="perf-card-label">Python / SiPer</span></div>
         <div class="perf-card-value perf-card-value-sm" id="perfPyVer">--</div>
         <div class="perf-card-detail" id="perfSiperVer"></div>
@@ -101,18 +101,18 @@ export function renderMonitorPerformance() {
   <div class="perf-section">
     <div class="perf-section-title">📊 资源使用</div>
     <div class="perf-grid">
-      <div class="perf-card card-hover" id="perfMemoryCard">
+      <div class="siper-card perf-card card-hover" id="perfMemoryCard">
         <div class="perf-card-header"><span class="perf-card-icon">📈</span><span class="perf-card-label">进程内存 RSS</span></div>
         <div class="perf-card-value" id="perfMemory">--</div>
         <div class="perf-card-bar"><div class="perf-card-bar-fill" id="perfMemoryBar"></div></div>
         <div class="perf-card-detail" id="perfMemoryDetail"></div>
       </div>
-      <div class="perf-card card-hover">
+      <div class="siper-card perf-card card-hover">
         <div class="perf-card-header"><span class="perf-card-icon">⏱️</span><span class="perf-card-label">运行时长</span></div>
         <div class="perf-card-value" id="perfUptime">--</div>
         <div class="perf-card-detail" id="perfStartTime"></div>
       </div>
-      <div class="perf-card card-hover">
+      <div class="siper-card perf-card card-hover">
         <div class="perf-card-header"><span class="perf-card-icon">🔌</span><span class="perf-card-label">端口</span></div>
         <div class="perf-card-value" id="perfPort">--</div>
         <div class="perf-card-detail" id="perfWsPort"></div>
@@ -122,17 +122,17 @@ export function renderMonitorPerformance() {
   <div class="perf-section">
     <div class="perf-section-title">💾 数据库</div>
     <div class="perf-grid">
-      <div class="perf-card card-hover">
+      <div class="siper-card perf-card card-hover">
         <div class="perf-card-header"><span class="perf-card-icon">🗄️</span><span class="perf-card-label">sessions.db</span></div>
         <div class="perf-card-value" id="perfSessionsDb">--</div>
         <div class="perf-card-detail" id="perfSessionsCount"></div>
       </div>
-      <div class="perf-card card-hover">
+      <div class="siper-card perf-card card-hover">
         <div class="perf-card-header"><span class="perf-card-icon">🎫</span><span class="perf-card-label">token.db</span></div>
         <div class="perf-card-value" id="perfTokenDb">--</div>
         <div class="perf-card-detail" id="perfTokenCount"></div>
       </div>
-      <div class="perf-card card-hover">
+      <div class="siper-card perf-card card-hover">
         <div class="perf-card-header"><span class="perf-card-icon">📦</span><span class="perf-card-label">models.db</span></div>
         <div class="perf-card-value" id="perfModelsDb">--</div>
         <div class="perf-card-detail" id="perfModelsCount"></div>
@@ -382,10 +382,10 @@ export function renderMonitorTokenTab() {
   if (!container) return;
   container.innerHTML = `<div id="monitorTokenStats" class="js-mb-12"></div>
 <div class="siper-token-charts-row">
-  <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">📊 分模型 Token 分布</div><div id="monitorChartModel" class="js-chart-box"></div></div>
-  <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">⏰ 24小时 Token 分布</div><div id="monitorChartHourly" class="js-chart-box"></div></div>
-  <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">📈 每日 Token 趋势</div><div id="monitorChartDate" class="js-chart-box"></div></div>
-  <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">📅 活跃时段热力图</div><div id="monitorChartHeatmap" class="js-chart-box"></div></div>
+  <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">📊 分模型 Token 分布</div><div id="monitorChartModel" class="js-chart-box"></div></div>
+  <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">⏰ 24小时 Token 分布</div><div id="monitorChartHourly" class="js-chart-box"></div></div>
+  <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">📈 每日 Token 趋势</div><div id="monitorChartDate" class="js-chart-box"></div></div>
+  <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">📅 活跃时段热力图</div><div id="monitorChartHeatmap" class="js-chart-box"></div></div>
 </div>
 <div class="siper-token-chart-card card-hover js-mt-12" style="width:100%"><div class="siper-token-chart-title">⚡ 模型效率对比</div><div id="monitorChartEfficiency" class="js-chart-box" style="height:300px"></div></div>`;
   // 优先从 page_cache 读取
@@ -405,10 +405,10 @@ function _applyTokenData(data) {
   const stats = document.getElementById('monitorTokenStats');
   if (stats) {
     stats.innerHTML = `<div class="siper-token-charts-row">
-        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">总请求数</div><div class="siper-token-value">${data.total_requests || 0}</div></div>
-        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">总词元</div><div class="siper-token-value">${_mFmt(data.total_tokens)}</div></div>
-        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">提示词元</div><div class="siper-token-value" style="color:var(--color-success)">${_mFmt(data.total_prompt_tokens)}</div></div>
-        <div class="siper-token-chart-card card-hover"><div class="siper-token-chart-title">完成词元</div><div class="siper-token-value" style="color:var(--color-warning)">${_mFmt(data.total_completion_tokens)}</div></div>
+        <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">总请求数</div><div class="siper-token-value">${data.total_requests || 0}</div></div>
+        <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">总词元</div><div class="siper-token-value">${_mFmt(data.total_tokens)}</div></div>
+        <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">提示词元</div><div class="siper-token-value" style="color:var(--color-success)">${_mFmt(data.total_prompt_tokens)}</div></div>
+        <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">完成词元</div><div class="siper-token-value" style="color:var(--color-warning)">${_mFmt(data.total_completion_tokens)}</div></div>
       </div>`;
   }
   _mTokenData = data;
@@ -626,12 +626,12 @@ export function refreshLogs(force) {
   if (search) url += '&search=' + encodeURIComponent(search);
   fetch(url).then(r => r.json()).then(data => {
     if (!data || !data.logs) {
-      container.innerHTML = '<div class="empty-state">加载失败</div>';
+      container.innerHTML = '<div class="siper-empty">加载失败</div>';
       return;
     }
     container.dataset.loaded = '1';
     if (data.logs.length === 0) {
-      container.innerHTML = '<div class="empty-state">暂无日志</div>';
+      container.innerHTML = '<div class="siper-empty">暂无日志</div>';
       return;
     }
     container.innerHTML = data.logs.map(e => {
@@ -653,7 +653,7 @@ export function refreshLogs(force) {
         + data.sources.map(s => '<option value="' + escapeHtml(s) + '"' + (s === cur ? ' selected' : '') + '>' + escapeHtml(s) + '</option>').join('');
     }
   }).catch(() => {
-    container.innerHTML = '<div class="empty-state">加载失败</div>';
+    container.innerHTML = '<div class="siper-empty">加载失败</div>';
   });
 }
 

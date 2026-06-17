@@ -343,7 +343,7 @@ async function navigateToPage(page, tab) {
       const tplMap = { 'sessions': tplSessions, 'memory': tplMemory, 'agent-config': tplAgentConfig, 'theme': tplTheme };
       container.innerHTML = tplMap[page] ? tplMap[page]() : '';
     } else {
-      container.innerHTML = '<div class="empty-state">加载中...</div>';
+      container.innerHTML = '<div class="siper-loading">加载中...</div>';
     }
 
     // 获取模块（全量 import，直接取模块对象）

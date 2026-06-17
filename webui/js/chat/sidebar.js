@@ -71,7 +71,7 @@ function _doRenderMiddle() {
   container.innerHTML = '';
   const agents = getAgentsFromCache();
   if (!agents.length) {
-    container.innerHTML = '<div class="text-dim" style="padding:20px;text-align:center;font-size:13px;">加载中...</div>';
+    container.innerHTML = '<div class="siper-loading siper-loading--sm">加载中...</div>';
     return;
   }
   // Sort agents by latest session updated_at descending

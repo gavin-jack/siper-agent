@@ -88,7 +88,7 @@ html { touch-action: manipulation; }
 .sidebar-footer .theme-palette-trigger:hover,
 .sidebar-footer .sidebar-settings-toggle:hover {
   background: color-mix(in srgb, var(--color-surface) 10%, transparent);
-}.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-danger); transition: background-color, border-color, box-shadow, color; flex-shrink: 0; }.status-dot.connected { background: var(--color-primary); box-shadow: 0 0 6px color-mix(in srgb, var(--color-primary) 40%, transparent); }.status-text { font-size: 12px; color: var(--color-text-dim); }/* Main */.main { flex: 1; display: flex; flex-direction: row; overflow: hidden; }.page { display: none; flex: 1; flex-direction: column; overflow: hidden; }.page.active { display: flex; }/* Chat page */.chat-messages {
+}.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-danger); transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s, color 0.15s; flex-shrink: 0; }.status-dot.connected { background: var(--color-primary); box-shadow: 0 0 6px color-mix(in srgb, var(--color-primary) 40%, transparent); }.status-text { font-size: 12px; color: var(--color-text-dim); }/* Main */.main { flex: 1; display: flex; flex-direction: row; overflow: hidden; }.page { display: none; flex: 1; flex-direction: column; overflow: hidden; }.page.active { display: flex; }/* Chat page */.chat-messages {
   flex: 1; overflow-y: auto; padding: var(--chat-padding);
   display: flex; flex-direction: column; gap: 12px;
 }.msg-row {
@@ -293,7 +293,7 @@ html { touch-action: manipulation; }
 }.settings-modal-btn {
   flex: 1; padding: 10px 0; font-size: 13px; font-weight: 600;
   border-radius: 8px; cursor: pointer; border: 1px solid var(--color-border);
-  background: var(--color-surface); color: var(--color-text); transition: background-color, color;
+  background: var(--color-surface); color: var(--color-text); transition: background-color 0.15s, color 0.15s;
 }.settings-modal-btn:hover { background: var(--color-hover); }.settings-modal-btn-save { background: var(--color-primary); color: var(--color-surface); border-color: var(--color-primary); }.settings-modal-btn-save:hover { opacity: 0.85; background: var(--color-primary); }.settings-modal-btn-reset { background: var(--color-bg); color: var(--color-text-dim); }/* Language dropdown in sidebar footer */.lang-dropdown {
   position: relative; display: inline-block;
 }.lang-dropdown-trigger {
@@ -301,7 +301,7 @@ html { touch-action: manipulation; }
   border: 1px solid var(--color-border); background: var(--color-surface);
   cursor: pointer; font-size: 14px; line-height: 1;
   display: flex; align-items: center; justify-content: center;
-  transition: background-color, color
+  transition: background-color 0.15s, color 0.15s
   padding: 0;
 }.lang-dropdown-trigger:hover { border-color: var(--color-primary); }.lang-dropdown-menu {
   display: none;
@@ -316,7 +316,7 @@ html { touch-action: manipulation; }
   display: flex; align-items: center; gap: 8px;
   padding: 8px 12px; cursor: pointer;
   font-size: 13px; color: var(--color-text);
-  transition: background-color, color;
+  transition: background-color 0.15s, color 0.15s;
 }.lang-dropdown-item:hover { background: var(--color-hover); }
 .lang-dropdown-item.active { background: var(--color-primary); color: var(--white); }
 .prompt-modal {
@@ -361,13 +361,15 @@ html { touch-action: manipulation; }
 }.theme-palette-trigger:hover { transform: scale(1.1); box-shadow: 0 0 0 2px var(--color-primary); }.theme-palette-menu {
   position: absolute; bottom: 32px; left: 0; transform: scale(0.9);
   background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px;
-  padding: 6px; display: none; flex-direction: column; gap: 2px;
+  padding: 6px; visibility: hidden; pointer-events: none; flex-direction: column; gap: 2px;
   box-shadow: 0 4px 16px var(--shadow-lg); z-index: var(--z-overlay); min-width: 140px;
   opacity: 0; transition: opacity 0.15s, transform 0.15s;
-}.theme-palette-menu.open { display: flex; opacity: 1; transform: scale(1); }.theme-palette-item {
+}
+.theme-palette-menu.open { visibility: visible; pointer-events: auto; opacity: 1; transform: scale(1); }
+.theme-palette-item {
   display: flex; align-items: center; gap: 8px; padding: 5px 8px;
   border-radius: 4px; cursor: pointer; font-size: 12px; color: var(--color-text);
-  transition: background-color, color;
+  transition: background-color 0.15s, color 0.15s;
 }.theme-palette-item:hover { background: var(--color-hover); }.theme-palette-item.active { background: var(--color-hover); box-shadow: inset 0 0 0 1px var(--color-primary); }.theme-palette-swatch {
   display: inline-block; width: 16px; height: 14px;
   border-radius: 3px; border: 1px solid color-mix(in srgb, var(--color-text) 20%, transparent);
@@ -608,7 +610,7 @@ html { touch-action: manipulation; }
 /* ===== Sidebar Collapse ===== */
 .sidebar.collapsed ~ .main.expanded {
   margin-left: 0 !important;
-  transition: background-color, color;
+  transition: background-color 0.15s, color 0.15s;
 }
 
 /* ===== Left Sidebar (Collapsible Nav) ===== */
@@ -621,7 +623,7 @@ html { touch-action: manipulation; }
   height: 100%;
   flex-shrink: 0;
   position: relative;
-  transition: background-color, color
+  transition: background-color 0.15s, color 0.15s
   overflow: hidden;
   z-index: var(--z-dropdown);
 }
@@ -727,7 +729,7 @@ html { touch-action: manipulation; }
   cursor: pointer;
   font-size: 13px;
   color: var(--color-text);
-  transition: background-color, color;
+  transition: background-color 0.15s, color 0.15s;
 }
 .siper-lang-item:hover,
 .siper-ctx-menu-item:hover,
@@ -803,7 +805,7 @@ html { touch-action: manipulation; }
   gap: 8px;
   padding: 10px 14px;
   cursor: pointer;
-  transition: background-color, color
+  transition: background-color 0.15s, color 0.15s
   user-select: none;
   background: var(--color-surface);
 }
@@ -880,7 +882,7 @@ html { touch-action: manipulation; }
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background-color, color
+  transition: background-color 0.15s, color 0.15s
   line-height: 1;
   padding: 0;
 }
@@ -903,7 +905,7 @@ html { touch-action: manipulation; }
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background-color, color
+  transition: background-color 0.15s, color 0.15s
   line-height: 1;
   padding: 0;
   margin-left: 2px;
@@ -926,7 +928,7 @@ html { touch-action: manipulation; }
   gap: 10px;
   padding: 8px 35px 8px 35px; /* 35px left for dot, 35px right for delete btn */
   cursor: pointer;
-  transition: background-color, color;
+  transition: background-color 0.15s, color 0.15s;
   border-bottom: 1px solid var(--color-border);
   background: transparent;
   position: relative;
@@ -1074,7 +1076,7 @@ html { touch-action: manipulation; }
   cursor: pointer;
   width: calc(100% - 58px);
   text-align: center;
-  transition: background-color, color;
+  transition: background-color 0.15s, color 0.15s;
 }
 
 /* ===== Left Sidebar Icons — Larger & Centered ===== */
@@ -1358,7 +1360,7 @@ a.siper-nav-item {
   display: block; height: 100%; width: 100%;
   background: var(--color-primary);
   border-radius: 0 0 8px 8px;
-  transition: width linear;
+  transition: width linear 0.15s;
 }
 .siper-notif-success .siper-notif-progress-bar { background: var(--color-primary); }
 .siper-notif-error   .siper-notif-progress-bar { background: var(--color-danger); }
@@ -1460,7 +1462,7 @@ a.siper-nav-item {
   position: fixed; inset: 0;
   background: var(--color-overlay);
   display: flex; align-items: center; justify-content: center;
-  z-index: 99999;
+  z-index: var(--z-overlay);
   opacity: 0;
   transition: opacity 0.2s ease;
   pointer-events: auto;
@@ -1665,7 +1667,7 @@ a.siper-nav-item {
   align-items: center;
   gap: 8px;
   color: var(--color-text);
-  transition: background-color, color;
+  transition: background-color 0.15s, color 0.15s;
 }
 .siper-ctx-menu-item.danger {
   color: var(--color-error-text);
@@ -1721,7 +1723,7 @@ a.siper-nav-item {
   color: var(--color-text);
   font-size: 14px;
   outline: none;
-  transition: background-color, color;
+  transition: background-color 0.15s, color 0.15s;
 }
 .siper-input {
   border: 1px solid var(--color-border);
@@ -1762,7 +1764,7 @@ a.siper-nav-item {
   display: block; width: 100%; text-align: left; padding: 10px 14px;
   background: var(--color-surface); border: 1px solid var(--color-border);
   border-radius: 8px; color: var(--color-text); font-size: 13px; cursor: pointer;
-  transition: background-color, color;
+  transition: background-color 0.15s, color 0.15s;
 }
 .clarify-option-btn:hover {
   background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
@@ -1815,3 +1817,76 @@ a.siper-nav-item {
 }
 
 /* ===== Chat (merged from style.css) ===== */
+
+/* ===== Unified Card (siper-card) ===== */
+.siper-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  padding: 16px;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+}
+.siper-card.card-left-accent {
+  border-left: 5px solid var(--color-primary);
+}
+.siper-card.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--shadow-md);
+  border-color: var(--color-primary);
+}
+.siper-card[disabled], .siper-card.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.siper-card--compact {
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-input-bg);
+}
+
+/* ===== Unified Loading (siper-loading) ===== */
+.siper-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--color-text-dim);
+  font-size: 13px;
+  gap: 16px;
+}
+.siper-loading::before {
+  content: "";
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: siper-spin 0.8s linear infinite;
+}
+@keyframes siper-spin {
+  to { transform: rotate(360deg); }
+}
+.siper-loading--sm {
+  padding: 20px;
+  gap: 10px;
+  font-size: 12px;
+}
+.siper-loading--sm::before {
+  width: 24px;
+  height: 24px;
+  border-width: 3px;
+}
+
+/* ===== Unified Empty (siper-empty) ===== */
+.siper-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--color-text-dim);
+  font-size: 13px;
+}
+.siper-empty .siper-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}

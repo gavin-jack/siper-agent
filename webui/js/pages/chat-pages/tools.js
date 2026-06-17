@@ -46,7 +46,7 @@ export function renderToolsPage(container) {
 </div>
 <div class="page-body">
   <div id="toolsContainer" class="tools-container">
-    <div style="padding:20px;color:var(--color-text-dim)">加载中...</div>
+    <div class="siper-loading siper-loading--sm">加载中...</div>
   </div>
 </div>`;
   _loadTools();
@@ -130,7 +130,7 @@ function _renderToolCard(tool) {
   const desc = _escHtml(tool.description || '');
   const toolsets = (tool.toolsets || []).join(', ');
   const params = _renderParams(tool.schema);
-  return `<div class="tool-card card-hover" data-tool="${name}">
+  return `<div class="siper-card tool-card card-hover" data-tool="${name}">
     <div class="tool-card-header">
       <span class="tool-card-name">${name}</span>
       ${toolsets ? `<span class="tool-card-toolset">${_escHtml(toolsets)}</span>` : ''}
