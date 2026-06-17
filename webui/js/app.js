@@ -111,6 +111,11 @@ window.__pageCacheCallbacks = {};
 window.__getPageCache = function(page) {
     return window.__pageCacheData && window.__pageCacheData[page];
 };
+// 设置指定页面的缓存数据
+window.__setPageCache = function(page, data) {
+    if (!window.__pageCacheData) window.__pageCacheData = {};
+    window.__pageCacheData[page] = data;
+};
 // 注册页面缓存更新回调（页面模块调用，新数据到达时自动刷新）
 window.__onPageCacheRegister = function(page, callback) {
     if (window.__pageCacheCallbacks) {

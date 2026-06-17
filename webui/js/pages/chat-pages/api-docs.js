@@ -2,14 +2,12 @@
 // CSS 由 app.js navigateToPage 加载 api-docs.css
 import { t } from '../../utils/i18n.js';
 
-// bfcache 恢复时重新本地化
+// bfcache 恢复：重新本地化已缓存的 DOM
 window.addEventListener('pageshow', (e) => {
-  if (e.persisted) {
-    _localizeAll();
-  }
+  if (e.persisted && document.getElementById('swagger-ui')) _localizeAll();
 });
 
-// 中文本地化映射（不依赖 i18n.js 缓存的新 key）
+// 中文本地化映射（不依赖 i18n.js 缓存）
 const L10N = {
   'servers': '服务器',
   'devServer': '开发服务器',
@@ -23,7 +21,16 @@ const L10N = {
   'internalError': '服务器内部错误',
   'noLinks': '无链接',
   'noParameters': '无参数',
+  'execute': '执行',
+  'cancel': '取消',
 };
+
+// 全局 click 监听：操作展开/折叠后重新本地化
+let _docClickRegistered = false;
+document.addEventListener('click', () => {
+  if (!_docClickRegistered) return;
+  setTimeout(_localizeAll, 300);
+});
 
 export function renderApiDocsPageChat(container) {
   container.className = 'siper-content siper-full-content';
@@ -68,7 +75,7 @@ function _renderSwagger() {
     window.SwaggerUIBundle({
       url: '/api/openapi.json',
       dom_id: '#swagger-ui',
-      deepLinking: true,
+      deepLinking: false,
       presets: [window.SwaggerUIBundle.presets.apis],
       layout: 'BaseLayout',
     });
@@ -76,26 +83,10 @@ function _renderSwagger() {
     el.innerHTML = '<div class="empty-state">⚠️ ' + t('apiDocs.renderFailed') + e.message + '</div>';
     return;
   }
-  // 等 Swagger UI 异步渲染完成后本地化
   _waitForSwaggerDOM(() => {
     _localizeAll();
-    // 监听操作点击事件（bubble 阶段，在 Swagger UI 更新 DOM 后触发）
-    el.addEventListener('click', () => {
-      setTimeout(_localizeAll, 300);
-    });
-    // 监听 hash 变化（Swagger UI deepLinking 展开/折叠操作时改 hash）
-    window.addEventListener('hashchange', _onHashChange);
-    window.addEventListener('popstate', _onHashChange);
-    // 额外安全：每 3 秒检查一次新 DOM
-    setInterval(_localizeAll, 3000);
+    _docClickRegistered = true;
   });
-  // hash/复制事件由 app.js 全局守卫处理，不再重复绑定
-}
-
-function _onHashChange() {
-  // Swagger UI deepLinking 展开/折叠操作时修改 hash
-  // 等待 Swagger UI 更新完 DOM 后再本地化
-  setTimeout(_localizeAll, 200);
 }
 
 function _waitForSwaggerDOM(callback) {
@@ -121,7 +112,7 @@ function _localizeAll() {
   const el = document.getElementById('swagger-ui');
   if (!el) return;
 
-  // 1. CSS 选择器匹配
+  // 1. CSS 选择器匹配的元素
   const selMap = [
     ['.servers-title', 'servers'],
     ['.servers select option', 'devServer', true],
@@ -129,6 +120,8 @@ function _localizeAll() {
     ['td.col_header.response-col_description', 'description'],
     ['td.col_header.response-col_links', 'links'],
     ['button.try-out__btn', 'tryItOut'],
+    ['button.cancel', 'cancel'],
+    ['button.execute', 'execute'],
   ];
   for (const [sel, key, suffixMode] of selMap) {
     el.querySelectorAll(sel).forEach(node => {
@@ -147,20 +140,15 @@ function _localizeAll() {
     });
   }
 
-  // 2. h4 精确匹配
+  // 2. h4 标签匹配
   el.querySelectorAll('h4').forEach(h4 => {
     if (h4.dataset.jsLocalized) return;
     const txt = h4.textContent.trim();
-    if (txt === 'Responses') {
-      h4.textContent = L10N.responses;
-      h4.dataset.jsLocalized = '1';
-    } else if (txt === 'Parameters') {
-      h4.textContent = L10N.parameters;
-      h4.dataset.jsLocalized = '1';
-    }
+    if (txt === 'Responses') { h4.textContent = L10N.responses; h4.dataset.jsLocalized = '1'; }
+    else if (txt === 'Parameters') { h4.textContent = L10N.parameters; h4.dataset.jsLocalized = '1'; }
   });
 
-  // 3. 文本节点扫描
+  // 3. 文本节点扫描（注意：文本节点没有 dataset，用 parentElement.dataset）
   const textMap = {
     'Success': 'success',
     'Internal Server Error': 'internalError',
@@ -170,14 +158,23 @@ function _localizeAll() {
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
   while (walker.nextNode()) {
     const node = walker.currentNode;
-    if (node.dataset.jsLocalized) continue;
+    const parent = node.parentElement;
+    if (parent && parent.dataset.jsLocalized) continue;
     const txt = node.textContent.trim();
     for (const [en, key] of Object.entries(textMap)) {
       if (txt === en) {
         node.textContent = L10N[key];
-        node.dataset.jsLocalized = '1';
+        if (parent) parent.dataset.jsLocalized = '1';
         break;
       }
+    }
+    if (txt === 'Responses') {
+      node.textContent = L10N.responses;
+      if (parent) parent.dataset.jsLocalized = '1';
+    }
+    if (txt === 'Parameters') {
+      node.textContent = L10N.parameters;
+      if (parent) parent.dataset.jsLocalized = '1';
     }
   }
 }
