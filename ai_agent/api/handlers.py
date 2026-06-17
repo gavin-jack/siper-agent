@@ -1323,10 +1323,9 @@ def api_reset_models():
 
 
 def api_get_global_models():
-    # 从 SQLite 返回，保留 _mask_key 逻辑
+    # 返回真实 api_key，前端需要用它来验证模型
+    # 注意：前端 UI 不明文展示 api_key，只在验证时传给后端
     flat = _models_db.get_models_flat()
-    for m in flat.get("models", []):
-        m["api_key"] = _mask_key(m.get("api_key", ""))
     return flat
 
 

@@ -360,6 +360,10 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
     def api_providers_update_name(body):
         return local_handlers["api_update_provider_name"](body)
 
+    @router.post("/api/models/provider")
+    def api_models_provider_create(body):
+        return local_handlers["api_create_provider"](body)
+
     @router.post("/api/models/reset")
     def api_models_reset(body):
         return local_handlers["api_reset_models"]()

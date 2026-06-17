@@ -381,7 +381,7 @@ async function navigateToPage(page, tab) {
       window.switchModelTab = mod.switchModelTab;
       window.applyProviderPreset = mod.applyProviderPreset;
       window.discoverModels = mod.discoverModels;
-      window.addDiscoveredModel = mod.addDiscoveredModel;
+      window.addSelectedDiscoveredModels = mod.addSelectedDiscoveredModels;
       window.addAllDiscoveredModels = mod.addAllDiscoveredModels;
       window.chatFilterDiscovered = mod.chatFilterDiscovered;
       window.chatClearDiscoverFilter = mod.chatClearDiscoverFilter;

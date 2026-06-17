@@ -2489,6 +2489,19 @@ async def main():
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def api_create_provider(body):
+        base_url = (body.get("base_url") or "").strip()
+        api_key = body.get("api_key", "")
+        provider = (body.get("provider") or "").strip()
+        provider_alias = (body.get("provider_alias") or "").strip()
+        if not base_url:
+            return {"success": False, "error": "base_url 不能为空"}
+        try:
+            pid = _models_db.upsert_provider(base_url, api_key, provider, provider_alias)
+            return {"success": True, "provider_id": pid}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     # ===== Model Discovery API =====
 
     def _detect_provider(base_url):
@@ -3687,6 +3700,7 @@ async def main():
         "api_get_global_models": api_get_global_models,
         "api_rename_provider": api_rename_provider,
         "api_update_provider_name": api_update_provider_name,
+        "api_create_provider": api_create_provider,
         "api_discover_models": api_discover_models,
         "api_test_model": api_test_model,
         "api_get_token_stats": api_get_token_stats,

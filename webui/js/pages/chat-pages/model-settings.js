@@ -236,9 +236,10 @@ export function renderSettingsModelsList() {
       return a.base_url.localeCompare(b.base_url);
     });
     sortedGroups.forEach(group => {
-      const providerLabel = group.provider_name || group.base_url || '默认';
+      const providerAlias = group.provider_name || group.provider || '';
+      const displayName = providerAlias ? `${providerAlias} (${group.base_url})` : (group.base_url || '默认');
       html += `<div class="model-group-header" data-base-url="${escapeAttr(group.base_url)}" style="display:flex;align-items:center;gap:6px;margin-top:10px;margin-bottom:4px;padding:4px 0;border-bottom:1px solid var(--color-border);">`;
-      html += `<span class="model-group-label model-name-text" onclick="window.editProviderName('${escapeAttr(group.base_url)}')" title="点击编辑 Provider 名称">${escapeHtml(providerLabel)}</span>`;
+      html += `<span class="model-group-label model-name-text" data-base-url="${escapeAttr(group.base_url)}" title="双击修改名称" ondblclick="window.editProviderName('${escapeAttr(group.base_url)}')">${escapeHtml(displayName)}</span>`;
       html += `<span class="model-group-count text-dim" style="font-size:11px;">(${group.models.length})</span></div>`;
       html += `<div class="models-grid">${group.models.map(m => buildCardHtml(m, m._idx)).join('')}</div>`;
     });
@@ -422,10 +423,19 @@ export function editProviderName(baseUrl) {
   if (newName === null) return;
   const trimmed = newName.trim();
   if (trimmed === currentName) return;
+  // 更新本地缓存
   settingsModelsCache.forEach(m => {
     if (m.base_url === baseUrl) m.provider_name = trimmed || '';
   });
   renderSettingsModelsList();
+  // 持久化到数据库（provider_alias 字段）
+  fetch('/api/models/provider/rename', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ base_url: baseUrl, provider_alias: trimmed }),
+  }).then(r => r.json()).then(d => {
+    if (!d.success && window.toast) window.toast.warning('名称已本地更新，但数据库保存失败');
+  }).catch(() => {});
   autoSaveModels();
 }
 
@@ -515,51 +525,78 @@ export function discoverModels() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ base_url: baseUrl, api_key: apiKey }),
   }).then(r => r.json()).then(d => {
-    if (d.success && d.models && d.models.length > 0) {
-      discoveredModelsCache = d.models;
+    if (!d.success || !d.models || d.models.length === 0) {
+      if (resultEl) resultEl.innerHTML = '<div class="settings-empty-msg">' + (d.success ? '未找到可用模型' : ('❌ ' + escapeHtml(d.error || '获取失败'))) + '</div>';
+      return;
+    }
+    // 查数据库对比哪些已存在
+    fetch('/api/models/global').then(r2 => r2.json()).then(existing => {
+      const existingNames = new Set((existing.models || []).map(m => m.name));
+      const allModels = d.models.map(m => ({ ...m, _exists: existingNames.has(m.name || m.id) }));
+      const newModels = allModels.filter(m => !m._exists);
+      discoveredModelsCache = allModels;
       const filterInput = document.getElementById('discoverFilter');
       if (filterInput) filterInput.value = '';
-      renderDiscoveredModels(d.models, d.provider, d.count);
-    } else if (d.success) {
-      if (resultEl) resultEl.innerHTML = '<div class="settings-empty-msg">未找到可用模型</div>';
-    } else {
-      if (resultEl) resultEl.innerHTML = '<div class="settings-empty-msg">❌ ' + escapeHtml(d.error || '获取失败') + '</div>';
-    }
+      renderDiscoveredModels(allModels, newModels.length, d.provider, d.count);
+    }).catch(() => {
+      // DB 查询失败，全部当作新模型
+      const allModels = d.models.map(m => ({ ...m, _exists: false }));
+      discoveredModelsCache = allModels;
+      renderDiscoveredModels(allModels, allModels.length, d.provider, d.count);
+    });
   }).catch(e => {
     if (resultEl) resultEl.innerHTML = '<div class="settings-empty-msg">❌ ' + escapeHtml(e.message) + '</div>';
   });
 }
 
-export function renderDiscoveredModels(models, provider, count) {
+export function renderDiscoveredModels(allModels, newCount, provider, totalCount) {
   const resultEl = document.getElementById('discoverResult');
   if (!resultEl) return;
   const capIcons = { vision: '👁', reasoning: '🧠', code: '💻', chat: '💬', tts: '🔊', embedding: '📎', image_gen: '🎨', long_context: '📏', function_calling: '🔧' };
-  const capLabels = { vision: '视觉', reasoning: '推理', code: '代码', chat: '对话', tts: '语音', embedding: '嵌入', image_gen: '生图', long_context: '长上下文', function_calling: '工具调用' };
   const capOrder = { chat: 0, reasoning: 1, vision: 2, code: 3, tts: 4, embedding: 5, image_gen: 6, long_context: 7, function_calling: 99 };
-  resultEl.innerHTML = `
-    <div class="discover-result-header">
-      ✅ 发现 <strong class="discover-count">${count}</strong> 个模型 · Provider: <strong>${escapeHtml(provider || '-')}</strong>
-      <span class="discover-header-actions">
-        <button class="btn-sm btn-discover-add-one" onclick="window.addDiscoveredModel(0)">添加模型</button>
-        <button class="btn-sm primary btn-discover-add-all" onclick="window.addAllDiscoveredModels()">全部添加</button>
-      </span>
-    </div>
-    ${models.map((m, i) => {
-      const ctx = m.context_window ? (m.context_window >= 1000000 ? (m.context_window/1000000).toFixed(1)+'M' : (m.context_window/1000).toFixed(0)+'K') : '-';
+
+  // 只显示未添加的模型
+  const showModels = allModels.filter(m => !m._exists);
+  const existingCount = allModels.length - showModels.length;
+
+  let html = `<div class="discover-result-header">`;
+  if (existingCount > 0) {
+    html += `✅ 发现 <strong class="discover-count">${totalCount}</strong> 个模型 · <span style="color:var(--color-success)">已添加 ${existingCount}</span> · <span style="color:var(--color-primary)">未添加 ${showModels.length}</span>`;
+  } else {
+    html += `✅ 发现 <strong class="discover-count">${totalCount}</strong> 个模型 · Provider: <strong>${escapeHtml(provider || '-')}</strong>`;
+  }
+  html += `<span class="discover-header-actions">`;
+  if (showModels.length > 0) {
+    html += `<button class="btn-sm btn-discover-add-one" onclick="window.addSelectedDiscoveredModels()">添加选中</button>`;
+    html += `<button class="btn-sm primary btn-discover-add-all" onclick="window.addAllDiscoveredModels()">全部添加</button>`;
+  }
+  html += `</span></div>`;
+
+  if (showModels.length === 0) {
+    html += '<div class="settings-empty-msg">所有模型均已添加</div>';
+  } else {
+    html += '<div class="models-grid models-grid-discover">';
+    showModels.forEach(m => {
       const caps = (m.capabilities || []).slice().sort((a, b) => (capOrder[a] ?? 50) - (capOrder[b] ?? 50));
-      const capBadges = caps.map(c => `<span class="cap-badge cap-badge-${c}" title="${capLabels[c] || c}">${capIcons[c] || c}</span>`).join('');
-      return `<div class="model-card model-card-discover" data-name="${escapeAttr(m.name || m.id)}">
-        <div class="model-discover-info">
-          <div class="model-discover-name" title="${escapeAttr(m.name || m.id)}">${escapeHtml((m.name || m.id).length > 22 ? (m.name || m.id).substring(0, 20) + '..' : (m.name || m.id))}</div>
-          <div class="model-discover-meta">${escapeHtml(m.provider || '')} · ctx:${ctx} · ${escapeHtml(m.base_url || '')}</div>
-          ${capBadges ? '<div class="model-card-caps">' + capBadges + '</div>' : ''}
+      const capBadges = caps.map(c => `<span class="cap-badge cap-badge-${c}" title="${c}">${capIcons[c] || c}</span>`).join('');
+      const ctx = m.context_window ? (m.context_window >= 1000000 ? (m.context_window / 1000000).toFixed(1) + 'M' : (m.context_window / 1000).toFixed(0) + 'K') : '-';
+      html += `<div class="model-card card-left-accent model-card-discover" data-name="${escapeAttr(m.name || m.id)}">
+        <div class="model-card-header">
+          <input type="checkbox" class="discover-check" data-name="${escapeAttr(m.name || m.id)}" style="flex-shrink:0;cursor:pointer;">
+          <div class="model-name-scroll">
+            <span class="model-name-text" title="${escapeAttr(m.name || m.id)}">${escapeHtml((m.name || m.id).length > 20 ? (m.name || m.id).substring(0, 18) + '..' : (m.name || m.id))}</span>
+          </div>
         </div>
-        <button class="btn-sm primary btn-discover-add" onclick="window.addDiscoveredModel(${i})">添加</button>
+        <div class="siper-model-meta"><span class="siper-meta-tag">ctx ${ctx}</span>${capBadges ? ' ' + capBadges : ''}</div>
       </div>`;
-    }).join('')}`;
+    });
+    html += '</div>';
+  }
+  resultEl.innerHTML = html;
+
   // 6+ 模型时显示筛选栏
   const filterWrap = document.getElementById('discoverFilterWrap');
-  if (filterWrap) filterWrap.style.display = models.length >= 6 ? 'block' : 'none';
+  if (filterWrap) filterWrap.style.display = allModels.length >= 6 ? 'block' : 'none';
 }
 
 export function chatFilterDiscovered() {
@@ -577,9 +614,16 @@ export function chatFilterDiscovered() {
   });
   const header = document.querySelector('#discoverResult .discover-result-header');
   if (header) {
-    header.innerHTML = text
-      ? `🔍 筛选: <strong>"${escapeHtml(text)}"</strong> · 匹配 ${shown}/${cards.length} 个<span class="discover-header-actions"><button class="btn-sm btn-discover-add-one" onclick="window.addDiscoveredModel(0)">添加模型</button><button class="btn-sm primary btn-discover-add-all" onclick="window.addAllDiscoveredModels()">全部添加</button></span>`
-      : `✅ 发现 <strong class="discover-count">${cards.length}</strong> 个模型<span class="discover-header-actions"><button class="btn-sm btn-discover-add-one" onclick="window.addDiscoveredModel(0)">添加模型</button><button class="btn-sm primary btn-discover-add-all" onclick="window.addAllDiscoveredModels()">全部添加</button></span>`;
+    const total = cards.length;
+    const newCount = discoveredModelsCache.filter(m => !m._exists).length;
+    const existingCount = discoveredModelsCache.length - newCount;
+    if (text) {
+      header.innerHTML = `🔍 筛选: <strong>"${escapeHtml(text)}"</strong> · 匹配 ${shown}/${total} 个<span class="discover-header-actions"><button class="btn-sm btn-discover-add-one" onclick="window.addSelectedDiscoveredModels()">添加选中</button><button class="btn-sm primary btn-discover-add-all" onclick="window.addAllDiscoveredModels()">全部添加</button></span>`;
+    } else if (existingCount > 0) {
+      header.innerHTML = `✅ 发现 <strong class="discover-count">${discoveredModelsCache.length}</strong> 个模型 · <span style="color:var(--color-success)">已添加 ${existingCount}</span> · <span style="color:var(--color-primary)">未添加 ${newCount}</span><span class="discover-header-actions"><button class="btn-sm btn-discover-add-one" onclick="window.addSelectedDiscoveredModels()">添加选中</button><button class="btn-sm primary btn-discover-add-all" onclick="window.addAllDiscoveredModels()">全部添加</button></span>`;
+    } else {
+      header.innerHTML = `✅ 发现 <strong class="discover-count">${total}</strong> 个模型<span class="discover-header-actions"><button class="btn-sm btn-discover-add-one" onclick="window.addSelectedDiscoveredModels()">添加选中</button><button class="btn-sm primary btn-discover-add-all" onclick="window.addAllDiscoveredModels()">全部添加</button></span>`;
+    }
   }
 }
 
@@ -588,52 +632,89 @@ export function chatClearDiscoverFilter() {
   if (input) { input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true })); }
 }
 
-export function addDiscoveredModel(idx) {
-  const m = discoveredModelsCache[idx];
-  if (!m) return;
-  if (settingsModelsCache.find(x => x.name === (m.name || m.id) && x.provider === m.provider)) {
-    if (window.toast) window.toast.warning('模型已存在: ' + (m.name || m.id));
-    return;
-  }
-  settingsModelsCache.push({
+export function addSelectedDiscoveredModels() {
+  const checkboxes = document.querySelectorAll('#discoverResult .discover-check:checked');
+  if (checkboxes.length === 0) { if (window.toast) window.toast.warning('请先勾选要添加的模型'); return; }
+  const names = [...checkboxes].map(cb => cb.dataset.name);
+  const models = discoveredModelsCache.filter(m => names.includes(m.name || m.id));
+  _addDiscoveredModels(models);
+}
+
+function _addDiscoveredModels(models) {
+  if (!models.length) return;
+  // 按 base_url 分组，先处理 providers
+  const baseUrls = [...new Set(models.map(m => m.base_url))];
+  let added = 0;
+  const promises = baseUrls.map(baseUrl => {
+    const prov = models.find(m => m.base_url === baseUrl);
+    // 查 providers 表是否已有此 base_url
+    return fetch('/api/models/global').then(r => r.json()).then(data => {
+      const existingProv = (data.models || []).find(m => m.base_url === baseUrl);
+      if (existingProv) {
+        // provider 已存在，直接添加模型
+        return _saveModelsForProvider(existingProv.provider || 0, models.filter(m => m.base_url === baseUrl));
+      }
+      // provider 不存在，先创建 provider
+      return fetch('/api/models/provider', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          base_url: baseUrl,
+          api_key: prov.api_key,
+          provider: prov.provider || '',
+          provider_alias: prov.provider_alias || '',
+        }),
+      }).then(r => r.json()).then(d => {
+        if (!d.success && !d.provider_id) {
+          throw new Error(d.error || '创建 Provider 失败');
+        }
+        const providerId = d.provider_id || d.id || 0;
+        return _saveModelsForProvider(providerId, models.filter(m => m.base_url === baseUrl));
+      });
+    });
+  });
+  Promise.all(promises).then(results => {
+    results.forEach(r => { added += r; });
+    if (added > 0) {
+      if (window.toast) window.toast.success('已添加 ' + added + ' 个模型');
+      if (typeof window.loadSettingsModels === 'function') window.loadSettingsModels();
+      // 刷新发现列表
+      const allModels = discoveredModelsCache.map(m => ({ ...m, _exists: true }));
+      discoveredModelsCache = allModels;
+      renderDiscoveredModels(allModels, 0, '', allModels.length);
+    }
+  }).catch(e => {
+    if (window.toast) window.toast.error('添加失败: ' + e.message);
+  });
+}
+
+function _saveModelsForProvider(providerId, models) {
+  if (!models.length) return Promise.resolve(0);
+  const payload = models.map(m => ({
     id: m.id || m.name,
     name: m.name || m.id,
     alias: m.alias || '',
-    provider: m.provider,
-    provider_name: m.provider_name || '',
+    provider: providerId,
+    provider_name: m.provider_name || m.provider || '',
     base_url: m.base_url,
     api_key: m.api_key,
     context_window: m.context_window,
     capabilities: m.capabilities || [],
+  }));
+  return fetch('/api/models/global', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ models: payload }),
+  }).then(r => r.json()).then(d => {
+    if (!d.success) throw new Error(d.error || '保存失败');
+    return models.length;
   });
-  if (settingsModelsCache.length === 1) settingsModelsCache[0]._isDefault = true;
-  renderSettingsModelsList();
-  saveModelsImmediate();
 }
 
 export function addAllDiscoveredModels() {
-  let added = 0;
-  discoveredModelsCache.forEach(m => {
-    if (settingsModelsCache.find(x => x.name === (m.name || m.id) && x.provider === m.provider)) return;
-    settingsModelsCache.push({
-      id: m.id || m.name,
-      name: m.name || m.id,
-      alias: m.alias || '',
-      provider: m.provider,
-      provider_name: m.provider_name || '',
-      base_url: m.base_url,
-      api_key: m.api_key,
-      context_window: m.context_window,
-      capabilities: m.capabilities || [],
-    });
-    added++;
-  });
-  if (settingsModelsCache.length > 0 && !settingsModelsCache.find(m => m._isDefault)) {
-    settingsModelsCache[0]._isDefault = true;
-  }
-  renderSettingsModelsList();
-  saveModelsImmediate();
-  if (window.toast) window.toast.success('已添加 ' + added + ' 个模型');
+  const newModels = discoveredModelsCache.filter(m => !m._exists);
+  if (newModels.length === 0) { if (window.toast) window.toast.info('没有未添加的模型'); return; }
+  _addDiscoveredModels(newModels);
 }
 
 // ===== 自动保存 =====
@@ -958,7 +1039,7 @@ window.editProviderName = editProviderName;
 window.removeSettingsModel = removeSettingsModel;
 window.resetSettingsModels = resetSettingsModels;
 window.discoverModels = discoverModels;
-window.addDiscoveredModel = addDiscoveredModel;
+window.addSelectedDiscoveredModels = addSelectedDiscoveredModels;
 window.addAllDiscoveredModels = addAllDiscoveredModels;
 window.chatFilterDiscovered = chatFilterDiscovered;
 window.chatClearDiscoverFilter = chatClearDiscoverFilter;

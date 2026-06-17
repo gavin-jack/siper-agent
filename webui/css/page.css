@@ -300,32 +300,6 @@
 /* ===== PAGE SETTINGS ===== */
 
 /* ===== Model Card: Discover List ===== */
-.model-card-discover {
-  margin-bottom: 4px;
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  height: 102px;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-.model-discover-name {
-  font-weight: 600;
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.model-discover-meta {
-  font-size: 12px;
-  color: var(--color-text-dim);
-  margin-top: 3px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 /* ===== Discover Result Header ===== */
 .discover-result-header {
   font-size: 12px;
@@ -368,8 +342,19 @@
   max-height: calc(100vh - 180px);
   overflow-y: auto;
 }
-/* Discover model cards: fixed height 110px (taller for verify button + result) */
-/* Marquee: model name scrolls left when text overflows — driven by JS */
+/* Discover model cards: two-column grid */
+.models-grid-discover {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  padding: 2px 5px 2px 0;
+}
+/* Discover model card: reuse model-card style, no fixed height */
+.model-card-discover {
+  height: auto;
+  min-height: 72px;
+  flex-direction: column;
+}
 .siper-model-name {
   font-size: 12px;
   font-weight: 600;
@@ -1802,7 +1787,7 @@
 .js-add-agent-btn { padding:6px 16px;font-size:13px; }
 .js-model-settings-grid { display:flex;gap:12px;align-items:flex-start; }
 .js-form-card { flex:1;min-width:0;display:flex;flex-direction:column; }
-.js-form-card-sidebar { width:380px;flex-shrink:0;display:flex;flex-direction:column; }
+.js-form-card-sidebar { width:380px;flex-shrink:0;display:flex;flex-direction:column;max-height:calc(100vh - 120px);overflow-y:auto; }
 .js-form-title { display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
 .js-spacer { flex:1;min-width:0; }
 .js-search-wrapper { position:relative;display:flex;align-items:center;width:160px;flex-shrink:0; }
