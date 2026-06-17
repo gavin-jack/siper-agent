@@ -18,7 +18,7 @@ export function switchSettingsTab(tab) {
 export function resetSystemParams() {
   const defaults = { sysWsHeartbeatTimeout: 300, sysSessionListLimit: 50, sysLogBufferSize: 2000, sysTokenUsageMax: 500, sysCtxWindowDefault: 8192 };
   for (const [id, val] of Object.entries(defaults)) { const el = document.getElementById(id); if (el) el.value = val; }
-  if (typeof toast !== 'undefined' && toast) toast.success('已恢复默认值', 1000);
+  if (typeof toast !== 'undefined' && toast) toast.success('已恢复默认值');
 }
 
 export function refreshGlobalSettings() {
@@ -49,7 +49,7 @@ export function renderSettingsPageChat(container) {
         try{
           const r = await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:sys})});
           const d = await r.json();
-          if(d.success){if(typeof toast!=='undefined'&&toast)toast.success('系统参数已保存',1000);}
+          if(d.success){if(typeof toast!=='undefined'&&toast)toast.success('系统参数已保存');}
           else{if(typeof toast!=='undefined'&&toast)toast.error('保存失败: '+(d.error||'unknown'));}
         }catch(e){if(typeof toast!=='undefined'&&toast)toast.error('保存失败: '+e.message);}
       },500);

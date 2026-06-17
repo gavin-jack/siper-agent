@@ -580,7 +580,7 @@ export function triggerAgentAutoSave() {
       });
       const d = await r.json();
       if (d.success) {
-        toast.success('配置已保存', 1500);
+        toast.success('配置已保存');
       } else {
         toast.error('保存失败: ' + (d.error || '未知错误'));
       }

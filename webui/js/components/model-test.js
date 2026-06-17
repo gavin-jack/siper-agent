@@ -115,7 +115,7 @@ export async function verifyChatModel(idx, _toast) {
     if (!m) return;
     const modelName = m.name;
     if (!m.base_url || !m.api_key) {
-      if (toast) toast.warning(m.name + ' 未配置 base_url 或 api_key', 4000);
+      if (toast) toast.warning(m.name + ' 未配置 base_url 或 api_key');
       return;
     }
     if (toast) toast.info('正在验证 ' + m.name + '...');

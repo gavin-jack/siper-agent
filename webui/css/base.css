@@ -1303,9 +1303,6 @@ a.siper-nav-item {
   transition: background-color 0.15s, opacity 0.15s;
 }
 .siper-notif-btn-primary,
-.modal-footer-base button.primary {
-  background: var(--color-primary); color: var(--color-primary-fg); border-color: var(--color-primary);
-}
 .siper-notif-btn-primary:hover { background: var(--color-success-hover); }
 .siper-notif-btn-danger {
   background: var(--color-danger); color: var(--color-primary-fg); border-color: var(--color-danger);
@@ -1328,255 +1325,57 @@ a.siper-nav-item {
 }
 .siper-notif-input-field:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent); }
 
-/* ===== Model Card ===== */
-.model-card {
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
+/* ===== Toast 通知条 ===== */
+.siper-notif-toast,
+.siper-notif {
+  pointer-events: auto;
+  display: flex; align-items: center; gap: 10px;
+  min-width: 280px; max-width: 420px;
+  padding: 10px 14px;
   border-radius: 8px;
-  background: var(--color-bg);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  min-width: 0;
-  height: 96px;
-  box-sizing: border-box;
-  overflow: hidden;
-  transition: transform 180ms ease-out, box-shadow 180ms ease-out, border-color 180ms ease-out;
-}
-.model-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px var(--shadow-sm);
-  border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
-}
-.model-card-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-.model-card-verifying {
-  border-color: var(--color-warning);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--color-warning) 30%, transparent);
-}
-.model-name-scroll {
-  flex: 1;
-  min-width: 0;
-  position: relative;
-  overflow: hidden;
-}
-.model-name-text {
-  font-weight: 600;
-  font-size: 13px;
-  white-space: nowrap;
-  display: inline-block;
-  letter-spacing: 0.01em;
-}
-.model-default-badge {
-  font-size: 12px;
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: var(--color-primary);
-  color: var(--white);
-  flex-shrink: 0;
-  font-weight: 500;
-}
-.model-card-pending {
-  font-size: 12px;
-  color: var(--color-primary);
-  padding: 2px 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.model-card-caps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  overflow: hidden;
-  height: 18px;
-}
-.cap-badge {
-  font-size: 12px;
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--color-text-dim) 18%, transparent);
-  color: var(--color-text-dim);
-  border: 1px solid color-mix(in srgb, var(--color-text-dim) 35%, transparent);
-  margin-right: 2px;
-  cursor: default;
-  line-height: 1.4;
-}
-.model-card-header .model-card-actions {
-  display: flex;
-  gap: 3px;
-  align-items: center;
-  flex-shrink: 0;
-}
-.model-card-actions-bottom {
-  display: flex;
-  gap: 4px;
-  justify-content: flex-end;
-  margin-top: 2px;
-}
-.model-card-actions .btn-sm,
-.model-card-actions-bottom .btn-sm {
-  padding: 1px 5px;
-  font-size: 12px;
-  border-radius: 3px;
-  min-width: 18px;
-  height: 18px;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  flex-shrink: 0;
-}
-.model-card-actions .btn-sm.danger:hover,
-.model-card-actions-bottom .btn-sm.danger:hover {
-  background: color-mix(in srgb, var(--color-danger) 15%, transparent);
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-}
-
-/* ===== Caps marquee scroll in actions-bottom ===== */
-
-.model-caps-scroll {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  position: relative;
-  height: 20px;
-  display: flex;
-  align-items: center;
-}
-.model-caps-inner {
-  display: flex;
-  gap: 3px;
-  flex-wrap: nowrap;
-  position: absolute;
-  white-space: nowrap;
-  transition: transform 0ms linear;
-}
-.model-caps-scroll:hover .model-caps-inner {
-  /* JS will set transition + transform for marquee */
-}
-
-/* ===== Verify button: outline style (not green) ===== */
-.btn-verify {
-  flex-shrink: 0;
-  padding: 2px 10px;
-  font-size: 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
-  background: transparent;
-  color: var(--color-primary);
-  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
-  font-weight: 500;
-  line-height: 1.4;
-}
-.btn-verify:hover {
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  border-color: var(--color-primary);
-}
-.btn-verify-pending {
-  flex-shrink: 0;
-  padding: 2px 10px;
-  font-size: 12px;
-  border-radius: 4px;
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text-dim);
-  cursor: not-allowed;
-  opacity: 0.5;
+  box-shadow: 0 4px 16px var(--shadow-lg);
+  font-size: 13px; color: var(--color-text);
   line-height: 1.4;
+  opacity: 0; transform: translateY(-12px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  position: relative; overflow: hidden;
+}
+.siper-notif-in  { opacity: 1; transform: translateY(0); }
+.siper-notif-out { opacity: 0; transform: translateY(-12px); }
+
+.siper-notif-icon { font-size: 16px; flex-shrink: 0; line-height: 1; }
+.siper-notif-msg { flex: 1; }
+.siper-notif-close {
+  flex-shrink: 0; background: none; border: none;
+  color: var(--color-text-dim); font-size: 14px; cursor: pointer;
+  padding: 2px 4px; border-radius: 4px; line-height: 1;
+  transition: color 0.15s, background 0.15s;
 }
 
-/* ===== Copy model name button (SVG icon) ===== */
-.btn-copy-model {
-  padding: 2px 5px;
-  flex-shrink: 0;
-  line-height: 1;
-  border-radius: 4px;
-  transition: background-color 150ms ease;
-  min-width: 24px;
-  text-align: center;
-  font-size: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+/* Toast 倒计时进度条 */
+.siper-notif-progress {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  width: 100%; height: 3px; background: var(--color-border);
+  border-radius: 0 0 8px 8px; overflow: hidden;
 }
-.btn-copy-model:hover {
-  background-color: color-mix(in srgb, var(--color-text-dim) 12%, transparent);
+.siper-notif-progress-bar {
+  display: block; height: 100%; width: 100%;
+  background: var(--color-primary);
+  border-radius: 0 0 8px 8px;
+  transition: width linear;
 }
-.model-verify-pass {
-  color: var(--color-success);
-}
-.model-verify-pending {
-  animation: pulse 1s infinite;
-}
-.btn-sm-disabled {
-  font-size: 12px;
-  padding: 2px 6px;
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-/* ===== Model group header ===== */
-.model-group-header {
-  transition: opacity 150ms ease;
-}
-.model-group-header:hover {
-  opacity: 0.8;
-}
-.model-group-label {
-  transition: color 150ms ease;
-}
-.model-group-label:hover {
-  color: var(--color-primary) !important;
-}
+.siper-notif-success .siper-notif-progress-bar { background: var(--color-primary); }
+.siper-notif-error   .siper-notif-progress-bar { background: var(--color-danger); }
+.siper-notif-warning .siper-notif-progress-bar { background: var(--color-warning); }
+.siper-notif-info    .siper-notif-progress-bar { background: var(--color-primary); }
 
-/* ===== Capability badge semantic colors ===== */
-
-/* ===== Model card entrance animation (JS-triggered, page-load only) ===== */
-@keyframes modelCardFadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.model-card-animate {
-  animation: modelCardFadeIn 250ms ease-out both;
-}
-
-/* ===== Filter dropdown animation ===== */
-#capFilterMenu {
-  transition: opacity 150ms ease-out, transform 150ms ease-out;
-  transform-origin: top left;
-  z-index: 200;
-}
-#capFilterMenu[style*="block"] {
-  animation: dropIn 150ms ease-out;
-}
-@keyframes dropIn {
-  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-.cap-filter-option {
-  transition: background-color 120ms ease;
-}
-.cap-filter-option:hover {
-  background-color: color-mix(in srgb, var(--color-primary) 8%, transparent);
-}
-
-/* ===== Sort direction button ===== */
-#sortDirBtn {
-  transition: background-color 150ms ease, color 150ms ease;
-  font-weight: 600;
-  min-width: 28px;
-}
-#sortDirBtn:hover {
-  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  color: var(--color-primary);
-}
+/* Toast 类型色条 */
+.siper-notif-success { border-left: 4px solid var(--color-primary); }
+.siper-notif-error   { border-left: 4px solid var(--color-danger); }
+.siper-notif-warning { border-left: 4px solid var(--color-warning); }
+.siper-notif-info    { border-left: 4px solid var(--color-primary); }
 
 /* ===== Search clear button ===== */
 #modelSearchClear {
@@ -1664,10 +1463,10 @@ a.siper-nav-item {
 
 /* ===== 统一通知 Overlay ===== */
 .siper-notif-overlay {
-  position: absolute; inset: 0;
+  position: fixed; inset: 0;
   background: var(--color-overlay);
   display: flex; align-items: center; justify-content: center;
-  z-index: 1;
+  z-index: 99999;
   opacity: 0;
   transition: opacity 0.2s ease;
   pointer-events: auto;
@@ -1685,40 +1484,6 @@ a.siper-nav-item {
   display: flex; align-items: center; gap: 8px;
 }
 .modal-header-base .warn-icon { font-size: 18px; }
-
-/* ===== Modal Close Button (旧类名兼容) ===== */
-.modal-close-base {
-  background: none; border: none; font-size: 20px; cursor: pointer;
-  color: var(--color-text-dim); padding: 0 4px; line-height: 1;
-  border-radius: 4px; transition: border-color;
-}
-
-/* ===== Modal Body (旧类名兼容) ===== */
-.modal-body-base {
-  padding: 16px 20px;
-  overflow-y: auto; flex: 1;
-  font-size: 13px; color: var(--color-text-dim); line-height: 1.6;
-}
-
-/* ===== Modal Footer (旧类名兼容) ===== */
-.modal-footer-base {
-  display: flex; justify-content: flex-end; gap: 10px;
-  padding: 12px 20px;
-  border-top: 1px solid var(--color-border);
-  flex-shrink: 0;
-}
-
-/* ===== Modal Buttons (旧类名兼容) ===== */
-.modal-footer-base button {
-  padding: 8px 20px; border-radius: 6px; font-size: 13px;
-  font-weight: 600; cursor: pointer; border: 1px solid var(--color-border);
-  background: var(--color-surface); color: var(--color-text);
-  transition: background-color 0.15s, opacity 0.15s;
-}
-.modal-footer-base button.primary:hover { background: var(--color-success-hover); }
-.modal-footer-base button.danger {
-  background: var(--color-danger); color: var(--color-primary-fg); border-color: var(--color-danger);
-}
 
 /* ===== Scope Info Box (旧类名兼容) ===== */
 .modal-scope-base {
@@ -1844,241 +1609,6 @@ a.siper-nav-item {
 @media (prefers-reduced-motion: reduce) {
   .siper-notif-dict-dialog { animation: none; }
   .siper-notif-dict-arrow, .siper-notif-dict-close, .siper-notif-dict-toolbar-btn, .siper-notif-dict-sec-head { transition: none; }
-}
-
-/* ===== Markdown Rendered Content ===== */
-.siper-msg-body { min-width: 0; overflow-wrap: break-word; }
-.siper-msg-body .md-para { margin: 4px 0 6px 0; line-height: 1.6; }
-.siper-msg-body .md-para:last-child,
-.siper-msg-body .md-table:last-child,
-.siper-form-card:last-child,
-.siper-msg-body p:last-child,
-.field-group:last-child {
-  margin-bottom: 0;
-}
-
-/* Headings */
-.siper-msg-body .md-heading {
-  margin: 12px 0 6px;
-  font-weight: 700;
-  line-height: 1.3;
-  color: var(--color-text);
-}
-.siper-msg-body .md-h1 { font-size: 1.5em; border-bottom: 2px solid var(--color-border); padding-bottom: 4px; }
-.siper-msg-body .md-h2 { font-size: 1.3em; border-bottom: 1px solid var(--color-border); padding-bottom: 3px; }
-.siper-msg-body .md-h3 { font-size: 1.15em; }
-.siper-msg-body .md-h4 { font-size: 1.05em; color: var(--color-text-dim); }
-.siper-msg-body .md-h5,
-.siper-msg-body .md-h6 { font-size: 1em; color: var(--color-text-dim); }
-
-/* Horizontal rule */
-.siper-msg-body .md-hr {
-  margin: 10px 0;
-  border: none;
-  border-top: 1px solid var(--color-border);
-}
-
-/* Inline formatting */
-.siper-msg-body strong { font-weight: 700; color: var(--color-text); }
-.siper-msg-body em { font-style: italic; }
-.siper-msg-body del { text-decoration: line-through; opacity: 0.6; }
-
-/* Inline code */
-.siper-msg-body .md-code-inline {
-  background: var(--shadow-md);
-  color: var(--accent2, var(--color-primary));
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
-  font-size: 0.88em;
-  white-space: nowrap;
-}/* Code blocks */.siper-msg-body .md-code-block {
-  position: relative;
-  background: var(--bg-card, color-mix(in srgb, var(--color-text) 70%, black));
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  margin: 8px 0;
-  overflow: hidden;
-}.siper-msg-body .md-code-block .md-code-lang {
-  display: inline-block;
-  position: absolute;
-  top: 6px;
-  left: 10px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  z-index: var(--z-base);
-}.siper-msg-body .md-code-block .md-code-copy {
-  position: absolute;
-  top: 4px;
-  right: 8px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  opacity: 0.5;
-  transition: opacity 0.15s;
-  z-index: var(--z-base);
-}.siper-msg-body .md-code-block:hover .md-code-copy { opacity: 1; }.siper-msg-body .md-code-block .md-code-copy:hover { background: color-mix(in srgb, var(--color-surface) 10%, transparent); }.siper-msg-body .md-code-block code {
-  display: block;
-  padding: 12px 14px;
-  padding-top: 28px;
-  font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
-  font-size: 12.5px;
-  line-height: 1.6;
-  color: var(--color-text);
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-x: auto;
-  margin: 0;
-}/* Syntax highlighting */.siper-msg-body .md-kwd { color: var(--accent2, var(--color-primary)); font-weight: 600; }.siper-msg-body .md-str { color: var(--green, var(--color-primary)); }.siper-msg-body .md-num { color: var(--accent, var(--color-primary)); }.siper-msg-body .md-cmt { color: var(--color-text-dim); font-style: italic; }/* Links */.siper-msg-body .md-link {
-  color: var(--accent, var(--color-primary));
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}.siper-msg-body .md-link:hover { color: var(--accent2, var(--color-primary)); }/* Lists */.siper-msg-body .md-list {
-  margin: 6px 0;
-  padding-left: 20px;
-  line-height: 1.6;
-}.siper-msg-body .md-list li { margin: 2px 0; }.siper-msg-body .md-ol { list-style-type: decimal; }/* Tree structure (box-drawing characters) */.siper-msg-body .md-tree { margin: 6px 0; padding-left: 0; list-style: none; font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace; font-size: 13px; line-height: 1.5; color: var(--color-text); }.siper-msg-body .md-tree ul.md-tree-sub { list-style: none; padding-left: 20px; margin: 0; }.siper-msg-body .md-tree li.md-tree-node { position: relative; padding: 2px 0 2px 16px; color: var(--color-text); }.siper-msg-body .md-tree li.md-tree-node::before { content: '├─ '; color: var(--color-text-dim); position: absolute; left: 0; }.siper-msg-body .md-tree li.md-tree-node:last-child::before { content: '└─ '; }.siper-msg-body .md-tree ul.md-tree-sub > li.md-tree-node:first-child::before { content: '├─ '; }
-
-.md-tree .md-tree { padding-left: 20px; margin: 0; }
-.md-tree .md-tree-item { position: relative; padding: 2px 0 2px 16px; color: var(--color-text); white-space: pre; }
-.md-tree .md-tree-item::before { content: '├─ '; color: var(--color-text-dim); position: absolute; left: 0; }
-.md-tree .md-tree-item:last-child::before { content: '└─ '; }
-/* Blockquote */.siper-msg-body .md-blockquote {
-  margin: 8px 0;
-  padding: 6px 14px;
-  border-left: 5px solid var(--accent, var(--color-primary));
-  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
-  border-radius: 0 6px 6px 0;
-  color: var(--color-text-dim);
-  font-style: italic;
-}/* Horizontal rule *//* Tables */
-.siper-msg-body .md-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 8px 0 12px 0;
-  font-size: 0.92em;
-  line-height: 1.5;
-  display: table;
-}
-.siper-msg-body .md-table thead { display: table-header-group; }
-.siper-msg-body .md-table tbody { display: table-row-group; }
-.siper-msg-body .md-table tr { display: table-row; }
-.siper-msg-body .md-table td {
-  display: table-cell;
-  padding: 6px 12px;
-  border: 1px solid var(--color-border);
-  text-align: left;
-  font-size: 0.95em;
-  color: var(--color-text-dim);
-}
-.siper-msg-body .md-table th {
-  background: var(--shadow-md);
-  font-weight: 700;
-  font-size: 1em;
-  color: var(--color-text);
-}
-.siper-msg-body .md-table tr:nth-child(even) td {
-  background: var(--shadow-sm);
-}
-.siper-msg-body .md-table tr:nth-child(odd) td {
-  background: color-mix(in srgb, var(--color-surface) 4%, transparent);
-}
-.siper-msg-body .md-table tr:last-child td { border-bottom: 1px solid var(--color-border); }
-.siper-msg-body .md-table tr:hover td {
-  background: color-mix(in srgb, var(--color-text) 8%, transparent) !important;
-}/* ===== 统一通知系统 ===== */
-/* 根容器 — 页面顶层，所有通知在此渲染 */
-#siperNotifRoot {
-  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  z-index: var(--z-toast);
-  pointer-events: none;
-  display: flex; flex-direction: column; align-items: center;
-}
-
-/* --- Toast 通知条 --- */
-.siper-notif {
-  pointer-events: auto;
-  display: flex; align-items: center; gap: 10px;
-  min-width: 280px; max-width: 420px;
-  padding: 10px 14px; margin-top: 12px;
-  border-radius: 8px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  box-shadow: 0 4px 16px var(--shadow-lg);
-  font-size: 13px; color: var(--color-text);
-  line-height: 1.4;
-  opacity: 0; transform: translateY(-12px);
-  transition: opacity 0.25s ease, transform 0.25s ease;
-  position: relative; overflow: hidden;
-}
-.siper-notif-in  { opacity: 1; transform: translateY(0); }
-.siper-notif-out { opacity: 0; transform: translateY(-12px); }
-
-.siper-notif-icon { font-size: 16px; flex-shrink: 0; line-height: 1; }
-.siper-notif-msg,
-.models-col-section,
-.avatar-field .field-input,
-.color-field-item {
-  flex: 1;
-}
-.siper-notif-close {
-  flex-shrink: 0; background: none; border: none;
-  color: var(--color-text-dim); font-size: 14px; cursor: pointer;
-  padding: 2px 4px; border-radius: 4px; line-height: 1;
-  transition: color 0.15s, background 0.15s;
-}
-
-/* 倒计时进度条 */
-.siper-notif-progress {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  width: 100%; height: 3px; background: var(--color-border);
-  border-radius: 0 0 8px 8px; overflow: hidden;
-}
-.siper-notif-progress-bar {
-  display: block; height: 100%; width: 100%;
-  background: var(--color-primary);
-  border-radius: 0 0 8px 8px;
-  transition: width linear;
-}
-.siper-notif-success .siper-notif-progress-bar { background: var(--color-primary); }
-.siper-notif-error   .siper-notif-progress-bar { background: var(--color-danger); }
-.siper-notif-warning .siper-notif-progress-bar { background: var(--color-warning); }
-.siper-notif-info    .siper-notif-progress-bar { background: var(--color-primary); }
-
-/* Toast 类型色条 */
-.siper-notif-success { border-left: 4px solid var(--color-primary); }
-.siper-notif-error   { border-left: 4px solid var(--color-danger); }
-.siper-notif-warning { border-left: 4px solid var(--color-warning); }
-.siper-notif-info    { border-left: 4px solid var(--color-primary); }
-
-/* 旧 .toast 类名兼容（过渡期） */
-
-.siper-tool-summary {
-  color: var(--color-text-dim);
-  font-size: 13px;
-  padding: 4px 0;
-}/* ===== Agent Config File Editors ===== */.code-editor-soul {
-  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg));
-  color: var(--color-text);
-  border-color: color-mix(in srgb, var(--color-primary) 25%, var(--color-border));
-}.code-editor-soul:focus-visible {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent);
-  outline: 2px solid var(--color-primary);
-}.code-editor-agent {
-  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg));
-  color: var(--color-text);
-  border-color: color-mix(in srgb, var(--color-primary) 25%, var(--color-border));
-}.code-editor-agent:focus-visible {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent);
-  outline: 2px solid var(--color-primary);
 }
 
 /* ===== Buttons ===== */

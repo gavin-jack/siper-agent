@@ -37,3 +37,27 @@
 - 每个会话独立上下文
 - 会话切换时重置发送状态
 - 会话超时后自动清理
+
+## GitHub 推送规则（2026-06-17）
+
+当用户要求推送 GitHub 时，**必须按以下流程执行**：
+
+1. **读取 siper-coding 技能**：`skill_view(name="siper-coding")`
+2. **更新 README.md**：增加 SiPer 更详细的功能说明和介绍（功能特性、架构说明、使用方法、目录结构等）
+3. **获取正确日期**：通过 `date` 命令获取当前日期，**禁止自行编造时间**
+4. **更新 CHANGELOG.md**：记录本次更新的详细变更内容（版本号、日期、新功能、修复、优化）
+5. **更新版本号**（如无统一版本文件则更新 README badge）
+6. **更新 .gitignore**（排除运行时文件 *.db *.db-wal *.db-shm backup/ *.tar.gz）
+7. **本地原子 commit**：`git add` 指定文件（禁止 `git add -A`），`git commit -m "vX.Y.Z: 摘要"`
+8. **告知用户当前版本号 + 询问目标版本号**：
+   - 运行 `git describe --tags --abbrev=0` 获取当前 GitHub 版本号（如 v0.2.1）
+   - 向用户展示当前版本号，给出 3 个版本号选项：
+     - **patch**：第三位+1（v0.2.1 → v0.2.2）
+     - **minor**：第二位+1，第三位变0（v0.2.1 → v0.3.0）
+     - **major**：第一位+1，后两位变0（v0.2.1 → v1.0.0）
+   - **直接让用户选版本号**，不要自行选择
+9. 用户选择后执行后续步骤：
+   - `git tag -a vX.Y.Z -m "vX.Y.Z — 描述"`
+   - `GIT_HTTP_LOW_SPEED_LIMIT=100 GIT_HTTP_LOW_SPEED_TIME=600 git push origin main && git push origin vX.Y.Z`
+   - `python3 scripts/create_deploy.py` 打包 tar.gz
+   - `gh release create vX.Y.Z --title "..." --notes "..." <path/to/tar.gz>`

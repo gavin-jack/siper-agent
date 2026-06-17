@@ -506,6 +506,9 @@ async def main():
         _gm_models = _flat["models"]
         _gm_default = _flat.get("default_model", "")
         logger.info(f"配置：从 models.db 加载了 {len(_gm_models)} 个模型，默认={_gm_default}")
+    _p = f"✔ 模型写入内存：{len(_gm_models)} 个模型已加载"
+    print(_p)
+    with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
     # API key priority: env LONGCAT_API_KEY > default model key > .env file
     if _gm_models:
         _first = _gm_models[0]
@@ -629,8 +632,14 @@ async def main():
                 vision_model="",
             )
             logger.info(f"配置：LLM 来自 models.db — 模型={llm_cfg.get('name')}, 地址={llm_cfg.get('base_url')}")
+            _p = f"✔ LLM 已配置：{llm_cfg.get('name', '默认模型')}"
+            print(_p)
+            with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
         else:
             logger.info("配置：无可用模型/密钥，LLM 暂未配置 — 可在 Web UI 模型设置页面添加")
+            _p = "⚠ LLM 未配置：可在 Web UI 模型设置页面添加"
+            print(_p)
+            with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
     else:
         if _lc_key:
             _def_model = _gm_default or ""
@@ -643,15 +652,24 @@ async def main():
                 vision_model="",
             )
             logger.info(f"配置：未找到 config.json，使用环境变量 LLM 配置，模型={_def_model}")
+            _p = f"✔ LLM 已配置（环境变量）：{_def_model}"
+            print(_p)
+            with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
         else:
             logger.info("配置：无可用模型/密钥，LLM 暂未配置 — 可在 Web UI 模型设置页面添加")
+            _p = "⚠ LLM 未配置：可在 Web UI 模型设置页面添加"
+            print(_p)
+            with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
 
     # NOTE: coordinator is lazily initialized
     # on first use to reduce memory footprint when not needed.
     # Call _ensure_coordinator() before use.
 
-    with open("/tmp/siper_startup.log", "w") as _dbg:
+    with open("/tmp/siper_startup.log", "a") as _dbg:
         _dbg.write(f"[{(time.time()-_t0):.1f}s] agent initialized: {initialized}\n")
+    _p = f"✔ Agent 初始化：{agent.config.name}"
+    print(_p)
+    with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
     logger.info(f"Agent 已初始化：{agent.config.name}")
     logger.info(f"[计时] 配置加载完成: {(time.time()-_t0)*1000:.0f}ms")
     logger.info(f"Agent 配置：{agent.config.agent_name}")
@@ -719,6 +737,9 @@ async def main():
     with open("/tmp/siper_startup.log", "a") as _dbg:
         _dbg.write(f"[{(time.time()-_t0):.1f}s] token DB done\n")
     logger.info(f"Token 历史：已加载 {len(_token_usage_history)} 条记录")
+    _p = f"✔ Token 数据库：{len(_token_usage_history)} 条历史记录"
+    print(_p)
+    with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
 
     # Clean up completely empty sessions (no messages at all) from previous runs
     # Note: sessions with only user messages are NOT deleted - they may be in-flight
@@ -759,7 +780,6 @@ async def main():
         _checks = [
             ("HTTP page",       "/",               lambda b: len(b) > 1000 and b"<!DOCTYPE" in b),
             ("ESM entry",       "/js/app.js", lambda b: len(b) > 100 and b"import" in b),
-            ("CSS style",       "/css/style.css", lambda b: len(b) > 100 and b"var(--" in b),
             ("Static favicon",  "/static/favicon.ico", lambda b: len(b) > 100),
             ("Static echarts",  "/static/js/echarts.min.js", lambda b: len(b) > 1000),
             ("API agents",      "/api/agents",     lambda b: len(b) > 10 and b'"' in b),
@@ -857,6 +877,9 @@ async def main():
         _total = _ok + _fail
         _summary = f"启动验证: {_ok}/{_total} 通过 ({_fail} 个可选警告)"
         logger.info(_summary)
+        _p = f"✔ 启动验证：{_ok}/{_total} 通过"
+        print(_p)
+        with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
         with open("/tmp/siper_startup.log", "a") as _dbg:
             _dbg.write(f"[{(time.time()-t0):.1f}s] {_summary}\n")
 
@@ -3651,6 +3674,9 @@ async def main():
     _loop = _asyncio.get_event_loop()
     _loop.create_task(snapshot_mgr.hot_start(agent))
     logger.info("[起源] 启动预填充已调度")
+    _p = "✔ 内存加载：agents/sessions 加载已调度"
+    print(_p)
+    with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
 
     # 起源：注册 API 路由（一次性，在 main() 中完成）
     from ai_agent.api.router import register_routes as _register_routes

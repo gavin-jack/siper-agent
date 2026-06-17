@@ -464,7 +464,7 @@ export function deleteChatSessionConfirm(session, agent) {
     danger: true,
     okText: '确认删除',
     onConfirm: function() {
-      const _btn = this.querySelector('.siper-confirm-ok') || document.querySelector('.siper-confirm-ok');
+      const _btn = this.querySelector('.siper-notif-btn-danger') || this.querySelector('.siper-notif-btn-primary');
       if (_btn) { _btn.disabled = true; _btn.textContent = '删除中...'; }
       fetch('/api/sessions/' + session.session_id, { method: 'DELETE' })
         .then(function(r) { return r.json(); })

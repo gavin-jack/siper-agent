@@ -224,7 +224,11 @@ export function registerAllHandlers() {
         if (typeof window.showDialog === 'function') {
             window.showDialog(v);
         } else if (typeof window.showConfirm === 'function' && v.type === 'confirm') {
-            window.showConfirm(v.title, v.message, v.onConfirm);
+            if (typeof v.title === 'object' && v.title !== null) {
+                window.showConfirm(v.title);
+            } else {
+                window.showConfirm({ title: v.title || '确认', msg: v.message || '', onConfirm: v.onConfirm });
+            }
         }
     });
 

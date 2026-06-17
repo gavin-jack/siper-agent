@@ -2,7 +2,7 @@
 
 > **一个独立的 AI Agent 框架 — 有状态 UI · 多模型 · 多 Agent · 27 个内置工具 · 三语言 · 前后端隔离**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org) [![Version](https://img.shields.io/badge/Version-v0.2.1-green.svg)](https://github.com/gavin-jack/siper-agent/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org) [![Version](https://img.shields.io/badge/Version-v0.2.2-green.svg)](https://github.com/gavin-jack/siper-agent/releases)
 
 **核心仅依赖 `openai` + `websockets` + `jinja2`，27 个工具中 25 个纯 stdlib。完全独立于任何 Agent 框架，不依赖 Hermes / LangChain / AutoGPT。**
 
@@ -341,6 +341,24 @@ siper/
 ---
 
 ## 更新记录
+
+### v0.2.2 (2026-06-17)
+
+#### 新功能 (feat)
+- **Toast 系统重构**：弹出位置从侧边栏左侧改为页面顶部居中，倒计时规则统一（success=1.5s / error=3s / warning=2s / info=2s），弹出框独立页面正中央
+- **启动/停止 CLI 输出优化**：`siper.sh start` 按实际启动顺序显示进度（内存写入 → 启动验证 → 前端地址），`siper.sh stop` 显示关闭过程
+- **跨平台 `siper` 命令**：WSL2 `~/.local/bin/siper` 软链接 + Windows `C:\Users\Gavin\bin\siper.bat` 转发 `wsl -e bash`
+- **GitHub 推送规则**：推送前必须告知当前版本号，给出 3 个选项（patch/minor/major）让用户选择
+
+#### Bug 修复 (fix)
+- **startup.log 内容缺失**：Agent 初始化 `open("w")` 覆盖模型写入内存和 LLM 配置内容 → 改为 `open("a")` 追加
+- **siper.sh 重启失败**：tee 管道过滤导致 Python stdout 丢失 → 去掉 tee，Python 直接 `>> "$LOG_FILE"`
+
+#### 重构 (refactor)
+- **CSS 架构迁移**：`style.css`（4,904 行死文件）彻底删除，内容完整迁移至 `base.css` / `chat.css` / `page.css`
+- **Toast/弹出框容器解耦**：Toast 挂 `#siperNotifRoot`（fixed 顶部居中），弹出框 overlay 直挂 `document.body`（fixed inset:0），两者独立定位
+- **69 个 `js-*` 工具类 CSS 补充**：工具页面 / 统计页面 / 目录页面 / 模型管理页面等独立页面样式完整迁移
+- **原生 confirm/prompt 替换**：`model-settings.js` 3 处原生对话框全部替换为 `showConfirm` / `showInput`
 
 ### v0.2.1 (2026-06-17)
 

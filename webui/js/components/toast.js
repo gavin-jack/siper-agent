@@ -10,18 +10,30 @@ export function _getNotifRoot() {
   if (!root) {
     root = document.createElement('div');
     root.id = NOTIF_ROOT_ID;
-    document.body.prepend(root);
+    root.style.position = 'fixed';
+    root.style.top = '60px';
+    root.style.left = '50%';
+    root.style.transform = 'translateX(-50%)';
+    root.style.zIndex = '99999';
+    root.style.pointerEvents = 'none';
+    root.style.display = 'flex';
+    root.style.flexDirection = 'column';
+    root.style.alignItems = 'center';
+    root.style.gap = '8px';
+    document.body.appendChild(root);
   }
   return root;
 }
 
 // ===== 通用 Overlay（confirm/input/dictModal 共用）=====
+// 弹出框独立于 toast 容器，fixed 全屏覆盖，内容上下左右居中
 function _createOverlay() {
-  const root = _getNotifRoot();
   const overlay = document.createElement('div');
   overlay.className = 'siper-notif-overlay';
-  root.appendChild(overlay);
-  // 触发淡入
+  overlay.style.position = 'fixed';
+  overlay.style.inset = '0';
+  overlay.style.zIndex = '99999';
+  document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('siper-notif-overlay-in'));
   return overlay;
 }
@@ -53,7 +65,8 @@ export const toast = {
     el.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
 
     const icons = { success: '✓', error: '✗', warning: '⚠', info: 'ℹ' };
-    const progressMs = duration || (type === 'error' ? 4000 : type === 'warning' ? 3000 : 2000);
+    const defaults = { success: 1500, error: 3000, warning: 2000, info: 2000 };
+    const progressMs = duration || defaults[type] || 2000;
 
     el.innerHTML = `
       <span class="siper-notif-icon">${icons[type] || 'ℹ'}</span>
@@ -108,8 +121,7 @@ export const toast = {
 // ===== Confirm 对话框 =====
 // 防重复调用：移除已存在的 confirm overlay
 function _removeExistingConfirm() {
-  const root = _getNotifRoot();
-  const existing = root.querySelector('.siper-notif-confirm');
+  const existing = document.querySelector('.siper-notif-confirm');
   if (existing) {
     const ov = existing.closest('.siper-notif-overlay');
     if (ov) _removeOverlay(ov);
@@ -166,13 +178,13 @@ export function showConfirm(opts) {
 
 export function cancelConfirm(e) {
   // 兼容旧调用：关闭当前 open 的 confirm
-  const overlay = _getNotifRoot().querySelector('.siper-notif-overlay');
+  const overlay = document.querySelector('.siper-notif-overlay');
   if (overlay) _removeOverlay(overlay);
 }
 
 export function execConfirm() {
   // 兼容旧调用：执行当前 confirm 的回调（已改为闭包绑定，此函数仅作兼容）
-  const overlay = _getNotifRoot().querySelector('.siper-notif-overlay');
+  const overlay = document.querySelector('.siper-notif-overlay');
   if (overlay) _removeOverlay(overlay);
 }
 
@@ -227,7 +239,7 @@ export function showInput(opts) {
 }
 
 export function cancelInput() {
-  const overlay = _getNotifRoot().querySelector('.siper-notif-overlay');
+  const overlay = document.querySelector('.siper-notif-overlay');
   if (overlay) _removeOverlay(overlay);
   _inputCallback = null;
 }
@@ -297,7 +309,7 @@ export function showForm(opts) {
 }
 
 export function execInput() {
-  const overlay = _getNotifRoot().querySelector('.siper-notif-overlay');
+  const overlay = document.querySelector('.siper-notif-overlay');
   const textarea = overlay?.querySelector('.siper-notif-input-field');
   const val = textarea?.value || '';
   _removeOverlay(overlay);
@@ -309,7 +321,7 @@ let _dictModalState = { previousFocus: null };
 
 export function showDictModal(data) {
   // 关闭已存在的
-  const existing = _getNotifRoot().querySelector('.siper-notif-dict-overlay');
+  const existing = document.querySelector('.siper-notif-dict-overlay');
   if (existing) existing.remove();
 
   _dictModalState.previousFocus = document.activeElement;
@@ -320,6 +332,9 @@ export function showDictModal(data) {
 
   const overlay = document.createElement('div');
   overlay.className = 'siper-notif-overlay siper-notif-dict-overlay';
+  overlay.style.position = 'fixed';
+  overlay.style.inset = '0';
+  overlay.style.zIndex = '99999';
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
 
@@ -461,19 +476,21 @@ export function showDictModal(data) {
     if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); }
   });
 
-  _getNotifRoot().appendChild(overlay);
+  document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('siper-notif-overlay-in'));
   requestAnimationFrame(() => searchInput.focus());
 }
 
 // ===== Image Lightbox =====
 export function openImageLightbox(src, name) {
-  const root = _getNotifRoot();
-  const existing = root.querySelector('.siper-notif-img-lightbox');
+  const existing = document.querySelector('.siper-notif-img-lightbox');
   if (existing) existing.remove();
 
   const overlay = document.createElement('div');
   overlay.className = 'siper-notif-overlay siper-notif-img-lightbox';
+  overlay.style.position = 'fixed';
+  overlay.style.inset = '0';
+  overlay.style.zIndex = '99999';
 
   const box = document.createElement('div');
   box.className = 'siper-notif-img-box';
@@ -484,7 +501,7 @@ export function openImageLightbox(src, name) {
   `;
 
   overlay.appendChild(box);
-  root.appendChild(overlay);
+  document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('siper-notif-overlay-in'));
 
   const close = () => _removeOverlay(overlay);
@@ -496,7 +513,7 @@ export function openImageLightbox(src, name) {
 }
 
 export function closeImageLightbox() {
-  const lb = _getNotifRoot().querySelector('.siper-notif-img-lightbox');
+  const lb = document.querySelector('.siper-notif-img-lightbox');
   if (lb) _removeOverlay(lb);
 }
 

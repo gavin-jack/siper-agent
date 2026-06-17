@@ -2048,41 +2048,6 @@ def api_get_logs(full_path, log_buffer=None):
         else:
             chat_url = base_url + "/v1/chat/completions"
 
-
-
-    async def api_test_model(body):
-        """Send a test message to verify a model is working and detect capabilities.
-        Body: { "base_url": "...", "model": "...", "api_key": "..." }
-        Returns: { "success": true/false, "response": "...", "latency_ms": N, "error": "...",
-                   "capabilities": ["vision", "function_calling", ...] }
-        """
-        import urllib.request as _urllib_request
-        import ssl as _ssl
-        base_url = (body.get("base_url") or "").rstrip("/")
-        api_key = body.get("api_key", "")
-        model = body.get("model", "")
-        provider_id = body.get("provider_id", 0)
-        if not base_url or not model:
-            return {"success": False, "error": "base_url 和 model 不能为空"}
-        # If api_key is masked (from frontend /api/models/global), look up real key from models.db
-        if api_key.startswith("*") or not api_key:
-            try:
-                _db_model = _models_db.get_model(model, int(provider_id) if provider_id else 0)
-                if _db_model:
-                    _new_key = _db_model.get("prov_api_key", "") or ""
-                    if _new_key and not _new_key.startswith("*"):
-                        api_key = _new_key
-                    if not base_url:
-                        base_url = _db_model.get("prov_base_url", "") or ""
-            except Exception:
-                pass
-        if not api_key or api_key.startswith("*"):
-            return {"success": False, "error": "无法获取模型 API key，请在 Web UI 配置页面设置"}
-        if base_url.endswith("/v1"):
-            chat_url = base_url + "/chat/completions"
-        else:
-            chat_url = base_url + "/v1/chat/completions"
-
         def _do_test():
             ctx = _ssl.create_default_context()
             ctx.check_hostname = False

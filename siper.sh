@@ -12,6 +12,13 @@ LOG_FILE="/tmp/siper_file.log"
 STARTUP_LOG="/tmp/siper_startup.log"
 PORT=9724
 
+# 从 startup.log 提取 ✔/❌/⚠/⏳ 行并格式化显示
+_show_progress() {
+    if [ -f "$STARTUP_LOG" ]; then
+        grep -E '^[[:space:]]*[✔❌⚠⏳]' "$STARTUP_LOG" | tail -20
+    fi
+}
+
 get_pid() {
     pgrep -f "$MAIN_FILE" 2>/dev/null | head -1
 }
@@ -29,17 +36,54 @@ start() {
 
     echo "启动 SiPer..."
     cd "$PROJECT_DIR"
+    # 清空启动日志，启动时同时写文件和 stdout
+    > "$STARTUP_LOG"
     $PYTHON -u "$MAIN_FILE" >> "$LOG_FILE" 2>&1 &
     local pid=$!
     echo "$pid" > "$PID_FILE"
-    echo "SiPer 已启动 (PID: $pid)"
 
-    # 等待服务就绪
+    # 等待服务就绪，期间显示进度
     local retry=0
+    local last_shown=""
     while [ $retry -lt 30 ]; do
         if ss -tlnp 2>/dev/null | grep -q ":$PORT "; then
-            echo "服务已就绪 (端口 $PORT)"
+            # 等待启动验证完成（最多 5 秒）
+            local vretry=0
+            while [ $vretry -lt 10 ]; do
+                if grep -q '启动验证:' "$STARTUP_LOG" 2>/dev/null; then
+                    break
+                fi
+                sleep 0.5
+                vretry=$((vretry + 1))
+            done
+            # 内存写入（按实际启动顺序）
+            echo "内存写入："
+            grep -E '✔ (模型|Agent|LLM|Token|内存)' "$STARTUP_LOG" 2>/dev/null
+            echo ""
+
+            # 启动验证
+            echo "启动验证："
+            local verify_line
+            verify_line=$(grep -E '✔ 启动验证' "$STARTUP_LOG" 2>/dev/null | tail -1)
+            if [ -n "$verify_line" ]; then
+                echo "$verify_line"
+            else
+                echo "(等待中...)"
+            fi
+            echo ""
+
+            echo "✅ SiPer 运行中 (PID: $pid)"
+            echo ""
+            echo "🌐 前端地址：http://localhost:$PORT"
+            echo ""
             return 0
+        fi
+        # 有新进度行时实时显示
+        local current
+        current=$(_show_progress | tail -1)
+        if [ -n "$current" ] && [ "$current" != "$last_shown" ]; then
+            echo "$current"
+            last_shown="$current"
         fi
         sleep 0.5
         retry=$((retry + 1))
@@ -57,23 +101,34 @@ stop() {
     fi
 
     echo "停止 SiPer (PID: $pid)..."
-    kill -9 "$pid" 2>/dev/null
-    rm -f "$PID_FILE"
+    kill "$pid" 2>/dev/null || true
 
-    # 等待端口释放
+    # 等待进程退出
     local retry=0
     while [ $retry -lt 10 ]; do
-        if ! ss -tlnp 2>/dev/null | grep -q ":$PORT "; then
-            echo "服务已停止"
-            return 0
+        if ! pgrep -f "$MAIN_FILE" > /dev/null 2>&1; then
+            echo "✔ 进程已停止"
+            break
         fi
         sleep 0.5
         retry=$((retry + 1))
     done
 
-    echo "端口未释放，尝试强制清理..."
-    pkill -9 -f "$MAIN_FILE" 2>/dev/null
+    # 等待端口释放
+    retry=0
+    while [ $retry -lt 10 ]; do
+        if ! ss -tlnp 2>/dev/null | grep -q ":$PORT "; then
+            echo "✔ 端口 $PORT 已释放"
+            break
+        fi
+        sleep 0.5
+        retry=$((retry + 1))
+    done
+
+    # 清理 PID 文件
     rm -f "$PID_FILE"
+    echo "✔ PID 文件已清理"
+    echo "✅ SiPer 已停止"
 }
 
 restart() {
