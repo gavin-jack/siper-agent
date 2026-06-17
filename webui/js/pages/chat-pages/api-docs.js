@@ -2,34 +2,39 @@
 // CSS 由 app.js navigateToPage 加载 api-docs.css
 import { t } from '../../utils/i18n.js';
 
-// bfcache 恢复：重新本地化已缓存的 DOM
-window.addEventListener('pageshow', (e) => {
-  if (e.persisted && document.getElementById('swagger-ui')) _localizeAll();
-});
+// DOM 翻译映射：CSS 选择器 → i18n key
+const _selMap = [
+  ['.servers-title', 'apiDocs.servers'],
+  ['.servers select option', 'apiDocs.devServer', true],  // suffix 模式
+  ['td.col_header.response-col_status', 'apiDocs.code'],
+  ['td.col_header.response-col_description', 'apiDocs.description'],
+  ['td.col_header.response-col_links', 'apiDocs.links'],
+  ['button.try-out__btn', 'apiDocs.tryItOut'],
+  ['button.cancel', 'apiDocs.cancel'],
+  ['button.execute', 'apiDocs.execute'],
+];
 
-// 中文本地化映射（不依赖 i18n.js 缓存）
-const L10N = {
-  'servers': '服务器',
-  'devServer': '开发服务器',
-  'responses': '响应',
-  'parameters': '参数',
-  'code': '状态码',
-  'description': '说明',
-  'links': '链接',
-  'tryItOut': '试用',
-  'success': '成功',
-  'internalError': '服务器内部错误',
-  'noLinks': '无链接',
-  'noParameters': '无参数',
-  'execute': '执行',
-  'cancel': '取消',
+// 文本节点映射：英文原文 → i18n key
+const _textMap = {
+  'Success': 'apiDocs.success',
+  'Internal Server Error': 'apiDocs.internalError',
+  'No links': 'apiDocs.noLinks',
+  'No parameters': 'apiDocs.noParameters',
+  'Responses': 'apiDocs.responses',
+  'Parameters': 'apiDocs.parameters',
 };
 
-// 全局 click 监听：操作展开/折叠后重新本地化
-let _docClickRegistered = false;
-document.addEventListener('click', () => {
-  if (!_docClickRegistered) return;
-  setTimeout(_localizeAll, 300);
+// 已翻译节点标记（增量翻译时跳过）
+const _localized = new WeakSet();
+let _observer = null;
+let _rafId = null;
+
+// bfcache 恢复：重新翻译已缓存的 DOM
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted && document.getElementById('swagger-ui')) {
+    _clearFlags();
+    _localizeAll();
+  }
 });
 
 export function renderApiDocsPageChat(container) {
@@ -83,98 +88,90 @@ function _renderSwagger() {
     el.innerHTML = '<div class="empty-state">⚠️ ' + t('apiDocs.renderFailed') + e.message + '</div>';
     return;
   }
-  _waitForSwaggerDOM(() => {
-    _localizeAll();
-    _docClickRegistered = true;
+  // 启动 MutationObserver 持续翻译增量 DOM
+  _startObserver();
+}
+
+function _startObserver() {
+  const el = document.getElementById('swagger-ui');
+  if (!el) return;
+  // 先做一次全量翻译（此时标题栏等已渲染）
+  _localizeAll();
+  // 监听子树变化，增量翻译新增节点
+  if (_observer) _observer.disconnect();
+  _observer = new MutationObserver(() => {
+    // 用 RAF 防抖：同一帧内多次 mutation 只翻译一次
+    if (_rafId) return;
+    _rafId = requestAnimationFrame(() => {
+      _rafId = null;
+      _localizeAll();
+    });
+  });
+  _observer.observe(el, { childList: true, subtree: true });
+  // 全局 click 监听：操作展开/折叠后翻译新增 DOM
+  document.addEventListener('click', _onClick);
+}
+
+function _onClick() {
+  // click 后翻译（等 Swagger UI 完成 DOM 更新）
+  // 用 RAF 确保在 UI 更新后执行
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      _clearFlags();
+      _localizeAll();
+    });
   });
 }
 
-function _waitForSwaggerDOM(callback) {
+function _clearFlags() {
   const el = document.getElementById('swagger-ui');
-  if (el && el.querySelector('.servers-title')) {
-    callback();
-    return;
-  }
-  let tries = 0;
-  const timer = setInterval(() => {
-    tries++;
-    const el2 = document.getElementById('swagger-ui');
-    if (el2 && el2.querySelector('.servers-title')) {
-      clearInterval(timer);
-      callback();
-    } else if (tries >= 15) {
-      clearInterval(timer);
-    }
-  }, 200);
+  if (!el) return;
+  el.querySelectorAll('[data-js-localized]').forEach(n => {
+    n.removeAttribute('data-js-localized');
+  });
+  _localized.clear();
 }
+
+// ── 核心翻译函数 ──────────────────────────────────────
 
 function _localizeAll() {
   const el = document.getElementById('swagger-ui');
   if (!el) return;
 
   // 1. CSS 选择器匹配的元素
-  const selMap = [
-    ['.servers-title', 'servers'],
-    ['.servers select option', 'devServer', true],
-    ['td.col_header.response-col_status', 'code'],
-    ['td.col_header.response-col_description', 'description'],
-    ['td.col_header.response-col_links', 'links'],
-    ['button.try-out__btn', 'tryItOut'],
-    ['button.cancel', 'cancel'],
-    ['button.execute', 'execute'],
-  ];
-  for (const [sel, key, suffixMode] of selMap) {
+  for (const [sel, key, suffixMode] of _selMap) {
     el.querySelectorAll(sel).forEach(node => {
-      if (node.dataset.jsLocalized) return;
+      if (_localized.has(node)) return;
       if (suffixMode) {
         const curr = node.textContent.trim();
         const enSuffix = ' - Development server';
         if (curr.endsWith(enSuffix)) {
-          node.textContent = curr.slice(0, -enSuffix.length) + ' - ' + L10N.devServer;
-          node.dataset.jsLocalized = '1';
+          node.textContent = curr.slice(0, -enSuffix.length) + ' - ' + t(key);
+          _localized.add(node);
         }
       } else {
-        node.textContent = L10N[key];
-        node.dataset.jsLocalized = '1';
+        node.textContent = t(key);
+        _localized.add(node);
       }
     });
   }
 
-  // 2. h4 标签匹配
+  // 2. h4 标签
   el.querySelectorAll('h4').forEach(h4 => {
-    if (h4.dataset.jsLocalized) return;
+    if (_localized.has(h4)) return;
     const txt = h4.textContent.trim();
-    if (txt === 'Responses') { h4.textContent = L10N.responses; h4.dataset.jsLocalized = '1'; }
-    else if (txt === 'Parameters') { h4.textContent = L10N.parameters; h4.dataset.jsLocalized = '1'; }
+    if (txt === 'Responses') { h4.textContent = t('apiDocs.responses'); _localized.add(h4); }
+    else if (txt === 'Parameters') { h4.textContent = t('apiDocs.parameters'); _localized.add(h4); }
   });
 
-  // 3. 文本节点扫描（注意：文本节点没有 dataset，用 parentElement.dataset）
-  const textMap = {
-    'Success': 'success',
-    'Internal Server Error': 'internalError',
-    'No links': 'noLinks',
-    'No parameters': 'noParameters',
-  };
+  // 3. 文本节点
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
   while (walker.nextNode()) {
     const node = walker.currentNode;
-    const parent = node.parentElement;
-    if (parent && parent.dataset.jsLocalized) continue;
     const txt = node.textContent.trim();
-    for (const [en, key] of Object.entries(textMap)) {
-      if (txt === en) {
-        node.textContent = L10N[key];
-        if (parent) parent.dataset.jsLocalized = '1';
-        break;
-      }
-    }
-    if (txt === 'Responses') {
-      node.textContent = L10N.responses;
-      if (parent) parent.dataset.jsLocalized = '1';
-    }
-    if (txt === 'Parameters') {
-      node.textContent = L10N.parameters;
-      if (parent) parent.dataset.jsLocalized = '1';
+    if (txt in _textMap && !_localized.has(node)) {
+      node.textContent = t(_textMap[txt]);
+      _localized.add(node);
     }
   }
 }

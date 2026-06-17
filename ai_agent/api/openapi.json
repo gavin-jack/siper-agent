@@ -3,18 +3,18 @@
   "info": {
     "title": "SiPer AI Agent API",
     "version": "1.0.0",
-    "description": "SiPer AI Agent RESTful API — auto-generated from router.py decorators"
+    "description": "SiPer AI Agent RESTful API — 由 router.py 装饰器自动生成"
   },
   "servers": [
     {
       "url": "http://127.0.0.1:9724",
-      "description": "Development server"
+      "description": "开发服务器"
     }
   ],
   "paths": {
     "/api/agents": {
       "get": {
-        "summary": "api_agents_get",
+        "summary": "Agents Get",
         "operationId": "api_agents_get",
         "tags": [
           "agents"
@@ -29,7 +29,7 @@
         }
       },
       "post": {
-        "summary": "api_agents_post",
+        "summary": "Agents Post",
         "operationId": "api_agents_post",
         "tags": [
           "agents"
@@ -55,7 +55,7 @@
     },
     "/api/agents/{name}": {
       "delete": {
-        "summary": "api_agents_delete",
+        "summary": "Agents Delete",
         "operationId": "api_agents_delete",
         "tags": [
           "agents"
@@ -67,30 +67,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ]
+        }
       }
     },
     "/api/agents/{name}/config": {
       "get": {
-        "summary": "api_agents_config_get",
+        "summary": "Agents Config Get",
         "operationId": "api_agents_config_get",
         "tags": [
           "agents"
@@ -102,28 +84,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ]
+        }
       },
       "post": {
-        "summary": "api_agents_config_post",
+        "summary": "Agents Config Post",
         "operationId": "api_agents_config_post",
         "tags": [
           "agents"
@@ -136,24 +100,6 @@
             "description": "Internal Server Error"
           }
         },
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -167,7 +113,7 @@
     },
     "/api/agents/{name}/memory": {
       "get": {
-        "summary": "api_agents_memory_get",
+        "summary": "Agents Memory Get",
         "operationId": "api_agents_memory_get",
         "tags": [
           "agents"
@@ -179,28 +125,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ]
+        }
       },
       "post": {
-        "summary": "api_agents_memory_post",
+        "summary": "Agents Memory Post",
         "operationId": "api_agents_memory_post",
         "tags": [
           "agents"
@@ -213,24 +141,6 @@
             "description": "Internal Server Error"
           }
         },
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -244,7 +154,7 @@
     },
     "/api/agents/{name}/meta": {
       "post": {
-        "summary": "api_agents_meta_post",
+        "summary": "Agents Meta Post",
         "operationId": "api_agents_meta_post",
         "tags": [
           "agents"
@@ -257,24 +167,6 @@
             "description": "Internal Server Error"
           }
         },
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -288,7 +180,7 @@
     },
     "/api/agents/{name}/rename": {
       "post": {
-        "summary": "api_agents_rename_post",
+        "summary": "Agents Rename Post",
         "operationId": "api_agents_rename_post",
         "tags": [
           "agents"
@@ -301,24 +193,6 @@
             "description": "Internal Server Error"
           }
         },
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -332,7 +206,7 @@
     },
     "/api/agents/{name}/soul": {
       "get": {
-        "summary": "api_agents_soul_get",
+        "summary": "Agents Soul Get",
         "operationId": "api_agents_soul_get",
         "tags": [
           "agents"
@@ -344,28 +218,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ]
+        }
       },
       "post": {
-        "summary": "api_agents_soul_post",
+        "summary": "Agents Soul Post",
         "operationId": "api_agents_soul_post",
         "tags": [
           "agents"
@@ -378,24 +234,6 @@
             "description": "Internal Server Error"
           }
         },
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -409,7 +247,7 @@
     },
     "/api/avatar": {
       "get": {
-        "summary": "api_avatar_get",
+        "summary": "Avatar Get",
         "operationId": "api_avatar_get",
         "tags": [
           "avatar"
@@ -426,7 +264,7 @@
     },
     "/api/avatar/upload": {
       "post": {
-        "summary": "api_avatar_upload",
+        "summary": "Avatar Upload",
         "operationId": "api_avatar_upload",
         "tags": [
           "avatar"
@@ -452,7 +290,7 @@
     },
     "/api/config": {
       "get": {
-        "summary": "api_config_get",
+        "summary": "Config Get",
         "operationId": "api_config_get",
         "tags": [
           "config"
@@ -467,7 +305,7 @@
         }
       },
       "post": {
-        "summary": "api_config_post",
+        "summary": "Config Post",
         "operationId": "api_config_post",
         "tags": [
           "config"
@@ -493,7 +331,7 @@
     },
     "/api/logs": {
       "get": {
-        "summary": "api_logs_get",
+        "summary": "Logs Get",
         "operationId": "api_logs_get",
         "tags": [
           "logs"
@@ -505,22 +343,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "parameters": [
-          {
-            "name": "full_path",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ]
+        }
       }
     },
     "/api/memory": {
       "get": {
-        "summary": "api_memory_get",
+        "summary": "Memory Get",
         "operationId": "api_memory_get",
         "tags": [
           "memory"
@@ -535,7 +363,7 @@
         }
       },
       "post": {
-        "summary": "api_memory_post",
+        "summary": "Memory Post",
         "operationId": "api_memory_post",
         "tags": [
           "memory"
@@ -559,7 +387,7 @@
         }
       },
       "delete": {
-        "summary": "api_memory_delete",
+        "summary": "Memory Delete",
         "operationId": "api_memory_delete",
         "tags": [
           "memory"
@@ -576,7 +404,7 @@
     },
     "/api/memory/config": {
       "get": {
-        "summary": "api_memory_config_get",
+        "summary": "Memory Config Get",
         "operationId": "api_memory_config_get",
         "tags": [
           "memory"
@@ -591,7 +419,7 @@
         }
       },
       "post": {
-        "summary": "api_memory_config_post",
+        "summary": "Memory Config Post",
         "operationId": "api_memory_config_post",
         "tags": [
           "memory"
@@ -617,7 +445,7 @@
     },
     "/api/models/discover": {
       "post": {
-        "summary": "api_models_discover",
+        "summary": "Models Discover",
         "operationId": "api_models_discover",
         "tags": [
           "models"
@@ -643,7 +471,7 @@
     },
     "/api/models/global": {
       "get": {
-        "summary": "api_models_global_get",
+        "summary": "Models Global Get",
         "operationId": "api_models_global_get",
         "tags": [
           "models"
@@ -658,8 +486,34 @@
         }
       },
       "post": {
-        "summary": "api_models_global_post",
+        "summary": "Models Global Post",
         "operationId": "api_models_global_post",
+        "tags": [
+          "models"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/provider": {
+      "post": {
+        "summary": "Models Provider Create",
+        "operationId": "api_models_provider_create",
         "tags": [
           "models"
         ],
@@ -684,7 +538,7 @@
     },
     "/api/models/reset": {
       "post": {
-        "summary": "api_models_reset",
+        "summary": "Models Reset",
         "operationId": "api_models_reset",
         "tags": [
           "models"
@@ -708,9 +562,9 @@
         }
       }
     },
-    "/api/models/{model_id}": {
-      "delete": {
-        "summary": "api_models_delete",
+    "/api/models/test": {
+      "post": {
+        "summary": "Models Delete",
         "operationId": "api_models_delete",
         "tags": [
           "models"
@@ -723,29 +577,37 @@
             "description": "Internal Server Error"
           }
         },
-        "parameters": [
-          {
-            "name": "model_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "model_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
             }
           }
-        ]
+        }
+      }
+    },
+    "/api/openapi.json": {
+      "get": {
+        "summary": "Openspec",
+        "operationId": "api_openapi_spec",
+        "tags": [
+          "openapi.json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
       }
     },
     "/api/project-structure": {
       "get": {
-        "summary": "api_project_structure_get",
+        "summary": "Project Structure Get",
         "operationId": "api_project_structure_get",
         "tags": [
           "project-structure"
@@ -762,7 +624,7 @@
     },
     "/api/providers/rename": {
       "post": {
-        "summary": "api_providers_rename",
+        "summary": "Providers Rename",
         "operationId": "api_providers_rename",
         "tags": [
           "providers"
@@ -788,7 +650,7 @@
     },
     "/api/providers/update_name": {
       "post": {
-        "summary": "api_providers_update_name",
+        "summary": "Providers Update Name",
         "operationId": "api_providers_update_name",
         "tags": [
           "providers"
@@ -814,7 +676,7 @@
     },
     "/api/save-response-dict": {
       "post": {
-        "summary": "api_save_response_dict",
+        "summary": "Save Response Dict",
         "operationId": "api_save_response_dict",
         "tags": [
           "save-response-dict"
@@ -840,7 +702,7 @@
     },
     "/api/sessions": {
       "get": {
-        "summary": "api_sessions",
+        "summary": "Sessions",
         "operationId": "api_sessions",
         "tags": [
           "sessions"
@@ -855,7 +717,7 @@
         }
       },
       "delete": {
-        "summary": "api_sessions_clear",
+        "summary": "Sessions Clear",
         "operationId": "api_sessions_clear",
         "tags": [
           "sessions"
@@ -872,7 +734,7 @@
     },
     "/api/sessions/{sid}": {
       "get": {
-        "summary": "api_sessions_get",
+        "summary": "Sessions Get",
         "operationId": "api_sessions_get",
         "tags": [
           "sessions"
@@ -884,28 +746,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "parameters": [
-          {
-            "name": "sid",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "sid",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ]
+        }
       },
       "delete": {
-        "summary": "api_sessions_delete",
+        "summary": "Sessions Delete",
         "operationId": "api_sessions_delete",
         "tags": [
           "sessions"
@@ -917,28 +761,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "parameters": [
-          {
-            "name": "sid",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "sid",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ]
+        }
       },
       "put": {
-        "summary": "api_sessions_put",
+        "summary": "Sessions Put",
         "operationId": "api_sessions_put",
         "tags": [
           "sessions"
@@ -951,24 +777,6 @@
             "description": "Internal Server Error"
           }
         },
-        "parameters": [
-          {
-            "name": "sid",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "sid",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -982,7 +790,7 @@
     },
     "/api/skills": {
       "get": {
-        "summary": "api_skills_get",
+        "summary": "Skills Get",
         "operationId": "api_skills_get",
         "tags": [
           "skills"
@@ -999,7 +807,7 @@
     },
     "/api/skills/preview": {
       "post": {
-        "summary": "api_skills_preview",
+        "summary": "Skills Preview",
         "operationId": "api_skills_preview",
         "tags": [
           "skills"
@@ -1025,7 +833,7 @@
     },
     "/api/skills/refresh": {
       "post": {
-        "summary": "刷新技能注册表：重扫 skills/ 目录 + 重建预筛选索引 + 覆盖内存",
+        "summary": "Skills Refresh",
         "operationId": "api_skills_refresh",
         "tags": [
           "skills"
@@ -1051,7 +859,7 @@
     },
     "/api/skills/stats": {
       "get": {
-        "summary": "api_skills_stats",
+        "summary": "Skills Stats",
         "operationId": "api_skills_stats",
         "tags": [
           "skills"
@@ -1068,7 +876,7 @@
     },
     "/api/stats": {
       "get": {
-        "summary": "api_stats_get",
+        "summary": "Stats Get",
         "operationId": "api_stats_get",
         "tags": [
           "stats"
@@ -1085,7 +893,7 @@
     },
     "/api/status": {
       "get": {
-        "summary": "api_status",
+        "summary": "Status",
         "operationId": "api_status",
         "tags": [
           "status"
@@ -1102,7 +910,7 @@
     },
     "/api/theme/delete": {
       "delete": {
-        "summary": "api_theme_delete",
+        "summary": "Theme Delete",
         "operationId": "api_theme_delete",
         "tags": [
           "theme"
@@ -1119,7 +927,7 @@
     },
     "/api/theme/export": {
       "get": {
-        "summary": "api_theme_export",
+        "summary": "Theme Export",
         "operationId": "api_theme_export",
         "tags": [
           "theme"
@@ -1136,7 +944,7 @@
     },
     "/api/theme/import": {
       "post": {
-        "summary": "api_theme_import",
+        "summary": "Theme Import",
         "operationId": "api_theme_import",
         "tags": [
           "theme"
@@ -1162,7 +970,7 @@
     },
     "/api/theme/load": {
       "get": {
-        "summary": "api_theme_load",
+        "summary": "Theme Load",
         "operationId": "api_theme_load",
         "tags": [
           "theme"
@@ -1174,22 +982,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "parameters": [
-          {
-            "name": "full_path",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ]
+        }
       }
     },
     "/api/theme/save": {
       "post": {
-        "summary": "api_theme_save",
+        "summary": "Theme Save",
         "operationId": "api_theme_save",
         "tags": [
           "theme"
@@ -1215,7 +1013,7 @@
     },
     "/api/theme/templates": {
       "get": {
-        "summary": "api_theme_templates",
+        "summary": "Theme Templates",
         "operationId": "api_theme_templates",
         "tags": [
           "theme"
@@ -1232,7 +1030,7 @@
     },
     "/api/token": {
       "get": {
-        "summary": "api_token_get",
+        "summary": "Token Get",
         "operationId": "api_token_get",
         "tags": [
           "token"
@@ -1249,7 +1047,7 @@
     },
     "/api/tools": {
       "get": {
-        "summary": "api_tools_get",
+        "summary": "Tools Get",
         "operationId": "api_tools_get",
         "tags": [
           "tools"
@@ -1266,7 +1064,7 @@
     },
     "/api/upgrade": {
       "post": {
-        "summary": "api_upgrade",
+        "summary": "Upgrade",
         "operationId": "api_upgrade",
         "tags": [
           "upgrade"
@@ -1292,7 +1090,7 @@
     },
     "/api/upgrade/check": {
       "get": {
-        "summary": "api_upgrade_check",
+        "summary": "Upgrade Check",
         "operationId": "api_upgrade_check",
         "tags": [
           "upgrade"
@@ -1309,7 +1107,7 @@
     },
     "/api/upload": {
       "post": {
-        "summary": "api_upload_post",
+        "summary": "Upload Post",
         "operationId": "api_upload_post",
         "tags": [
           "upload"
@@ -1335,7 +1133,7 @@
     },
     "/api/v1/state/snapshot": {
       "get": {
-        "summary": "api_state_snapshot",
+        "summary": "State Snapshot",
         "operationId": "api_state_snapshot",
         "tags": [
           "v1"
@@ -1352,7 +1150,7 @@
     },
     "/api/version": {
       "get": {
-        "summary": "api_version",
+        "summary": "Version",
         "operationId": "api_version",
         "tags": [
           "version"
