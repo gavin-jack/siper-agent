@@ -39,6 +39,7 @@ EXCLUDE_DIRS = {
     "uploads",
     "data",
     ".cleanup_backup",
+    "backup",
     "references",
     "scripts",
 }
@@ -72,7 +73,7 @@ EXCLUDE_FILES = {
     "outbox.json",
 }
 
-EXCLUDE_EXTENSIONS = {".pyc"}
+EXCLUDE_EXTENSIONS = {".pyc", ".tar.gz"}
 
 EXCLUDE_PATTERNS = [
     ":Zone.Identifier",

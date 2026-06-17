@@ -298,10 +298,9 @@ const PAGE_RENDER_FN = {
 };
 
 // ===== CSS 按需加载 =====
-const _loadedCss = new Set();
+// 每次调用都移除旧 link 再重新加载，确保 CSS 修改后浏览器获取最新版本
 function loadCss(href) {
-  if (_loadedCss.has(href)) return;
-  _loadedCss.add(href);
+  document.querySelectorAll('link[href^="' + href + '"]').forEach(l => l.remove());
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   link.href = href + '?v=' + Date.now();
