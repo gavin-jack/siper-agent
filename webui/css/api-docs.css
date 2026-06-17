@@ -1,0 +1,40 @@
+/* ===== API 文档页面（Swagger UI）独立样式 ===== */
+/* 覆盖 Swagger UI CDN 默认间距，实现紧凑 + 瀑布流布局 */
+
+/* --- 页面框架 --- */
+.page-header { padding: 8px 24px; margin-bottom: 0; }
+.page-body { padding: 4px 24px 12px; }
+
+/* --- Swagger UI 间距收紧 --- */
+.swagger-ui .info { margin-top: 8px !important; margin-bottom: 8px !important; }
+.swagger-ui .info .title { font-size: 18px !important; }
+.swagger-ui .info .title small { font-size: 12px !important; }
+.swagger-ui .scheme-container { margin-bottom: 4px !important; padding: 8px 0 !important; }
+.swagger-ui .opblock { margin-bottom: 4px !important; border-radius: 6px !important; }
+.swagger-ui .opblock-summary { padding: 3px 6px !important; }
+.swagger-ui .opblock-summary-method { font-size: 12px !important; min-width: 50px !important; padding: 2px 6px !important; }
+.swagger-ui .opblock-summary-path { font-size: 12px !important; }
+.swagger-ui .opblock-summary-description { font-size: 11px !important; }
+.swagger-ui .opblock-tag { margin: 6px 0 !important; font-size: 14px !important; }
+.swagger-ui .wrapper { padding: 0 !important; }
+.swagger-ui .renderedMarkdown p { margin: 4px 0 !important; font-size: 13px !important; }
+
+/* --- 瀑布流：两列 grid 布局（最小 45%，考虑间距） --- */
+/* 只对包含 opblock-tag-section 的 wrapper 生效，info/scheme 区域保持通栏 */
+.swagger-ui .wrapper:not(.information-container.wrapper) {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(45%, 1fr));
+  gap: 8px;
+}
+.swagger-ui .wrapper .block.col-12 {
+  grid-column: span 1 !important;
+  float: none !important;
+  width: 100% !important;
+}
+
+/* --- 缩小屏幕时自动变单列 --- */
+@media (max-width: 800px) {
+  .swagger-ui .wrapper:not(.information-container.wrapper) {
+    grid-template-columns: 1fr;
+  }
+}

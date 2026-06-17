@@ -31,19 +31,6 @@ import * as Memory from './pages/memory.js';
 import * as AgentConfig from './pages/agent-config.js';
 import * as Theme from './pages/theme.js';
 
-// Chat-pages (全量 import 避免 ESM 缓存导致动态 import 失败)
-import * as Tasks from './pages/chat-pages/tasks.js';
-import * as Skills from './pages/chat-pages/skills.js';
-import * as Plugins from './pages/chat-pages/plugins.js';
-import * as Token from './pages/chat-pages/token.js';
-import * as Settings from './pages/chat-pages/settings.js';
-import * as ModelSettings from './pages/chat-pages/model-settings.js';
-import * as Logs from './pages/chat-pages/logs.js';
-import * as Monitor from './pages/chat-pages/monitor.js';
-import * as Tools from './pages/chat-pages/tools.js';
-import * as Directory from './pages/chat-pages/directory.js';
-import * as ApiDocs from './pages/chat-pages/api-docs.js';
-
 // ===== Window Global Mounts =====
 // Utils
 window.escapeHtml = escapeHtml;
@@ -79,6 +66,27 @@ window.AgentModels = AgentModels;
 window.toggleChatModelDropdown = toggleChatModelDropdown;
 window.startNewChat = startNewChat;
 window.newSession = newSession;
+
+// ===== 全局事件监听（sidebar 初始化前注册，始终有效） =====
+// hash 丢失恢复守卫：所有独立页面 hash 被清空时自动恢复
+window.addEventListener('hashchange', () => {
+  const h = location.hash;
+  if (h === '#/' || h === '#' || h === '') {
+    const current = window.__getPageCache?.('current_page');
+    if (current) {
+      history.replaceState(null, '', '#/' + current);
+    }
+  }
+});
+// 全局复制按钮 toast：劫持所有 .copy-to-clipboard 按钮
+document.addEventListener('click', (e) => {
+  const btn = e.target?.closest?.('.copy-to-clipboard');
+  if (btn) {
+    requestAnimationFrame(() => {
+      if (window.toast) window.toast.success(t('apiDocs.copied'), 1500);
+    });
+  }
+}, true);
 
 // Template-clone page functions
 window.showAddAgentModal = AgentConfig.showAddAgentModal;
@@ -248,22 +256,6 @@ function tplTheme() {
   </div>`;
 }
 
-// ===== 懒加载映射：页面名 → 模块对象（全量 import，无需动态 import） =====
-const PAGE_LAZY = {
-  'tasks':     Tasks,
-  'skills':    Skills,
-  'plugins':  Plugins,
-  'token':     Token,
-  'settings': Settings,
-  'global-settings': Settings,
-  'model-settings': ModelSettings,
-  'logs':      Logs,
-  'monitor':  Monitor,
-  'tools':     Tools,
-  'directory': Directory,
-  'api-docs':   ApiDocs,
-};
-
 // Template-clone pages 已全量加载，直接映射
 const PAGE_TEMPLATE = {
   'sessions': Sessions,
@@ -290,6 +282,31 @@ const PAGE_RENDER_FN = {
   'memory':    'renderMemoryContent',
   'agent-config': 'showAddAgentModal',
   'theme':  'showThemeSettings',
+};
+
+// ===== 动态页面模块加载器 =====
+const _PAGE_CACHE_VER = Date.now();
+const _pageModCache = {};
+async function _loadPageModule(page) {
+  if (_pageModCache[page]) return _pageModCache[page];
+  _pageModCache[page] = await import(`./pages/chat-pages/${page}.js?v=${_PAGE_CACHE_VER}`);
+  return _pageModCache[page];
+}
+
+// 按需加载的页面：页面名 → Promise<module>
+const PAGE_LAZY_LOADER = {
+  'tasks': () => _loadPageModule('tasks'),
+  'skills': () => _loadPageModule('skills'),
+  'plugins': () => _loadPageModule('plugins'),
+  'token': () => _loadPageModule('token'),
+  'settings': () => _loadPageModule('settings'),
+  'global-settings': () => _loadPageModule('settings'),
+  'model-settings': () => _loadPageModule('model-settings'),
+  'logs': () => _loadPageModule('logs'),
+  'monitor': () => _loadPageModule('monitor'),
+  'tools': () => _loadPageModule('tools'),
+  'directory': () => _loadPageModule('directory'),
+  'api-docs': () => _loadPageModule('api-docs'),
 };
 
 // ===== CSS 按需加载 =====
@@ -331,7 +348,7 @@ async function navigateToPage(page, tab) {
   document.getElementById('page-chat').style.display = 'none';
   document.getElementById('sidebarContainer').style.display = '';
   loadCss('/css/page.css');
-
+  if (page === 'api-docs') loadCss('/css/api-docs.css');
   try {
     // Template-clone pages: 先创建模板 DOM
     if (PAGE_TEMPLATE[page]) {
@@ -345,8 +362,8 @@ async function navigateToPage(page, tab) {
     let mod;
     if (PAGE_TEMPLATE[page]) {
       mod = PAGE_TEMPLATE[page];
-    } else if (PAGE_LAZY[page]) {
-      mod = PAGE_LAZY[page];
+    } else if (PAGE_LAZY_LOADER[page]) {
+      mod = await PAGE_LAZY_LOADER[page]();
     } else {
       return;
     }

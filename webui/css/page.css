@@ -706,10 +706,9 @@
 /* ============================================================ */
 /* ============================================================ */
 /* Common page layout */.page-header {
-  padding: 16px 24px; border-bottom: 1px solid var(--color-border);
-  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 24px;
 }.page-header h2 { font-size: 16px; font-weight: 600; }.page-header .actions { display: flex; gap: 8px; }
-.page-body { flex: 1; overflow-y: auto; min-height: 0; padding: 16px 24px; }
+.page-body { padding: 16px 24px; }
 .btn-sm {
   padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;
   border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text);
