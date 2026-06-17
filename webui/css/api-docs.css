@@ -19,22 +19,26 @@
 .swagger-ui .wrapper { padding: 0 !important; }
 .swagger-ui .renderedMarkdown p { margin: 4px 0 !important; font-size: 13px !important; }
 
-/* --- 瀑布流：两列 grid 布局（最小 45%，考虑间距） --- */
-/* 只对包含 opblock-tag-section 的 wrapper 生效，info/scheme 区域保持通栏 */
+/* --- 瀑布流：CSS Columns 实现的 Masonry 布局 --- */
+/* 信息区域和服务器区域保持通栏，操作标签区两列瀑布流 */
 .swagger-ui .wrapper:not(.information-container.wrapper) {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(45%, 1fr));
-  gap: 8px;
+  column-count: 2 !important;
+  column-gap: 10px !important;
+  display: block !important;
 }
-.swagger-ui .wrapper .block.col-12 {
-  grid-column: span 1 !important;
+/* 每个操作块不跨列断 */
+.swagger-ui .wrapper:not(.information-container.wrapper) .block.col-12 {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+  -webkit-column-break-inside: avoid !important;
   float: none !important;
   width: 100% !important;
+  display: inline-block !important;
 }
 
 /* --- 缩小屏幕时自动变单列 --- */
 @media (max-width: 800px) {
   .swagger-ui .wrapper:not(.information-container.wrapper) {
-    grid-template-columns: 1fr;
+    column-count: 1 !important;
   }
 }

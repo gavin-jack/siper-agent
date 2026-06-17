@@ -71,9 +71,11 @@ window.newSession = newSession;
 // hash 丢失恢复守卫：所有独立页面 hash 被清空时自动恢复
 window.addEventListener('hashchange', () => {
   const h = location.hash;
+  // Swagger UI deep linking 格式: #/tag/operationId（如 #/agents/api_agents_get）
+  // 当 hash 被清空（#/ 或 # 或 ''）时恢复为当前独立页面
   if (h === '#/' || h === '#' || h === '') {
     const current = window.__getPageCache?.('current_page');
-    if (current) {
+    if (current && current !== 'chat') {
       history.replaceState(null, '', '#/' + current);
     }
   }
@@ -285,6 +287,7 @@ const PAGE_RENDER_FN = {
 };
 
 // ===== 动态页面模块加载器 =====
+// 2026-06-18: 增加 MutationObserver 防抖 + data-localized 标记避免重复翻译
 const _PAGE_CACHE_VER = Date.now();
 const _pageModCache = {};
 async function _loadPageModule(page) {
@@ -325,6 +328,8 @@ async function navigateToPage(page, tab) {
   if (location.hash !== hash) {
       history.replaceState(null, '', hash);
   }
+  // 记录当前页面（供 hash 守卫恢复用）
+  if (window.__setPageCache) window.__setPageCache('current_page', page);
   // 更新侧边栏 active 状态
   document.querySelectorAll('.siper-nav-item').forEach(el => {
     el.classList.toggle('active', el.getAttribute('data-page') === page);

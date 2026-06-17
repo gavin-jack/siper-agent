@@ -2,6 +2,29 @@
 // CSS 由 app.js navigateToPage 加载 api-docs.css
 import { t } from '../../utils/i18n.js';
 
+// bfcache 恢复时重新本地化
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) {
+    _localizeAll();
+  }
+});
+
+// 中文本地化映射（不依赖 i18n.js 缓存的新 key）
+const L10N = {
+  'servers': '服务器',
+  'devServer': '开发服务器',
+  'responses': '响应',
+  'parameters': '参数',
+  'code': '状态码',
+  'description': '说明',
+  'links': '链接',
+  'tryItOut': '试用',
+  'success': '成功',
+  'internalError': '服务器内部错误',
+  'noLinks': '无链接',
+  'noParameters': '无参数',
+};
+
 export function renderApiDocsPageChat(container) {
   container.className = 'siper-content siper-full-content';
   container.innerHTML =
@@ -53,9 +76,26 @@ function _renderSwagger() {
     el.innerHTML = '<div class="empty-state">⚠️ ' + t('apiDocs.renderFailed') + e.message + '</div>';
     return;
   }
-  // 替换 Swagger UI 固定英文为 i18n 文本（Swagger UI 异步渲染，需等待 DOM 就绪）
-  _waitForSwaggerDOM(() => _localizeSwaggerUI());
+  // 等 Swagger UI 异步渲染完成后本地化
+  _waitForSwaggerDOM(() => {
+    _localizeAll();
+    // 监听操作点击事件（bubble 阶段，在 Swagger UI 更新 DOM 后触发）
+    el.addEventListener('click', () => {
+      setTimeout(_localizeAll, 300);
+    });
+    // 监听 hash 变化（Swagger UI deepLinking 展开/折叠操作时改 hash）
+    window.addEventListener('hashchange', _onHashChange);
+    window.addEventListener('popstate', _onHashChange);
+    // 额外安全：每 3 秒检查一次新 DOM
+    setInterval(_localizeAll, 3000);
+  });
   // hash/复制事件由 app.js 全局守卫处理，不再重复绑定
+}
+
+function _onHashChange() {
+  // Swagger UI deepLinking 展开/折叠操作时修改 hash
+  // 等待 Swagger UI 更新完 DOM 后再本地化
+  setTimeout(_localizeAll, 200);
 }
 
 function _waitForSwaggerDOM(callback) {
@@ -64,7 +104,6 @@ function _waitForSwaggerDOM(callback) {
     callback();
     return;
   }
-  // Swagger UI 异步渲染，每 200ms 检查一次，最多 3s
   let tries = 0;
   const timer = setInterval(() => {
     tries++;
@@ -78,15 +117,67 @@ function _waitForSwaggerDOM(callback) {
   }, 200);
 }
 
-function _localizeSwaggerUI() {
+function _localizeAll() {
   const el = document.getElementById('swagger-ui');
   if (!el) return;
-  // "Servers" → 翻译
-  const serversTitle = el.querySelector('.servers-title');
-  if (serversTitle) serversTitle.textContent = t('apiDocs.servers');
-  // "Development server" → 翻译（option 文本）
-  const serverOption = el.querySelector('.servers select option');
-  if (serverOption) {
-    serverOption.textContent = serverOption.textContent.replace(/ - Development server$/, ' - ' + t('apiDocs.devServer'));
+
+  // 1. CSS 选择器匹配
+  const selMap = [
+    ['.servers-title', 'servers'],
+    ['.servers select option', 'devServer', true],
+    ['td.col_header.response-col_status', 'code'],
+    ['td.col_header.response-col_description', 'description'],
+    ['td.col_header.response-col_links', 'links'],
+    ['button.try-out__btn', 'tryItOut'],
+  ];
+  for (const [sel, key, suffixMode] of selMap) {
+    el.querySelectorAll(sel).forEach(node => {
+      if (node.dataset.jsLocalized) return;
+      if (suffixMode) {
+        const curr = node.textContent.trim();
+        const enSuffix = ' - Development server';
+        if (curr.endsWith(enSuffix)) {
+          node.textContent = curr.slice(0, -enSuffix.length) + ' - ' + L10N.devServer;
+          node.dataset.jsLocalized = '1';
+        }
+      } else {
+        node.textContent = L10N[key];
+        node.dataset.jsLocalized = '1';
+      }
+    });
+  }
+
+  // 2. h4 精确匹配
+  el.querySelectorAll('h4').forEach(h4 => {
+    if (h4.dataset.jsLocalized) return;
+    const txt = h4.textContent.trim();
+    if (txt === 'Responses') {
+      h4.textContent = L10N.responses;
+      h4.dataset.jsLocalized = '1';
+    } else if (txt === 'Parameters') {
+      h4.textContent = L10N.parameters;
+      h4.dataset.jsLocalized = '1';
+    }
+  });
+
+  // 3. 文本节点扫描
+  const textMap = {
+    'Success': 'success',
+    'Internal Server Error': 'internalError',
+    'No links': 'noLinks',
+    'No parameters': 'noParameters',
+  };
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    if (node.dataset.jsLocalized) continue;
+    const txt = node.textContent.trim();
+    for (const [en, key] of Object.entries(textMap)) {
+      if (txt === en) {
+        node.textContent = L10N[key];
+        node.dataset.jsLocalized = '1';
+        break;
+      }
+    }
   }
 }
