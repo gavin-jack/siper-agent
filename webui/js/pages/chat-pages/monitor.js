@@ -7,7 +7,7 @@ import { escapeHtml } from '../../utils/escape.js';
 if (typeof window.__onPageCacheRegister === 'function') {
   window.__onPageCacheRegister('monitor', function(data) {
     if (data.perf && typeof _applyPerfData === 'function') _applyPerfData(data.perf);
-    if (data.token && typeof _applyTokenData === 'function') _applyTokenData(data.token);
+    if (data.token && typeof _applyTokenData === 'function' && data.token.total_requests > 0) _applyTokenData(data.token);
     if (data.logs && typeof _applyLogsData === 'function') _applyLogsData(data.logs);
   });
 }
@@ -394,16 +394,15 @@ export function renderMonitorTokenTab() {
   <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">📊 分模型 Token 分布</div><div id="monitorChartModel" class="js-chart-box"></div></div>
   <div class="siper-card siper-token-chart-card card-hover"><div class="siper-token-chart-title">⏰ 24小时 Token 分布</div><div id="monitorChartHourly" class="js-chart-box"></div></div>
 </div>`;
-  // 优先从 page_cache 读取
+  // 优先从 page_cache 读取（非空数据才用）
   const cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('monitor') : null;
-  if (cached && cached.token) {
+  if (cached && cached.token && cached.token.total_requests > 0) {
     _applyTokenData(cached.token);
     return;
   }
   fetch('/api/token').then(r => r.json()).then(data => {
     _applyTokenData(data);
-    // 图表渲染延迟到 switchMonitorTab 中执行（等容器可见）
-  }).catch(e => { console.error('[monitor] renderMonitorTokenTab failed:', e); });
+  }).catch(e => { console.error('[monitor] renderMonitorTokenTab fetch failed:', e); });
 }
 
 function _applyTokenData(data) {
