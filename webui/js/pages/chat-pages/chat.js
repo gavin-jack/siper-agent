@@ -91,8 +91,6 @@ export function initChatPage() {
   }
   // 加载 agent 列表并渲染中栏
   loadAndRenderAgents();
-  // 侧边栏默认折叠
-  if (typeof window.initSidebarCollapse === 'function') window.initSidebarCollapse();
 }
 
 /** 从后端获取 agent + sessions 数据，填充 page_cache 并渲染中栏 */
@@ -157,8 +155,7 @@ window.selectChatAgent = function(agentName) {
         '<button class="agent-tab" data-tab="files" id="agentTabFiles" onclick="window.switchConfigAgentPageTab(\'files\')">属性文件</button>' +
         '<button class="agent-tab" data-tab="memory" id="agentTabMemory" onclick="window.switchConfigAgentPageTab(\'memory\')">记忆</button>' +
         '<button class="agent-tab" data-tab="limits" onclick="window.switchConfigAgentPageTab(\'limits\')">限制</button>' +
-        '<button class="agent-tab" data-tab="models" onclick="window.switchConfigAgentPageTab(\'models\')">模型</button>' +
-        '<button class="agent-tab" data-tab="avatar" onclick="window.switchConfigAgentPageTab(\'avatar\')">头像</button>' +
+
       '</div>' +
       // ── Tab: 关于 ──
       '<div class="agent-tab-content active" id="agentTabContentAbout">' +
@@ -170,8 +167,25 @@ window.selectChatAgent = function(agentName) {
             '<span id="cfgAgentIcon" class="agent-icon-large"></span>' +
             '<button class="btn-sm" id="cfgAgentIconBtn" onclick="window.toggleIconPicker&&window.toggleIconPicker(event)">选择图标</button>' +
           '</div>' +
-          '<label class="config-label" for="agentSoulContent">Soul.md 内容</label>' +
-          '<textarea id="agentSoulContent" rows="6" class="code-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()"></textarea>' +
+          // ── 模型设置（原模型Tab）──
+          '<div class="config-group-title">模型设置</div>' +
+          '<label class="config-label" for="agentDefaultChatModel">默认对话模型</label>' +
+          '<select id="agentDefaultChatModel" class="select-input" onchange="window.autoSaveAgentModels&&window.autoSaveAgentModels()"></select>' +
+          '<label class="config-label" for="agentDefaultVisionModel">默认视觉模型</label>' +
+          '<select id="agentDefaultVisionModel" class="select-input" onchange="window.autoSaveAgentModels&&window.autoSaveAgentModels()"></select>' +
+          '<button class="btn-sm" onclick="window.loadGlobalModelsForAgent&&window.loadGlobalModelsForAgent()" data-i18n="agentConfig.loadGlobalModels">加载全局模型</button>' +
+          '<div id="agentModelListSection" class="model-list"></div>' +
+          '<div class="models-empty-hint" id="modelsEmptyHint">勾选全局模型后，该智能体即可在对话中使用对应模型</div>' +
+          // ── 头像设置（原头像Tab）──
+          '<div class="config-group-title">头像</div>' +
+          '<div class="avatar-section">' +
+            '<input type="hidden" id="cfgAgentAvatar">' +
+            '<img id="cfgAvatarPreview" src="/static/default_avatar.webp" class="avatar-preview" alt="avatar" width="64" height="64" onclick="document.getElementById(\'avatarFileInput\').click()">' +
+            '<div class="avatar-controls">' +
+              '<input type="file" id="avatarFileInput" accept="image/*" onchange="window.uploadAgentAvatar&&window.uploadAgentAvatar()" class="hidden">' +
+              '<span class="text-muted-small">点击头像选择图片上传</span>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
       '</div>' +
       // ── Tab: 属性文件 ──
@@ -184,13 +198,21 @@ window.selectChatAgent = function(agentName) {
           '<button class="btn-sm" onclick="window.saveChatAgentFile&&window.saveChatAgentFile()" data-i18n="agentConfig.saveFiles">保存文件</button>' +
         '</div>' +
       '</div>' +
-      // ── Tab: 记忆 ──
+      // ── Tab: 记忆（左右分栏：Soul.md 左，记忆设置右）──
       '<div class="agent-tab-content" id="agentTabContentMemory">' +
-        '<div class="config-section">' +
-          '<label class="config-label" for="agentCfgMemoryPath">记忆文件路径</label>' +
-          '<input type="text" id="agentCfgMemoryPath" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
-          '<label class="config-label" for="agentCfgMemoryMaxTokens">记忆最大 Token 数</label>' +
-          '<input type="number" id="agentCfgMemoryMaxTokens" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
+        '<div class="memory-layout" style="display:flex;gap:16px;height:100%">' +
+          // 左栏：Soul.md 内容
+          '<div class="memory-col" style="flex:1;display:flex;flex-direction:column;min-width:0">' +
+            '<label class="config-label">Soul.md</label>' +
+            '<textarea id="agentSoulContent" rows="12" class="code-input" style="flex:1;resize:vertical;min-height:200px" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()"></textarea>' +
+          '</div>' +
+          // 右栏：记忆设置
+          '<div class="memory-col" style="flex:1;display:flex;flex-direction:column;min-width:0">' +
+            '<label class="config-label" for="agentCfgMemoryPath">记忆文件路径</label>' +
+            '<input type="text" id="agentCfgMemoryPath" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
+            '<label class="config-label" for="agentCfgMemoryMaxTokens">记忆最大 Token 数</label>' +
+            '<input type="number" id="agentCfgMemoryMaxTokens" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
+          '</div>' +
         '</div>' +
       '</div>' +
       // ── Tab: 限制 ──
@@ -215,31 +237,6 @@ window.selectChatAgent = function(agentName) {
           '<label class="config-label" for="agentCfgSkillPreFilterTopK">技能预筛选 Top K</label>' +
           '<input type="number" id="agentCfgSkillPreFilterTopK" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
           '<button class="btn-sm" onclick="window.resetAgentLimits&&window.resetAgentLimits()" data-i18n="agentConfig.resetLimits">重置限制</button>' +
-        '</div>' +
-      '</div>' +
-      // ── Tab: 模型 ──
-      '<div class="agent-tab-content" id="tab-models">' +
-        '<div class="config-section">' +
-          '<label class="config-label" for="agentDefaultChatModel">默认对话模型</label>' +
-          '<select id="agentDefaultChatModel" class="select-input" onchange="window.autoSaveAgentModels&&window.autoSaveAgentModels()"></select>' +
-          '<label class="config-label" for="agentDefaultVisionModel">默认视觉模型</label>' +
-          '<select id="agentDefaultVisionModel" class="select-input" onchange="window.autoSaveAgentModels&&window.autoSaveAgentModels()"></select>' +
-          '<button class="btn-sm" onclick="window.loadGlobalModelsForAgent&&window.loadGlobalModelsForAgent()" data-i18n="agentConfig.loadGlobalModels">加载全局模型</button>' +
-          '<div id="agentModelListSection" class="model-list"></div>' +
-          '<div class="models-empty-hint" id="modelsEmptyHint">勾选全局模型后，该智能体即可在对话中使用对应模型</div>' +
-        '</div>' +
-      '</div>' +
-      // ── Tab: 头像 ──
-      '<div class="agent-tab-content" id="tab-avatar">' +
-        '<div class="config-section">' +
-          '<div class="avatar-section">' +
-            '<input type="hidden" id="cfgAgentAvatar">' +
-            '<img id="cfgAvatarPreview" src="/static/default_avatar.webp" class="avatar-preview" alt="avatar" width="64" height="64" onclick="document.getElementById(\'avatarFileInput\').click()">' +
-            '<div class="avatar-controls">' +
-              '<input type="file" id="avatarFileInput" accept="image/*" onchange="window.uploadAgentAvatar&&window.uploadAgentAvatar()" class="hidden">' +
-              '<span class="text-muted-small">点击头像选择图片上传</span>' +
-            '</div>' +
-          '</div>' +
         '</div>' +
       '</div>' +
     '</div>' +

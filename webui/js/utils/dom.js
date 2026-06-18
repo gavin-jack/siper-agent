@@ -6,24 +6,9 @@ import { t, currentLang } from './i18n.js';
 export function toggleChatSidebar() {
   const sidebar = document.getElementById('chatSidebar');
   if (!sidebar) return;
-  sidebar.classList.toggle('expanded');
-  const expanded = sidebar.classList.contains('expanded');
-  try { localStorage.setItem('siper_sidebar_expanded', expanded ? '1' : '0'); } catch(e) {}
-  const labels = sidebar.querySelectorAll('.siper-nav-item-label');
-  labels.forEach(l => { l.style.display = expanded ? '' : 'none'; });
-  const brand = sidebar.querySelector('.siper-sidebar-brand');
-  if (brand) brand.style.display = expanded ? '' : 'none';
-}
-
-/** 初始化侧边栏折叠状态：默认折叠（不读 localStorage） */
-export function initSidebarCollapse() {
-  const sidebar = document.getElementById('chatSidebar');
-  if (!sidebar) return;
-  sidebar.classList.remove('expanded');
-  const labels = sidebar.querySelectorAll('.siper-nav-item-label');
-  labels.forEach(l => { l.style.display = 'none'; });
-  const brand = sidebar.querySelector('.siper-sidebar-brand');
-  if (brand) brand.style.display = 'none';
+  sidebar.classList.toggle('collapsed');
+  const collapsed = sidebar.classList.contains('collapsed');
+  try { localStorage.setItem('siper_sidebar_collapsed', collapsed ? '1' : '0'); } catch(e) {}
 }
 
 // ===== Language =====

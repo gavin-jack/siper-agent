@@ -1,35 +1,35 @@
 // app.js — ESM 入口
 // 三模板 SPA: chat(默认) | standalone(懒加载) | sidebar(常驻)
-import { connectWS, setConnected, getWs } from './core.js?v=1781759511627';
-import { registerAllHandlers } from './renderer.js?v=1781759511627';
+import { connectWS, setConnected, getWs } from './core.js?v=1781760300190';
+import { registerAllHandlers } from './renderer.js?v=1781760300190';
 
 // Utils
-import { escapeHtml } from './utils/escape.js?v=1781759511627';
-import { LANG, t, applyLang, selectLang } from './utils/i18n.js?v=1781759511627';
-import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette, initSidebarCollapse } from './utils/dom.js?v=1781759511627';
-import { apiGet, apiPost } from './utils/api.js?v=1781759511627';
-import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js?v=1781759511627';
+import { escapeHtml } from './utils/escape.js?v=1781760300190';
+import { LANG, t, applyLang, selectLang } from './utils/i18n.js?v=1781760300190';
+import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js?v=1781760300190';
+import { apiGet, apiPost } from './utils/api.js?v=1781760300190';
+import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js?v=1781760300190';
 
 // Components
-import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmDeleteModel, showInput, cancelInput, execInput, openImageLightbox } from './components/toast.js?v=1781759511627';
-import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js?v=1781759511627';
-import * as AgentModels from './components/agent-models.js?v=1781759511627';
+import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmDeleteModel, showInput, cancelInput, execInput, openImageLightbox } from './components/toast.js?v=1781760300190';
+import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js?v=1781760300190';
+import * as AgentModels from './components/agent-models.js?v=1781760300190';
 
 // Chat core (must load before DOMContentLoaded)
-import * as Chat from './pages/chat-pages/chat.js?v=1781759511627';
+import * as Chat from './pages/chat-pages/chat.js?v=1781760300190';
 
 // Chat input
-import { toggleChatModelDropdown } from './chat/input.js?v=1781759511627';
+import { toggleChatModelDropdown } from './chat/input.js?v=1781760300190';
 
 // Sidebar / UI
-import { startNewChat, expandAllAgents } from './chat/sidebar.js?v=1781759511627';
-import { newSession } from './chat/session.js?v=1781759511627';
+import { startNewChat, expandAllAgents } from './chat/sidebar.js?v=1781760300190';
+import { newSession } from './chat/session.js?v=1781760300190';
 
 // Template-clone pages (保留全量 import，后续逐步迁移)
-import * as Sessions from './pages/sessions.js?v=1781759511627';
-import * as Memory from './pages/memory.js?v=1781759511627';
-import * as AgentConfig from './pages/agent-config.js?v=1781759511627';
-import * as Theme from './pages/theme.js?v=1781759511627';
+import * as Sessions from './pages/sessions.js?v=1781760300190';
+import * as Memory from './pages/memory.js?v=1781760300190';
+import * as AgentConfig from './pages/agent-config.js?v=1781760300190';
+import * as Theme from './pages/theme.js?v=1781760300190';
 
 // ===== Window Global Mounts =====
 // Utils
@@ -212,15 +212,11 @@ function tplAgentConfig() {
       <button class="agent-tab" data-tab="files" id="agentTabFiles" onclick="switchConfigAgentPageTab('files')">属性文件</button>
       <button class="agent-tab" data-tab="memory" id="agentTabMemory" onclick="switchConfigAgentPageTab('memory')">记忆</button>
       <button class="agent-tab" data-tab="limits" onclick="switchConfigAgentPageTab('limits')">限制</button>
-      <button class="agent-tab" data-tab="models" onclick="switchConfigAgentPageTab('models')">模型</button>
-      <button class="agent-tab" data-tab="avatar" onclick="switchConfigAgentPageTab('avatar')">头像</button>
     </div>
     <div class="agent-tab-content active" id="agentTabContentAbout"></div>
     <div class="agent-tab-content" id="agentTabContentFiles"></div>
     <div class="agent-tab-content" id="agentTabContentMemory"></div>
     <div class="agent-tab-content" id="tab-limits"></div>
-    <div class="agent-tab-content" id="tab-models"></div>
-    <div class="agent-tab-content" id="tab-avatar"></div>
     <div class="agent-config-footer">
       <button class="btn-sm" id="cfgAgentDeleteBtn" onclick="if(typeof confirmDeleteAgent==='function'&&currentConfigAgent)confirmDeleteAgent(currentConfigAgent)" data-i18n="agentConfig.deleteAgent">删除智能体</button>
       <button class="btn-sm primary" onclick="saveAllChatAgentConfig()" data-i18n="agentConfig.saveAll">保存全部</button>

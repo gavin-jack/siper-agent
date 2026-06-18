@@ -627,11 +627,6 @@ html { touch-action: manipulation; }
   overflow: hidden;
   z-index: var(--z-dropdown);
 }
-.siper-sidebar.expanded {
-  width: 130px;
-  min-width: 130px;
-}
-
 /* ===== Left Sidebar Header (clickable to toggle) ===== */
 .siper-sidebar-header:hover {
   background: color-mix(in srgb, var(--color-text) 70%, black);
@@ -640,12 +635,12 @@ html { touch-action: manipulation; }
   font-size: 24px;
   font-weight: 700;
   color: var(--color-surface);
-  display: none;
+  display: inline;
   letter-spacing: 0.5px;
   line-height: 36px;
 }
-.siper-sidebar.expanded .siper-sidebar-brand {
-  display: inline;
+.siper-sidebar.collapsed .siper-sidebar-brand {
+  display: none;
 }
 
 /* Navigation */
@@ -680,11 +675,17 @@ html { touch-action: manipulation; }
   padding: 10px 0;
   border-top: 1px solid color-mix(in srgb, var(--color-text) 70%, black);
 }
-.siper-sidebar.expanded .siper-sidebar-footer {
+.siper-sidebar .siper-sidebar-footer {
   flex-direction: row;
   justify-content: center;
   gap: 4px;
   padding: 8px 0;
+}
+.siper-sidebar.collapsed .siper-sidebar-footer {
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 0;
 }
 .siper-footer-btn:hover {
   opacity: 1;
@@ -1105,7 +1106,7 @@ html { touch-action: manipulation; }
   object-fit: cover;
   flex-shrink: 0;
 }
-.siper-sidebar.expanded .siper-sidebar-avatar {
+.siper-sidebar .siper-sidebar-avatar {
   width: 36px;
   height: 36px;
 }
@@ -1138,40 +1139,54 @@ a.siper-nav-item {
   color: var(--color-surface);
   font-weight: 600;
 }
-/* Expanded state: icon + label, left-aligned */
-.siper-sidebar.expanded .siper-nav-item {
+/* Default expanded: icon + label, left-aligned */
+.siper-sidebar .siper-nav-item {
   justify-content: flex-start;
   padding: 10px 14px;
   gap: 10px;
 }
-.siper-sidebar.expanded .siper-nav-item .siper-nav-item-label {
+.siper-sidebar .siper-nav-item .siper-nav-item-label {
   display: inline;
   opacity: 1;
 }
-/* Sidebar header centering when collapsed */
-.siper-sidebar:not(.expanded) .siper-sidebar-header {
+/* Collapsed: centered icon only */
+.siper-sidebar.collapsed .siper-nav-item {
+  justify-content: center;
+  padding: 12px 0;
+  gap: 0;
+}
+.siper-sidebar.collapsed .siper-nav-item .siper-nav-item-label {
+  display: none;
+  opacity: 0;
+}
+/* Default expanded header */
+.siper-sidebar .siper-sidebar-header {
+  justify-content: flex-start;
+  padding: 12px 12px;
+  gap: 10px;
+}
+.siper-sidebar.collapsed .siper-sidebar-header {
   justify-content: center;
   padding: 12px 12px;
   gap: 0;
 }
-.siper-sidebar:not(.expanded) .siper-sidebar-avatar {
+.siper-sidebar.collapsed .siper-sidebar-avatar {
   width: 36px;
   height: 36px;
-}
-.siper-sidebar.expanded .siper-sidebar-header {
-  justify-content: flex-start;
-  padding: 12px 12px;
-  gap: 10px;
 }
 /* Footer buttons */
 .siper-sidebar .siper-footer-btn {
   font-size: 20px;
   padding: 6px 10px;
 }
-/* Nav section title hidden when collapsed */
-.siper-sidebar.expanded .siper-nav-title {
+/* Nav section title: default visible, collapsed hidden */
+.siper-sidebar .siper-nav-title {
   display: block;
   opacity: 1;
+}
+.siper-sidebar.collapsed .siper-nav-title {
+  display: none;
+  opacity: 0;
 }
 
 /* ===== Session Messages (in chat view) ===== */

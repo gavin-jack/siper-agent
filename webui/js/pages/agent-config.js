@@ -217,9 +217,7 @@ export async function refreshConfigAgentPanel() {
 
 // ===== Empty Models Handler =====
 export function handleEmptyModels() {
-  const tabModels = document.getElementById('tab-models');
-  if (!tabModels) return;
-  // 空模型时隐藏表单内容，显示空状态提示 + "添加模型" 按钮
+  // 模型已移入关于Tab，不再需要单独的tab-models容器
   const emptyHint = document.getElementById('modelsEmptyHint');
   if (globalModelsList.length === 0) {
     if (section) section.style.display = 'none';
@@ -343,21 +341,13 @@ export function switchConfigAgentPageTab(tab) {
   document.getElementById('agentTabAbout').className = 'agent-tab' + (tab === 'about' ? ' active' : '');
   document.getElementById('agentTabFiles').className = 'agent-tab' + (tab === 'files' ? ' active' : '');
   document.getElementById('agentTabMemory').className = 'agent-tab' + (tab === 'memory' ? ' active' : '');
-  const modelsTabBtn = document.querySelector('[data-tab="models"]');
   const limitsTabBtn = document.querySelector('[data-tab="limits"]');
-  const avatarTabBtn = document.querySelector('[data-tab="avatar"]');
-  if (modelsTabBtn) modelsTabBtn.className = 'agent-tab' + (tab === 'models' ? ' active' : '');
   if (limitsTabBtn) limitsTabBtn.className = 'agent-tab' + (tab === 'limits' ? ' active' : '');
-  if (avatarTabBtn) avatarTabBtn.className = 'agent-tab' + (tab === 'avatar' ? ' active' : '');
   document.getElementById('agentTabContentAbout').classList[tab !== 'about' ? 'add' : 'remove']('hidden');
   document.getElementById('agentTabContentFiles').classList[tab !== 'files' ? 'add' : 'remove']('hidden');
   document.getElementById('agentTabContentMemory').classList[tab !== 'memory' ? 'add' : 'remove']('hidden');
-  const tabModels = document.getElementById('tab-models');
-  if (tabModels) tabModels.classList[tab !== 'models' ? 'add' : 'remove']('hidden');
   const tabLimits = document.getElementById('tab-limits');
   if (tabLimits) tabLimits.classList[tab !== 'limits' ? 'add' : 'remove']('hidden');
-  const tabAvatar = document.getElementById('tab-avatar');
-  if (tabAvatar) tabAvatar.classList[tab !== 'avatar' ? 'add' : 'remove']('hidden');
   // Auto-load memory when switching to memory tab
   if (tab === 'memory' && currentConfigAgent) {
     loadAgentMemoryContent(currentConfigAgent);
