@@ -127,10 +127,7 @@ async function loadAndRenderAgents() {
       if (typeof window.__setPageCache === 'function') {
         window.__setPageCache('agents', agentsData.agents);
       }
-      // 默认展开所有 agent，然后渲染中栏
-      if (typeof window.expandAllAgents === 'function') {
-        window.expandAllAgents();
-      }
+      // 渲染中栏（_doRenderMiddle 会自动首次展开所有 agent）
       if (typeof window.renderMiddleList === 'function') {
         window.renderMiddleList();
       }
@@ -153,7 +150,7 @@ window.selectChatAgent = function(agentName) {
   if (headerName) headerName.textContent = agentName + ' - 设置';
   // 渲染 agent 配置到右栏内容区（完整 6 Tab 表单）
   chatContent.innerHTML = '<div style="flex-shrink:0;padding:8px 16px;border-bottom:1px solid var(--color-border)">' +
-    '<button class="btn-sm" onclick="window.chatSwitchPage(' + "'" + 'chat' + "'" + ')">' + chr(8592) + ' 返回</button></div>' +
+    '<button class="btn-sm" onclick="window.chatSwitchPage(' + "'" + 'chat' + "'" + ')">' + String.fromCharCode(8592) + ' 返回</button></div>' +
     '<div id="agentConfigContent" style="flex:1;overflow-y:auto;padding:16px 24px">' +
       '<div class="agent-tabs">' +
         '<button class="agent-tab active" data-tab="about" id="agentTabAbout" onclick="window.switchConfigAgentPageTab(\'about\')">关于</button>' +

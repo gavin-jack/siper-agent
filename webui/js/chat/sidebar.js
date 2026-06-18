@@ -82,6 +82,12 @@ function _doRenderMiddle() {
     container.innerHTML = '<div class="siper-loading siper-loading--sm">加载中...</div>';
     return;
   }
+  // 默认首次展开：如果没有任何展开状态记录，全部展开
+  if (_expandedAgents.size === 0) {
+    for (const agent of agents) {
+      _expandedAgents.set(agent.name, true);
+    }
+  }
   // Sort agents by latest session updated_at descending
   // Only sessions with updated_at participate; new sessions (no updated_at) are skipped
   const sortedAgents = [...agents].sort((a, b) => {
