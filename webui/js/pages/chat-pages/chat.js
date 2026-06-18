@@ -147,9 +147,9 @@ window.selectChatAgent = function(agentName) {
   var headerName = document.getElementById('chatRightHeaderName');
   if (headerName) headerName.textContent = agentName + ' - 设置';
   // 渲染 agent 配置到右栏内容区（完整 6 Tab 表单）
-  chatContent.innerHTML = '<div style="flex-shrink:0;padding:8px 16px;border-bottom:1px solid var(--color-border)">' +
+  chatContent.innerHTML = '<div class="agent-config-toolbar">' +
     '<button class="btn-sm" onclick="window.chatSwitchPage(' + "'" + 'chat' + "'" + ')">' + String.fromCharCode(8592) + ' 返回</button></div>' +
-    '<div id="agentConfigContent" style="flex:1;overflow-y:auto;padding:16px 24px">' +
+    '<div id="agentConfigContent">' +
       '<div class="agent-tabs">' +
         '<button class="agent-tab active" data-tab="about" id="agentTabAbout" onclick="window.switchConfigAgentPageTab(\'about\')">关于</button>' +
         '<button class="agent-tab" data-tab="files" id="agentTabFiles" onclick="window.switchConfigAgentPageTab(\'files\')">属性文件</button>' +
@@ -200,14 +200,14 @@ window.selectChatAgent = function(agentName) {
       '</div>' +
       // ── Tab: 记忆（左右分栏：Soul.md 左，记忆设置右）──
       '<div class="agent-tab-content" id="agentTabContentMemory">' +
-        '<div class="memory-layout" style="display:flex;gap:16px;height:100%">' +
+        '<div class="memory-layout">' +
           // 左栏：Soul.md 内容
-          '<div class="memory-col" style="flex:1;display:flex;flex-direction:column;min-width:0">' +
+          '<div class="memory-col">' +
             '<label class="config-label">Soul.md</label>' +
-            '<textarea id="agentSoulContent" rows="12" class="code-input" style="flex:1;resize:vertical;min-height:200px" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()"></textarea>' +
+            '<textarea id="agentSoulContent" rows="12" class="code-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()"></textarea>' +
           '</div>' +
           // 右栏：记忆设置
-          '<div class="memory-col" style="flex:1;display:flex;flex-direction:column;min-width:0">' +
+          '<div class="memory-col">' +
             '<label class="config-label" for="agentCfgMemoryPath">记忆文件路径</label>' +
             '<input type="text" id="agentCfgMemoryPath" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
             '<label class="config-label" for="agentCfgMemoryMaxTokens">记忆最大 Token 数</label>' +
@@ -240,7 +240,7 @@ window.selectChatAgent = function(agentName) {
         '</div>' +
       '</div>' +
     '</div>' +
-    '<div class="agent-config-footer" style="flex-shrink:0;padding:8px 24px;border-top:1px solid var(--color-border)">' +
+    '<div class="agent-config-footer">' +
       '<button class="btn-sm danger" onclick="if(typeof window.confirmDeleteAgent===\'function\'&&window.currentConfigAgent)window.confirmDeleteAgent(window.currentConfigAgent)" data-i18n="agentConfig.deleteAgent">删除智能体</button>' +
       '<button class="btn-sm" id="currentAgentLabelLimits" onclick="window.switchConfigAgentPageTab&&window.switchConfigAgentPageTab(\'limits\')">当前限制</button>' +
       '<button class="btn-sm primary" onclick="window.saveAllChatAgentConfig()" data-i18n="agentConfig.saveAll">保存全部</button>' +
