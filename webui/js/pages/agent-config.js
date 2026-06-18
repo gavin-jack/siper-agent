@@ -515,6 +515,7 @@ export function selectAgentIcon(icon) {
 
 
 let _agentAutoSaveTimer = null;
+let _agentFileAutoSaveTimer = null;
 
 export function triggerAgentAutoSave() {
   if (!currentConfigAgent) return;
@@ -552,6 +553,38 @@ export function triggerAgentAutoSave() {
       toast.error('保存失败: ' + e.message);
     }
   }, 1000);
+}
+
+export function triggerAgentFileAutoSave() {
+  if (!currentConfigAgent) return;
+  if (_agentFileAutoSaveTimer) clearTimeout(_agentFileAutoSaveTimer);
+  _agentFileAutoSaveTimer = setTimeout(async () => {
+    const soulTa = document.getElementById('agentSoulContentFiles');
+    const configTa = document.getElementById('agentMdContent');
+    const memTa = document.getElementById('agentMemoryContent');
+    const soulContent = soulTa ? soulTa.value : cachedConfigSoulContent;
+    const configContent = configTa ? configTa.value : cachedConfigAgentContent;
+    const memContent = memTa ? memTa.value : cachedConfigMemoryContent;
+    let saved = false;
+    try {
+      if (soulContent !== cachedConfigSoulContent) {
+        const r = await fetch('/api/agents/' + currentConfigAgent + '/soul', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: soulContent }) });
+        const d = await r.json();
+        if (d.success) { cachedConfigSoulContent = soulContent; saved = true; }
+      }
+      if (configContent !== cachedConfigAgentContent) {
+        const r = await fetch('/api/agents/' + currentConfigAgent + '/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: configContent }) });
+        const d = await r.json();
+        if (d.success) { cachedConfigAgentContent = configContent; saved = true; }
+      }
+      if (memContent !== cachedConfigMemoryContent) {
+        const r = await fetch('/api/agents/' + currentConfigAgent + '/memory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: memContent }) });
+        const d = await r.json();
+        if (d.success) { cachedConfigMemoryContent = memContent; saved = true; }
+      }
+      if (saved) toast.success('文件已自动保存', 1500);
+    } catch(e) { toast.error('文件保存失败: ' + e.message); }
+  }, 1500);
 }
 
 export function attachAgentAutoSaveListeners() {
@@ -752,3 +785,4 @@ export function showAddAgentModal() {
 window.showAddAgentModal = showAddAgentModal;
 window.confirmDeleteAgent = confirmDeleteAgent;
 window.switchConfigAgentPageTab = switchConfigAgentPageTab;
+window.triggerAgentFileAutoSave = triggerAgentFileAutoSave;

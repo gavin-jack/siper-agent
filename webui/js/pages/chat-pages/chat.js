@@ -190,7 +190,6 @@ window.selectChatAgent = function(agentName) {
             '</div>' +
             '<div class="about-models-col">' +
               '<label class="config-label">可用模型</label>' +
-              '<button class="btn-sm" onclick="window.loadGlobalModelsForAgent&&window.loadGlobalModelsForAgent()" data-i18n="agentConfig.loadGlobalModels">加载全局模型</button>' +
               '<div id="agentModelListSection" class="model-list"></div>' +
               '<div class="models-empty-hint" id="modelsEmptyHint">勾选全局模型后，该智能体即可在对话中使用对应模型</div>' +
             '</div>' +
@@ -202,16 +201,16 @@ window.selectChatAgent = function(agentName) {
         '<div class="files-layout">' +
           '<div class="files-col">' +
             '<label class="config-label" for="agentMdContent">Agent.md 行为指令</label>' +
-            '<textarea id="agentMdContent" rows="12" class="code-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()"></textarea>' +
+            '<textarea id="agentMdContent" rows="12" class="code-input" oninput="window.triggerAgentFileAutoSave&&window.triggerAgentFileAutoSave()"></textarea>' +
           '</div>' +
           '<div class="files-col">' +
             '<label class="config-label" for="agentSoulContentFiles">Soul.md</label>' +
-            '<textarea id="agentSoulContentFiles" rows="12" class="code-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()"></textarea>' +
+            '<textarea id="agentSoulContentFiles" rows="12" class="code-input" oninput="window.triggerAgentFileAutoSave&&window.triggerAgentFileAutoSave()"></textarea>' +
           '</div>' +
         '</div>' +
         '<div class="files-system-prompt">' +
           '<label class="config-label" for="agentMemoryContent">System Prompt 预览</label>' +
-          '<textarea id="agentMemoryContent" rows="4" class="code-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()"></textarea>' +
+          '<textarea id="agentMemoryContent" rows="4" class="code-input" oninput="window.triggerAgentFileAutoSave&&window.triggerAgentFileAutoSave()"></textarea>'+
         '</div>' +
       '</div>' +
       // ── Tab: 记忆（记忆设置）──
