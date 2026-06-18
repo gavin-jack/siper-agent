@@ -275,7 +275,7 @@ export async function selectConfigAgent(name) {
     cachedConfigSoulContent = soulData.soul || '';
     cachedConfigAgentContent = configData.config || '';
     cachedConfigMemoryContent = memoryData.memory || '';
-    const soulTa = document.getElementById('agentSoulContent');
+    const soulTa = document.getElementById('agentSoulContentFiles');
     const mdTa = document.getElementById('agentMdContent');
     const memTa = document.getElementById('agentMemoryContent');
     if (soulTa) soulTa.value = cachedConfigSoulContent;
@@ -283,7 +283,7 @@ export async function selectConfigAgent(name) {
     if (memTa) memTa.value = cachedConfigMemoryContent;
   } catch(e) {
     loadError = e.message;
-    const soulTa = document.getElementById('agentSoulContent');
+    const soulTa = document.getElementById('agentSoulContentFiles');
     const mdTa = document.getElementById('agentMdContent');
     const memTa = document.getElementById('agentMemoryContent');
     if (soulTa) soulTa.value = '';
@@ -356,7 +356,7 @@ export function switchConfigAgentPageTab(tab) {
 
 export function refreshAgentFile(fileType) {
   let ta;
-  if (fileType === 'soul') ta = document.getElementById('agentSoulContent');
+  if (fileType === 'soul') ta = document.getElementById('agentSoulContentFiles');
   else if (fileType === 'memory') ta = document.getElementById('agentMemoryContent');
   else ta = document.getElementById('agentMdContent');
   if (!ta) return;
@@ -390,7 +390,7 @@ export async function saveAgentFile(fileType) {
   }
   if (!fileType) return;
   let ta;
-  if (fileType === 'soul') ta = document.getElementById('agentSoulContent');
+  if (fileType === 'soul') ta = document.getElementById('agentSoulContentFiles');
   else if (fileType === 'memory') ta = document.getElementById('agentMemoryContent');
   else ta = document.getElementById('agentMdContent');
   if (!ta) return;
@@ -659,7 +659,7 @@ export function loadChatAgentFilesForAgent(name) {
     _chatAgentFiles.soul = results[0].soul || '';
     _chatAgentFiles.config = results[1].config || '';
     setChatAgentFiles({ ..._chatAgentFiles });
-    var soulEditor = document.getElementById('agentSoulContent');
+    var soulEditor = document.getElementById('agentSoulContentFiles');
     var configEditor = document.getElementById('agentMdContent');
     if (soulEditor) soulEditor.value = _chatAgentFiles.soul;
     if (configEditor) configEditor.value = _chatAgentFiles.config;
