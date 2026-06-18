@@ -44,7 +44,7 @@
 
 
 .config-group-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-dim);
   text-transform: uppercase;
@@ -757,6 +757,11 @@
   color: var(--color-text);
   margin: 0;
 }
+.agent-selector-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .agent-selector-wrap select {
   padding: 8px 12px;
   border: 1px solid var(--color-border);
@@ -798,17 +803,17 @@
 /* Tabs */
 .agent-tabs {
   display: flex;
-  gap: 2px;
+  gap: 4px;
   padding: 0 24px;
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
-  margin-bottom: 4px;
+  margin-bottom: 16px;
 }
 .agent-tab {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 10px 14px;
   border-radius: 8px 8px 0 0;
   font-size: 13px;
   font-weight: 500;
@@ -836,33 +841,99 @@
   padding: 12px 24px;
   animation: fadeIn 0.2s ease;
 }
-/* Settings Grid — 默认两列，窄屏一列 */
-.agent-settings-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
-  align-items: start;
+/* Tab Content 切换动画 */
+.agent-tab-content.active {
+  animation: tabSlideIn 0.2s ease-out;
 }
-/* Models Column (inside right column card) */
-.models-col {
+@keyframes tabSlideIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* === Agent Config 表单优化 === */
+.config-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-dim);
+  margin-bottom: 4px;
+  margin-top: 10px;
+}
+.config-label:first-child,
+.config-label:first-of-type {
+  margin-top: 0;
+}
+.config-helper {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  margin-top: 2px;
+  opacity: 0.8;
+}
+.config-section {
+  margin-bottom: 16px;
+}
+.config-section:last-child {
+  margin-bottom: 0;
+}
+/* 头像上传区 */
+.avatar-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
 }
-/* Limits Grid */
-.limits-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
+.avatar-preview {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--color-border);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-/* Files Grid */
-.files-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
-  height: 100%;
-  align-items: stretch;
+.avatar-preview:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
+.avatar-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+/* 模型空状态 */
+.models-empty-hint {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  text-align: center;
+  padding: 16px 0;
+  line-height: 1.5;
+}
+/* Code input (textarea) — 代码编辑器样式 */
+.code-input {
+  width: 100%;
+  resize: vertical;
+  font-family: 'SF Mono', Consolas, monospace;
+  font-size: 13px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  outline: none;
+  line-height: 1.5;
+}
+.code-input:focus-visible {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+/* Footer 按钮主次 */
+.agent-config-footer .btn-sm.primary {
+  font-weight: 600;
+  padding: 6px 20px;
+}
+
 /* Memory Grid */
 .memory-grid {
   display: grid;
@@ -883,9 +954,6 @@
 }
 .card:hover {
   box-shadow: 0 4px 12px var(--shadow-md);
-}
-.card-identity {
-  grid-column: 1;
 }
 .identity-avatar-row {
   display: flex;
@@ -958,6 +1026,11 @@
   transition: background-color 0.15s, color 0.15s;
 }
 .identity-icon-btn:hover { background: var(--color-bg); }
+.identity-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .identity-hint {
   font-size: 12px;
   color: var(--color-text-dim);
@@ -1220,6 +1293,10 @@
   padding: 6px 8px;
   background: var(--color-bg);
 }
+.agent-avail-mcb {
+  margin-right: 6px;
+  vertical-align: middle;
+}
 .model-checkbox-row {
   display: flex;
   align-items: center;
@@ -1411,7 +1488,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 10px 14px;
   border-radius: 8px 8px 0 0;
   font-size: 13px;
   font-weight: 500;
@@ -1640,3 +1717,23 @@
 .tool-total-badge { font-size:12px; color:var(--color-text-dim); background:var(--color-surface); border:1px solid var(--color-border); border-radius:12px; padding:4px 12px; }
 .tool-header-badge { font-size:13px; font-weight:400; color:var(--color-text-dim); background:var(--color-border); border-radius:10px; padding:2px 10px; margin-left:8px; }
 .tool-nav-badge { font-size:11px; color:var(--color-text-dim); background:var(--color-border); border-radius:10px; padding:1px 7px; margin-left:6px; font-weight:600; }
+
+/* === Agent Config 补充样式 === */
+/* 必填标识 */
+.required-mark {
+  color: var(--color-danger, #e53e3e);
+  margin-left: 2px;
+  font-weight: 700;
+}
+/* 图标选择器 */
+.icon-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.agent-icon-large {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}

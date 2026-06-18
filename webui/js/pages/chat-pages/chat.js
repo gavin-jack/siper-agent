@@ -89,19 +89,72 @@ export function initChatPage() {
   if (typeof window.renderChatPage === 'function') {
     window.renderChatPage(content);
   }
+  // 加载 agent 列表并渲染中栏
+  loadAndRenderAgents();
+  // 侧边栏默认折叠
+  if (typeof window.initSidebarCollapse === 'function') window.initSidebarCollapse();
+}
+
+/** 从后端获取 agent + sessions 数据，填充 page_cache 并渲染中栏 */
+async function loadAndRenderAgents() {
+  try {
+    const [agentsResp, sessionsResp] = await Promise.all([
+      fetch('/api/agents'),
+      fetch('/api/sessions'),
+    ]);
+    const agentsData = await agentsResp.json();
+    const sessionsData = await sessionsResp.json();
+    if (agentsData && agentsData.agents) {
+      // 按 agent_name 分组 sessions，附加到 agent 对象
+      const sessionsByAgent = {};
+      if (sessionsData && Array.isArray(sessionsData)) {
+        for (const s of sessionsData) {
+          const name = s.agent_name || s.agent || 'default';
+          if (!sessionsByAgent[name]) sessionsByAgent[name] = [];
+          sessionsByAgent[name].push(s);
+        }
+      } else if (sessionsData && Array.isArray(sessionsData.sessions)) {
+        for (const s of sessionsData.sessions) {
+          const name = s.agent_name || s.agent || 'default';
+          if (!sessionsByAgent[name]) sessionsByAgent[name] = [];
+          sessionsByAgent[name].push(s);
+        }
+      }
+      for (const agent of agentsData.agents) {
+        agent.sessions = sessionsByAgent[agent.name] || [];
+      }
+      // 填充 page_cache，sidebar.js 的 getAgentsFromCache() 会读取
+      if (typeof window.__setPageCache === 'function') {
+        window.__setPageCache('agents', agentsData.agents);
+      }
+      // 默认展开所有 agent，然后渲染中栏
+      if (typeof window.expandAllAgents === 'function') {
+        window.expandAllAgents();
+      }
+      if (typeof window.renderMiddleList === 'function') {
+        window.renderMiddleList();
+      }
+    }
+  } catch(e) {
+    console.error('[chat] loadAndRenderAgents failed:', e);
+  }
 }
 window.initChatPage = initChatPage;
 
-// selectChatAgent — 选中 agent 时在右栏显示 agent 配置
+// selectChatAgent — 选中 agent 时在右栏显示 agent 配置（不替换中栏）
 window.selectChatAgent = function(agentName) {
-  var rightCol = document.getElementById('page-chat');
-  if (!rightCol) return;
-  // 渲染完整的 agent 配置模板（与 app.js tplAgentConfig 一致）
-  rightCol.innerHTML = '<div class="siper-content" style="flex:1;display:flex;flex-direction:column;overflow:hidden">' +
-    '<div class="page-header" style="flex-shrink:0"><h3>' + (agentName || '智能体设置') + '</h3>' +
-    '<div class="actions"><button class="btn-sm primary" onclick="window.chatSwitchPage(\'chat\')">← 返回对话</button></div></div>' +
+  var chatRight = document.getElementById('chatRight');
+  var chatContent = document.getElementById('chatContentArea');
+  if (!chatContent) return;
+  // 确保右栏可见
+  if (chatRight) chatRight.style.display = '';
+  // 更新右栏标题
+  var headerName = document.getElementById('chatRightHeaderName');
+  if (headerName) headerName.textContent = agentName + ' - 设置';
+  // 渲染 agent 配置到右栏内容区（完整 6 Tab 表单）
+  chatContent.innerHTML = '<div style="flex-shrink:0;padding:8px 16px;border-bottom:1px solid var(--color-border)">' +
+    '<button class="btn-sm" onclick="window.chatSwitchPage(' + "'" + 'chat' + "'" + ')">' + chr(8592) + ' 返回</button></div>' +
     '<div id="agentConfigContent" style="flex:1;overflow-y:auto;padding:16px 24px">' +
-      '<div id="agentConfigTitle" class="agent-config-title"></div>' +
       '<div class="agent-tabs">' +
         '<button class="agent-tab active" data-tab="about" id="agentTabAbout" onclick="window.switchConfigAgentPageTab(\'about\')">关于</button>' +
         '<button class="agent-tab" data-tab="files" id="agentTabFiles" onclick="window.switchConfigAgentPageTab(\'files\')">属性文件</button>' +
@@ -110,18 +163,94 @@ window.selectChatAgent = function(agentName) {
         '<button class="agent-tab" data-tab="models" onclick="window.switchConfigAgentPageTab(\'models\')">模型</button>' +
         '<button class="agent-tab" data-tab="avatar" onclick="window.switchConfigAgentPageTab(\'avatar\')">头像</button>' +
       '</div>' +
-      '<div class="agent-tab-content active" id="agentTabContentAbout"></div>' +
-      '<div class="agent-tab-content" id="agentTabContentFiles"></div>' +
-      '<div class="agent-tab-content" id="agentTabContentMemory"></div>' +
-      '<div class="agent-tab-content" id="tab-limits"></div>' +
-      '<div class="agent-tab-content" id="tab-models"></div>' +
-      '<div class="agent-tab-content" id="tab-avatar"></div>' +
+      // ── Tab: 关于 ──
+      '<div class="agent-tab-content active" id="agentTabContentAbout">' +
+        '<div class="config-section">' +
+          '<label class="config-label" for="cfgAgentName">智能体名称<span class="required-mark">*</span></label>' +
+          '<input type="text" id="cfgAgentName" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
+          '<label class="config-label" for="cfgAgentIconBtn">图标</label>' +
+          '<div class="icon-display">' +
+            '<span id="cfgAgentIcon" class="agent-icon-large"></span>' +
+            '<button class="btn-sm" id="cfgAgentIconBtn" onclick="window.toggleIconPicker&&window.toggleIconPicker(event)">选择图标</button>' +
+          '</div>' +
+          '<label class="config-label" for="agentSoulContent">Soul.md 内容</label>' +
+          '<textarea id="agentSoulContent" rows="6" class="code-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()"></textarea>' +
+        '</div>' +
+      '</div>' +
+      // ── Tab: 属性文件 ──
+      '<div class="agent-tab-content" id="agentTabContentFiles">' +
+        '<div class="config-section">' +
+          '<label class="config-label" for="agentMdContent">Agent.md 行为指令</label>' +
+          '<textarea id="agentMdContent" rows="12" class="code-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()"></textarea>' +
+          '<label class="config-label" for="agentMemoryContent">System Prompt 预览</label>' +
+          '<textarea id="agentMemoryContent" rows="6" class="code-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()"></textarea>' +
+          '<button class="btn-sm" onclick="window.saveChatAgentFile&&window.saveChatAgentFile()" data-i18n="agentConfig.saveFiles">保存文件</button>' +
+        '</div>' +
+      '</div>' +
+      // ── Tab: 记忆 ──
+      '<div class="agent-tab-content" id="agentTabContentMemory">' +
+        '<div class="config-section">' +
+          '<label class="config-label" for="agentCfgMemoryPath">记忆文件路径</label>' +
+          '<input type="text" id="agentCfgMemoryPath" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
+          '<label class="config-label" for="agentCfgMemoryMaxTokens">记忆最大 Token 数</label>' +
+          '<input type="number" id="agentCfgMemoryMaxTokens" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
+        '</div>' +
+      '</div>' +
+      // ── Tab: 限制 ──
+      '<div class="agent-tab-content" id="tab-limits">' +
+        '<div class="config-section">' +
+          '<div class="config-group-title">LLM 调用与会话</div>' +
+          '<label class="config-label" for="agentCfgLlmTimeout">超时 (秒)</label>' +
+          '<input type="number" id="agentCfgLlmTimeout" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
+          '<label class="config-label" for="agentCfgLlmMaxRetries">最大重试次数</label>' +
+          '<input type="number" id="agentCfgLlmMaxRetries" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
+          '<label class="config-label" for="agentCfgLlmMaxTokens">最大 Token 数</label>' +
+          '<input type="number" id="agentCfgLlmMaxTokens" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
+          '<label class="config-label" for="agentCfgMaxToolRounds">最大工具调用轮次</label>' +
+          '<input type="number" id="agentCfgMaxToolRounds" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
+          '<label class="config-label" for="agentCfgMaxTools">最大工具数量</label>' +
+          '<input type="number" id="agentCfgMaxTools" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
+          '<label class="config-label" for="agentCfgSessionTimeout">会话超时 (秒)</label>' +
+          '<input type="number" id="agentCfgSessionTimeout" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
+          '<label class="config-label" for="agentCfgMaxHistoryMessages">最大历史消息数</label>' +
+          '<input type="number" id="agentCfgMaxHistoryMessages" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
+          '<div class="config-group-title">其他</div>' +
+          '<label class="config-label" for="agentCfgSkillPreFilterTopK">技能预筛选 Top K</label>' +
+          '<input type="number" id="agentCfgSkillPreFilterTopK" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
+          '<button class="btn-sm" onclick="window.resetAgentLimits&&window.resetAgentLimits()" data-i18n="agentConfig.resetLimits">重置限制</button>' +
+        '</div>' +
+      '</div>' +
+      // ── Tab: 模型 ──
+      '<div class="agent-tab-content" id="tab-models">' +
+        '<div class="config-section">' +
+          '<label class="config-label" for="agentDefaultChatModel">默认对话模型</label>' +
+          '<select id="agentDefaultChatModel" class="select-input" onchange="window.autoSaveAgentModels&&window.autoSaveAgentModels()"></select>' +
+          '<label class="config-label" for="agentDefaultVisionModel">默认视觉模型</label>' +
+          '<select id="agentDefaultVisionModel" class="select-input" onchange="window.autoSaveAgentModels&&window.autoSaveAgentModels()"></select>' +
+          '<button class="btn-sm" onclick="window.loadGlobalModelsForAgent&&window.loadGlobalModelsForAgent()" data-i18n="agentConfig.loadGlobalModels">加载全局模型</button>' +
+          '<div id="agentModelListSection" class="model-list"></div>' +
+          '<div class="models-empty-hint" id="modelsEmptyHint">勾选全局模型后，该智能体即可在对话中使用对应模型</div>' +
+        '</div>' +
+      '</div>' +
+      // ── Tab: 头像 ──
+      '<div class="agent-tab-content" id="tab-avatar">' +
+        '<div class="config-section">' +
+          '<div class="avatar-section">' +
+            '<input type="hidden" id="cfgAgentAvatar">' +
+            '<img id="cfgAvatarPreview" src="/static/default_avatar.webp" class="avatar-preview" alt="avatar" width="64" height="64" onclick="document.getElementById(\'avatarFileInput\').click()">' +
+            '<div class="avatar-controls">' +
+              '<input type="file" id="avatarFileInput" accept="image/*" onchange="window.uploadAgentAvatar&&window.uploadAgentAvatar()" class="hidden">' +
+              '<span class="text-muted-small">点击头像选择图片上传</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
     '</div>' +
     '<div class="agent-config-footer" style="flex-shrink:0;padding:8px 24px;border-top:1px solid var(--color-border)">' +
-      '<button class="btn-sm danger" onclick="if(typeof window.confirmDeleteAgent===\'function\'&&window.currentConfigAgent)window.confirmDeleteAgent(window.currentConfigAgent)">删除智能体</button>' +
-      '<button class="btn-sm primary" onclick="window.saveAllChatAgentConfig()">保存全部</button>' +
-    '</div></div>';
-  document.getElementById('sidebarContainer').style.display = '';
+      '<button class="btn-sm danger" onclick="if(typeof window.confirmDeleteAgent===\'function\'&&window.currentConfigAgent)window.confirmDeleteAgent(window.currentConfigAgent)" data-i18n="agentConfig.deleteAgent">删除智能体</button>' +
+      '<button class="btn-sm" id="currentAgentLabelLimits" onclick="window.switchConfigAgentPageTab&&window.switchConfigAgentPageTab(\'limits\')">当前限制</button>' +
+      '<button class="btn-sm primary" onclick="window.saveAllChatAgentConfig()" data-i18n="agentConfig.saveAll">保存全部</button>' +
+    '</div>';
   // 加载 agent 数据 + 填充表单
   if (typeof window.selectConfigAgent === 'function') {
     window.selectConfigAgent(agentName);
@@ -134,7 +263,13 @@ window.selectChatAgent = function(agentName) {
 // chatSwitchPage — 右栏页面展示控制
 window.chatSwitchPage = function(page) {
   if (page === 'chat') {
-    navigateToPage('chat');
+    // 从 agent 设置返回对话：重新渲染聊天内容
+    var content = document.getElementById('chatContentArea');
+    if (content && typeof window.renderChatPage === 'function') {
+      window.renderChatPage(content);
+    } else {
+      navigateToPage('chat');
+    }
     return;
   }
   if (page === 'agent-config' || page === 'model-settings') {

@@ -20,18 +20,12 @@ export async function loadAgentSettings() {
     if (agent) {
       document.getElementById('agentConfigTitle').innerHTML = '<strong>' + escapeHtml(agent.name) + ' - 设置</strong>';
       document.getElementById('cfgAgentName').value = agent.display_name || agent.name || 'Siper Agent';
-      document.getElementById('cfgAgentIcon').value = agent.icon || '🎭';
+      const cfgAgentIconSpan = document.getElementById('cfgAgentIcon');
+      if (cfgAgentIconSpan) cfgAgentIconSpan.textContent = agent.icon || '🎭';
       document.getElementById('cfgAgentAvatar').value = agent.avatar || '';
       const av = document.getElementById('cfgAvatarPreview');
       av.src = '/api/avatar?agent=' + encodeURIComponent(currentConfigAgent || agent.name);
       av.style.display = 'inline';
-      const app = agent.appearance || {};
-      const fontSize = parseInt(app.msg_font_size) || 18;
-      document.getElementById('cfgAgentMsgFontSize').value = fontSize;
-      document.getElementById('cfgAgentMsgFontSizeVal').textContent = fontSize + 'px';
-      document.getElementById('cfgAgentMsgBg').value = app.msg_bg || '#1c2333';
-      document.getElementById('cfgAgentMsgText').value = app.msg_text || '#e6edf3';
-      document.getElementById('cfgAgentMsgBorder').value = app.msg_border || '#30363d';
       // Load per-agent session_timeout, max_tools, max_tool_rounds
       const agentMaxTools = agent.max_tools;
       const agentSessionTimeout = agent.session_timeout;
@@ -117,14 +111,8 @@ export async function saveAgentSettings() {
   if (!currentConfigAgent) { toast.warning(t('agent.selectFirst')); return; }
   const body = {
     name: document.getElementById('cfgAgentName').value,
-    icon: document.getElementById('cfgAgentIcon').value,
+    icon: document.getElementById('cfgAgentIcon').textContent,
     avatar: document.getElementById('cfgAgentAvatar').value,
-    appearance: {
-      msg_font_size: document.getElementById('cfgAgentMsgFontSize').value + 'px',
-      msg_bg: document.getElementById('cfgAgentMsgBg').value,
-      msg_text: document.getElementById('cfgAgentMsgText').value,
-      msg_border: document.getElementById('cfgAgentMsgBorder').value,
-    },
     max_tools: parseInt(document.getElementById('agentCfgMaxTools').value),
     max_tool_rounds: parseInt(document.getElementById('agentCfgMaxToolRounds').value),
     session_timeout: parseInt(document.getElementById('agentCfgSessionTimeout').value),
@@ -231,10 +219,11 @@ export async function refreshConfigAgentPanel() {
 export function handleEmptyModels() {
   const tabModels = document.getElementById('tab-models');
   if (!tabModels) return;
-  // 空模型时隐藏整个 config-section 内容，只显示"添加模型"按钮
-  const section = tabModels.querySelector('.config-section');
+  // 空模型时隐藏表单内容，显示空状态提示 + "添加模型" 按钮
+  const emptyHint = document.getElementById('modelsEmptyHint');
   if (globalModelsList.length === 0) {
     if (section) section.style.display = 'none';
+    if (emptyHint) emptyHint.style.display = '';
     let addBtn = document.getElementById('agentAddModelBtn');
     if (!addBtn) {
       addBtn = document.createElement('button');
@@ -248,6 +237,7 @@ export function handleEmptyModels() {
     }
   } else {
     if (section) section.style.display = '';
+    if (emptyHint) emptyHint.style.display = 'none';
     const addBtn = document.getElementById('agentAddModelBtn');
     if (addBtn) addBtn.style.display = 'none';
   }
@@ -312,6 +302,8 @@ export async function selectConfigAgent(name) {
   if (agentConfigTitle) agentConfigTitle.innerHTML = '<strong>' + escapeHtml(agent.name) + ' - 设置</strong>';
   const cfgAgentName = document.getElementById('cfgAgentName');
   if (cfgAgentName) cfgAgentName.value = agent.display_name || agent.name || 'Siper Agent';
+  const cfgAgentIconSpan = document.getElementById('cfgAgentIcon');
+  if (cfgAgentIconSpan) cfgAgentIconSpan.textContent = agent.icon || '🎭';
   const cfgAgentIconBtn = document.getElementById('cfgAgentIconBtn');
   if (cfgAgentIconBtn) cfgAgentIconBtn.textContent = agent.icon || '🎭';
   const cfgAgentAvatar = document.getElementById('cfgAgentAvatar');
@@ -334,19 +326,6 @@ export async function selectConfigAgent(name) {
       identityRow.parentElement.insertBefore(delBtn, identityRow.nextSibling);
     }
   }
-  const app = agent.appearance || {};
-  const fontSize = parseInt(app.msg_font_size) || 18;
-  const cfgAgentMsgFontSize = document.getElementById('cfgAgentMsgFontSize');
-  if (cfgAgentMsgFontSize) cfgAgentMsgFontSize.value = fontSize;
-  const cfgAgentMsgFontSizeVal = document.getElementById('cfgAgentMsgFontSizeVal');
-  if (cfgAgentMsgFontSizeVal) cfgAgentMsgFontSizeVal.textContent = fontSize + 'px';
-  const cfgAgentMsgBg = document.getElementById('cfgAgentMsgBg');
-  if (cfgAgentMsgBg) cfgAgentMsgBg.value = app.msg_bg || '#1c2333';
-  const cfgAgentMsgText = document.getElementById('cfgAgentMsgText');
-  if (cfgAgentMsgText) cfgAgentMsgText.value = app.msg_text || '#e6edf3';
-  const cfgAgentMsgBorder = document.getElementById('cfgAgentMsgBorder');
-  if (cfgAgentMsgBorder) cfgAgentMsgBorder.value = app.msg_border || '#30363d';
-  
   // Save agent model refs for renderAgentModelSection to apply after rendering
   setPendingAgentModels({
     avail: (agent.available_models || []).map(m => typeof m === 'string' ? m : m.name),
@@ -536,9 +515,10 @@ function hideIconPicker() {
 }
 
 export function selectAgentIcon(icon) {
-  document.getElementById('cfgAgentIconBtn').textContent = icon;
-  const hidden = document.getElementById('cfgAgentIcon');
-  if (hidden) hidden.value = icon;
+  var span = document.getElementById('cfgAgentIcon');
+  if (span) span.textContent = icon;
+  var btn = document.getElementById('cfgAgentIconBtn');
+  if (btn) btn.textContent = icon;
   hideIconPicker();
   triggerAgentAutoSave();
 }
@@ -552,14 +532,8 @@ export function triggerAgentAutoSave() {
   _agentAutoSaveTimer = setTimeout(async () => {
     const body = {
       name: document.getElementById('cfgAgentName').value,
-      icon: document.getElementById('cfgAgentIcon').value,
+      icon: document.getElementById('cfgAgentIcon').textContent,
       avatar: document.getElementById('cfgAgentAvatar').value,
-      appearance: {
-        msg_font_size: document.getElementById('cfgAgentMsgFontSize').value + 'px',
-        msg_bg: document.getElementById('cfgAgentMsgBg').value,
-        msg_text: document.getElementById('cfgAgentMsgText').value,
-        msg_border: document.getElementById('cfgAgentMsgBorder').value,
-      },
       max_tools: parseInt(document.getElementById('agentCfgMaxTools').value),
       max_tool_rounds: parseInt(document.getElementById('agentCfgMaxToolRounds').value),
       session_timeout: parseInt(document.getElementById('agentCfgSessionTimeout').value),
@@ -593,7 +567,6 @@ export function triggerAgentAutoSave() {
 export function attachAgentAutoSaveListeners() {
   const fields = [
     'cfgAgentName', 'cfgAgentIcon',
-    'cfgAgentMsgFontSize', 'cfgAgentMsgBg', 'cfgAgentMsgText', 'cfgAgentMsgBorder',
     'agentCfgMaxTools', 'agentCfgSessionTimeout', 'agentCfgMaxToolRounds',
     'agentCfgLlmTimeout', 'agentCfgLlmMaxTokens', 'agentCfgLlmMaxRetries',
     'agentCfgMaxHistoryMessages', 'agentCfgMemoryMaxTokens', 'agentCfgSkillPreFilterTopK',
@@ -709,13 +682,7 @@ export function saveAllChatAgentConfig() {
   if (!agent) return;
   var body = {
     name: document.getElementById('cfgAgentName').value,
-    icon: document.getElementById('cfgAgentIcon').value,
-    appearance: {
-      msg_font_size: document.getElementById('cfgAgentMsgFontSize').value + 'px',
-      msg_bg: (agent.appearance && agent.appearance.msg_bg) || '#1c2333',
-      msg_text: (agent.appearance && agent.appearance.msg_text) || '#e6edf3',
-      msg_border: (agent.appearance && agent.appearance.msg_border) || '#30363d',
-    },
+    icon: document.getElementById('cfgAgentIcon').textContent,
     max_tools: parseInt(document.getElementById('agentCfgMaxTools').value) || 300,
     session_timeout: parseInt(document.getElementById('agentCfgSessionTimeout').value) || 3600,
     llm_timeout: parseInt(document.getElementById('agentCfgLlmTimeout').value) || 120,

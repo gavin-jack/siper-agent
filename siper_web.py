@@ -379,6 +379,17 @@ def _render_index() -> str:
             if _symlink.exists() or _symlink.is_symlink():
                 _symlink.unlink()
             _symlink.symlink_to("app.js")
+        # Patch ESM static imports in app.js to include cache-buster
+        # 这样浏览器每次重启都会加载最新的内部模块（chat.js, agent-config.js 等）
+        _app_js_path = PROJECT_ROOT / "webui" / "js" / "app.js"
+        _app_js_orig = _app_js_path.read_text()
+        _app_js_patched = _re.sub(
+            r"from '(\./[^']+\.js)(\?v=[0-9]+)?'",
+            lambda m: f"from '{m.group(1)}?v={_cb}'",
+            _app_js_orig,
+        )
+        if _app_js_patched != _app_js_orig:
+            _app_js_path.write_text(_app_js_patched)
     else:
         _cb = str(int(time.time() * 1000))
     html = _re.sub(

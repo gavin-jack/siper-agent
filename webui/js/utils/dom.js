@@ -15,6 +15,17 @@ export function toggleChatSidebar() {
   if (brand) brand.style.display = expanded ? '' : 'none';
 }
 
+/** 初始化侧边栏折叠状态：默认折叠（不读 localStorage） */
+export function initSidebarCollapse() {
+  const sidebar = document.getElementById('chatSidebar');
+  if (!sidebar) return;
+  sidebar.classList.remove('expanded');
+  const labels = sidebar.querySelectorAll('.siper-nav-item-label');
+  labels.forEach(l => { l.style.display = 'none'; });
+  const brand = sidebar.querySelector('.siper-sidebar-brand');
+  if (brand) brand.style.display = 'none';
+}
+
 // ===== Language =====
 export function selectChatLangAndSave(lang) {
   if (lang) {

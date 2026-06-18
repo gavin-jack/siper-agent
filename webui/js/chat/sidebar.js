@@ -58,6 +58,14 @@ function _getAgentLatestUpdated(agent) {
 
 let _renderMiddleTimer = null;
 let _switchingAgents = new Set();  // 防重入锁：正在切换的 agent 名集合
+/** 展开所有 agent（首次加载时默认全部展开） */
+export function expandAllAgents() {
+  const agents = getAgentsFromCache();
+  for (const agent of agents) {
+    _expandedAgents.set(agent.name, true);
+  }
+}
+
 export function renderMiddleList() {
   // 直接执行排序渲染，不走 debounce
   // 原因：debounce 导致 updateSessionPreview 和 chatLoadAllSessions 竞态，排序结果不稳定
@@ -118,7 +126,7 @@ function _doRenderMiddle() {
         <div class="siper-agent-name">${chatEscapeHtml(agent.display_name)}</div>
         <div class="siper-agent-desc">${chatEscapeHtml(agent.description || '')}</div>
       </div>
-      <span class="siper-agent-count">${agent.sessions.length}</span>
+      <span class="siper-agent-count">${(agent.sessions || []).length}</span>
       <button class="siper-agent-add-btn" title="新对话" data-agent-name="${agent.name}">+</button>
     `;
     group.appendChild(header);
@@ -198,6 +206,10 @@ export async function chatToggleAgent(agentName) {
     renderMiddleList();
     // 选中 agent + 加载会话
     await switchToAgent(agentName);
+    // 展开态点击 → 折叠后显示 agent 设置页面（右栏）
+    if (current && typeof window.selectChatAgent === 'function') {
+      window.selectChatAgent(agentName);
+    }
   } finally {
     _switchingAgents.delete(agentName);
   }
