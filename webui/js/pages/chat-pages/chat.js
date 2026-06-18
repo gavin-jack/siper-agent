@@ -21,8 +21,7 @@ let _sidebarInitialized = false;
 export function initSidebar() {
   if (_sidebarInitialized) return;
   _sidebarInitialized = true;
-  document.getElementById('sidebarContainer').innerHTML = `
-    <div class="siper-sidebar" id="chatSidebar">
+  document.getElementById('chatSidebar').innerHTML = `
       <div class="siper-sidebar-header" onclick="toggleChatSidebar()" title="展开/折叠">
         <img src="/static/default_avatar.webp" class="siper-sidebar-avatar" alt="avatar" width="36" height="36" onerror="this.src='/static/default_avatar_256.png'">
         <span class="siper-sidebar-brand">SiPer</span>
@@ -49,7 +48,7 @@ export function initSidebar() {
         </div>
       </nav>
       <div class="siper-sidebar-footer"></div>
-    </div>`;
+    `;
   document.querySelectorAll('.siper-nav-item').forEach(el => {
     el.addEventListener('click', function(e) {
       e.preventDefault();
@@ -137,7 +136,7 @@ async function loadAndRenderAgents() {
 window.initChatPage = initChatPage;
 
 // selectChatAgent — 选中 agent 时在右栏显示 agent 配置（不替换中栏）
-window.selectChatAgent = function(agentName) {
+window.selectChatAgent = async function(agentName) {
   var chatRight = document.getElementById('chatRight');
   var chatContent = document.getElementById('chatContentArea');
   if (!chatContent) return;
@@ -248,6 +247,10 @@ window.selectChatAgent = function(agentName) {
       '</div>' +
     '</div>';
   // 加载 agent 数据 + 填充表单
+  // 先确保 agentConfigData 已加载（selectConfigAgent 依赖它）
+  if (typeof window.refreshConfigAgentPanel === 'function') {
+    await window.refreshConfigAgentPanel();
+  }
   if (typeof window.selectConfigAgent === 'function') {
     window.selectConfigAgent(agentName);
   }

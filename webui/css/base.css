@@ -260,7 +260,7 @@ html { touch-action: manipulation; }
 .chat-model-item:hover,
 .chat-model-item.selected,
 .style-switcher-item:hover,
-.sidebar.collapsed .nav-item:hover,
+.siper-sidebar.collapsed .nav-item:hover,
 .siper-agent-header:hover,
 .siper-session-item:hover,
 .siper-show-more-btn:hover,
@@ -492,10 +492,10 @@ html { touch-action: manipulation; }
 
 /* ===== Avatar Fallback ===== */
 .msg-avatar-hidden,
-.sidebar.collapsed .sidebar-status,
-.sidebar.collapsed .nav-section-title,
-.sidebar.collapsed .nav-item span:last-child,
-.sidebar.collapsed .sidebar-version-row,
+.siper-sidebar.collapsed .sidebar-status,
+.siper-sidebar.collapsed .nav-section-title,
+.siper-sidebar.collapsed .nav-item span:last-child,
+.siper-sidebar.collapsed .sidebar-version-row,
 .siper-sidebar .siper-nav-item .siper-nav-item-label,
 .siper-sidebar .siper-nav-title,
 .model-card-provider,
@@ -508,32 +508,31 @@ html { touch-action: manipulation; }
 }
 
 /* ===== Sidebar Resize Handle ===== */
-.sidebar.collapsed ~ /* Collapsed sidebar: narrow icon bar */
-.sidebar.collapsed {
+.siper-sidebar.collapsed {
   width: 48px !important;
   min-width: 48px !important;
   overflow: visible;
 }
-.sidebar.collapsed .sidebar-header {
+.siper-sidebar.collapsed .siper-sidebar-header {
   padding: 8px 0;
   align-items: center;
   border: none;
 }
-.sidebar.collapsed .sidebar.collapsed .sidebar-avatar {
+.siper-sidebar.collapsed .siper-sidebar-avatar {
   width: 28px; height: 28px;
 }
-.sidebar.collapsed .sidebar-brand,
-.sidebar.collapsed .sidebar-nav {
+.siper-sidebar.collapsed .siper-sidebar-brand,
+.siper-sidebar.collapsed .siper-sidebar-nav {
   padding: 4px 0;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
-.sidebar.collapsed .nav-section {
+.siper-sidebar.collapsed .siper-nav-section {
   margin-bottom: 2px;
   width: 100%;
 }
-.sidebar.collapsed .nav-item {
+.siper-sidebar.collapsed .siper-nav-item {
   padding: 8px 0;
   justify-content: center;
   gap: 0;
@@ -541,23 +540,23 @@ html { touch-action: manipulation; }
   border-radius: 0;
   width: 100%;
 }
-.sidebar.collapsed .nav-item .icon {
+.siper-sidebar.collapsed .nav-item .icon {
   font-size: 18px;
   width: auto;
 }
-.sidebar.collapsed .nav-item.active {
+.siper-sidebar.collapsed .nav-item.active {
   background: var(--color-hover);
   border-left: none;
   box-shadow: inset 2px 0 0 var(--color-primary);
 }
-.sidebar.collapsed .sidebar-footer {
+.siper-sidebar.collapsed .sidebar-footer {
   padding: 0;
   flex-direction: column;
   align-items: center;
   gap: 0;
   border-top: none;
 }
-.sidebar.collapsed .lang-dropdown-trigger {
+.siper-sidebar.collapsed .lang-dropdown-trigger {
   font-size: 16px;
   padding: 8px 0;
   width: 100%;
@@ -568,7 +567,7 @@ html { touch-action: manipulation; }
   justify-content: center;
   box-sizing: border-box;
 }
-.sidebar.collapsed .theme-palette-trigger {
+.siper-sidebar.collapsed .theme-palette-trigger {
   width: 100%;
   height: 42px;
   padding: 8px 0;
@@ -581,7 +580,7 @@ html { touch-action: manipulation; }
   border: none;
   font-size: 16px;
 }
-.sidebar.collapsed .sidebar-settings-toggle {
+.siper-sidebar.collapsed .sidebar-settings-toggle {
   display: flex;
   width: 100%;
   height: 42px;
@@ -594,13 +593,13 @@ html { touch-action: manipulation; }
 }
 
 /* Collapsed sidebar: dropdown menus repositioned for vertical layout */
-.sidebar.collapsed .lang-dropdown-menu {
+.siper-sidebar.collapsed .lang-dropdown-menu {
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
   margin-bottom: 4px;
 }
-.sidebar.collapsed .theme-palette-menu {
+.siper-sidebar.collapsed .theme-palette-menu {
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
@@ -608,15 +607,15 @@ html { touch-action: manipulation; }
 }
 
 /* ===== Sidebar Collapse ===== */
-.sidebar.collapsed ~ .main.expanded {
+.siper-sidebar.collapsed ~ .main.expanded {
   margin-left: 0 !important;
   transition: background-color 0.15s, color 0.15s;
 }
 
 /* ===== Left Sidebar (Collapsible Nav) ===== */
 .siper-sidebar {
-  width: 60px;
-  min-width: 60px;
+  width: var(--sidebar-width, 180px);
+  min-width: var(--sidebar-width, 180px);
   background: color-mix(in srgb, var(--color-text) 80%, black);
   display: flex;
   flex-direction: column;
