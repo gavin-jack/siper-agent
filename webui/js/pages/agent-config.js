@@ -76,6 +76,11 @@ export async function loadAgentSettings() {
       document.getElementById('agentCfgMaxHistoryMessages').value = agent.max_history_messages !== undefined ? agent.max_history_messages : 50;
       document.getElementById('agentCfgMemoryMaxTokens').value = (agent.memory_integration && agent.memory_integration.max_tokens !== undefined) ? agent.memory_integration.max_tokens : 20000;
       document.getElementById('agentCfgSkillPreFilterTopK').value = agent.skill_pre_filter_top_k !== undefined ? agent.skill_pre_filter_top_k : 5;
+      // Set default vision model
+      if (agent.default_vision_model !== undefined) {
+        const visionSel = document.getElementById('agentDefaultVisionModel');
+        if (visionSel) visionSel.value = agent.default_vision_model || '— 使用全局默认 —';
+      }
       // Sync agent label for limits tab
       const _lblLimits = document.getElementById('currentAgentLabelLimits');
       if (_lblLimits) _lblLimits.textContent = (agent.display_name || agent.name) + ' - 设置';
@@ -94,15 +99,6 @@ export async function loadAgentSettings() {
       document.getElementById('agentCfgSessionTimeout').value = d.session_timeout || 3600;
     } catch(e) {}
   }
-  // Load models from agent config data
-  if (currentConfigAgent && agentConfigData && agentConfigData.agents) {
-    const agent = agentConfigData.agents.find(a => a.name === currentConfigAgent);
-    if (agent) {
-      await loadGlobalModelsForAgent();
-      renderAgentModelsForAgent(agent);
-      handleEmptyModels();
-    }
-  }
   // 内联绑定 agent 配置 auto-save（避免 DOMContentLoaded 时机问题）
   attachAgentAutoSaveListeners();
 }
@@ -110,7 +106,7 @@ export async function loadAgentSettings() {
 export async function saveAgentSettings() {
   if (!currentConfigAgent) { toast.warning(t('agent.selectFirst')); return; }
   const body = {
-    name: document.getElementById('cfgAgentName').value,
+    display_name: document.getElementById('cfgAgentName').value,
     icon: document.getElementById('cfgAgentIcon').textContent,
     avatar: document.getElementById('cfgAgentAvatar').value,
     max_tools: parseInt(document.getElementById('agentCfgMaxTools').value),
@@ -121,11 +117,13 @@ export async function saveAgentSettings() {
     llm_max_retries: parseInt(document.getElementById('agentCfgLlmMaxRetries').value),
     max_history_messages: parseInt(document.getElementById('agentCfgMaxHistoryMessages').value),
     skill_pre_filter_top_k: parseInt(document.getElementById('agentCfgSkillPreFilterTopK').value),
+    default_vision_model: document.getElementById('agentDefaultVisionModel') ? document.getElementById('agentDefaultVisionModel').value : '',
     memory_integration: {
       max_tokens: parseInt(document.getElementById('agentCfgMemoryMaxTokens').value),
     },
   };
-  const r = await fetch('/api/agents/' + currentConfigAgent + '/meta', {
+  // Primary: write to config.db via new API
+  const r = await fetch('/api/config/agent/' + currentConfigAgent, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(body),
@@ -148,13 +146,11 @@ export function autoSaveAgentModels() {
     const availModels = [];
     document.querySelectorAll('.agent-avail-mcb:checked').forEach(cb => availModels.push(cb.value));
     const body = {
-      name: document.getElementById('cfgAgentName').value,
-      available_models: availModels,
-      default_chat_model: document.getElementById('agentDefaultChatModel') ? document.getElementById('agentDefaultChatModel').value : '',
-      default_vision_model: document.getElementById('agentDefaultVisionModel') ? document.getElementById('agentDefaultVisionModel').value : '',
+      model_names: availModels,
+      default_name: document.getElementById('agentDefaultChatModel') ? document.getElementById('agentDefaultChatModel').value : '',
     };
     try {
-      const r = await fetch('/api/agents/' + currentConfigAgent + '/meta', {
+      const r = await fetch('/api/config/agent/' + currentConfigAgent + '/models', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(body),
@@ -215,31 +211,7 @@ export async function refreshConfigAgentPanel() {
   }
 }
 
-// ===== Empty Models Handler =====
-export function handleEmptyModels() {
-  // 模型已移入关于Tab，不再需要单独的tab-models容器
-  const emptyHint = document.getElementById('modelsEmptyHint');
-  if (globalModelsList.length === 0) {
-    if (section) section.style.display = 'none';
-    if (emptyHint) emptyHint.style.display = '';
-    let addBtn = document.getElementById('agentAddModelBtn');
-    if (!addBtn) {
-      addBtn = document.createElement('button');
-      addBtn.id = 'agentAddModelBtn';
-      addBtn.className = 'siper-btn primary';
-      addBtn.textContent = '+ 添加模型';
-      addBtn.onclick = function() { if (typeof chatSwitchPage === 'function') chatSwitchPage('model-settings'); };
-      tabModels.appendChild(addBtn);
-    } else {
-      addBtn.style.display = '';
-    }
-  } else {
-    if (section) section.style.display = '';
-    if (emptyHint) emptyHint.style.display = 'none';
-    const addBtn = document.getElementById('agentAddModelBtn');
-    if (addBtn) addBtn.style.display = 'none';
-  }
-}
+// handleEmptyModels 已废弃 — 模型渲染由 renderAgentModelsForAgent() 统一处理
 
 // ===== Agent Config =====
 export async function selectConfigAgent(name) {
@@ -331,10 +303,9 @@ export async function selectConfigAgent(name) {
     defVision: agent.default_vision_model || '',
   });
 
-  // Render model section from agent config data (full model objects)
+  // Load global models first, then render model section
+  await loadGlobalModelsForAgent();
   renderAgentModelsForAgent(agent);
-  // Handle empty models: hide model UI, show "add model" button
-  handleEmptyModels();
 }
 
 export function switchConfigAgentPageTab(tab) {
@@ -522,7 +493,7 @@ export function triggerAgentAutoSave() {
   if (_agentAutoSaveTimer) clearTimeout(_agentAutoSaveTimer);
   _agentAutoSaveTimer = setTimeout(async () => {
     const body = {
-      name: document.getElementById('cfgAgentName').value,
+      display_name: document.getElementById('cfgAgentName').value,
       icon: document.getElementById('cfgAgentIcon').textContent,
       avatar: document.getElementById('cfgAgentAvatar').value,
       max_tools: parseInt(document.getElementById('agentCfgMaxTools').value),
@@ -538,7 +509,7 @@ export function triggerAgentAutoSave() {
       },
     };
     try {
-      const r = await fetch('/api/agents/' + currentConfigAgent + '/meta', {
+      const r = await fetch('/api/config/agent/' + currentConfigAgent, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -786,3 +757,6 @@ window.showAddAgentModal = showAddAgentModal;
 window.confirmDeleteAgent = confirmDeleteAgent;
 window.switchConfigAgentPageTab = switchConfigAgentPageTab;
 window.triggerAgentFileAutoSave = triggerAgentFileAutoSave;
+window.autoSaveAgentModels = autoSaveAgentModels;
+window.loadGlobalModelsForAgent = loadGlobalModelsForAgent;
+window.toggleIconPicker = toggleIconPicker;

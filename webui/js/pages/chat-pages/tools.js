@@ -130,9 +130,9 @@ function _renderToolCard(tool) {
   const desc = _escHtml(tool.description || '');
   const toolsets = (tool.toolsets || []).join(', ');
   const params = _renderParams(tool.schema);
-  return `<div class="siper-card tool-card card-hover" data-tool="${name}">
-    <div class="tool-card-header">
-      <span class="tool-card-name">${name}</span>
+  return `<div class="card tool-card card-hover" data-tool="${name}">
+    <div class="card-header">
+      <span class="card-title">${name}</span>
       ${toolsets ? `<span class="tool-card-toolset">${_escHtml(toolsets)}</span>` : ''}
     </div>
     <div class="tool-card-desc">${desc}</div>

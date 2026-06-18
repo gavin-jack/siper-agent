@@ -67,7 +67,7 @@ export function renderAgentModelSection(globalModels, agentAvailNames) {
   const listContainer = document.getElementById('agentModelListSection');
   if (listContainer) {
     listContainer.innerHTML = `
-    <div class="field-hint" class="js-mb-8">可用模型（勾选后该 agent 可在对话中使用）</div>
+    <div class="field-hint js-mb-8">可用模型（勾选后该 agent 可在对话中使用）</div>
     <div class="model-list">${checkboxes}</div>`;
   }
 
@@ -98,7 +98,7 @@ export function renderAgentModelsForAgent(agentData, loadChatAgents, loadChatMod
   } else {
     loadGlobalModelsForAgent().then(() => {
       renderAgentModelSection(globalModelsList, agentAvailNames);
-    });
+    }).catch(e => console.error('[renderAgentModelsForAgent] load failed:', e.message));
   }
 }
 

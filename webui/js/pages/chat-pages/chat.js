@@ -22,11 +22,11 @@ export function initSidebar() {
   if (_sidebarInitialized) return;
   _sidebarInitialized = true;
   document.getElementById('chatSidebar').innerHTML = `
-      <div class="siper-sidebar-header" onclick="toggleChatSidebar()" title="展开/折叠">
-        <img src="/static/default_avatar.webp" class="siper-sidebar-avatar" alt="avatar" width="36" height="36" onerror="this.src='/static/default_avatar_256.png'">
-        <span class="siper-sidebar-brand">SiPer</span>
+      <div class="sidebar-header" onclick="toggleChatSidebar()" title="展开/折叠">
+        <img src="/static/default_avatar.webp" class="sidebar-avatar" alt="avatar" width="36" height="36" onerror="this.src='/static/default_avatar_256.png'">
+        <span class="sidebar-brand">SiPer</span>
       </div>
-      <nav class="siper-sidebar-nav" role="navigation" aria-label="主导航">
+      <nav class="sidebar-nav" role="navigation" aria-label="主导航">
         <div class="siper-nav-section">
           <div class="siper-nav-title" data-i18n="nav.agent">智能体</div>
           <a class="siper-nav-item active" data-page="chat" href="#/chat"><span>💬</span><span class="siper-nav-item-label" data-i18n="nav.chat">对话</span></a>
@@ -43,11 +43,12 @@ export function initSidebar() {
           <div class="siper-nav-title" data-i18n="nav.monitor">监控</div>
           <a class="siper-nav-item" data-page="monitor" href="#/monitor"><span>📊</span><span class="siper-nav-item-label" data-i18n="nav.monitorPage">统计</span></a>
           <a class="siper-nav-item" data-page="directory" href="#/directory"><span>📁</span><span class="siper-nav-item-label" data-i18n="nav.directory">目录</span></a>
-          <a class="siper-nav-item" data-page="api-docs" href="#/api-docs"><span>📖</span><span class="siper-nav-item-label">API 文档</span></a>
-          <a class="siper-nav-item" data-page="global-settings" href="#/global-settings"><span>⚙️</span><span class="siper-nav-item-label" data-i18n="nav.globalSettings">全局</span></a>
+          <a class="siper-nav-item" data-page="api-docs" href="#/api-docs"><span>📖</span><span class="siper-nav-item-label">API</span></a>
         </div>
       </nav>
-      <div class="siper-sidebar-footer"></div>
+      <div class="sidebar-footer">
+        <a class="siper-nav-item" data-page="global-settings" href="#/global-settings"><span>⚙️</span><span class="siper-nav-item-label" data-i18n="nav.globalSettings">全局</span></a>
+      </div>
     `;
   document.querySelectorAll('.siper-nav-item').forEach(el => {
     el.addEventListener('click', function(e) {
@@ -81,6 +82,10 @@ export function initChatPage() {
     <div class="siper-chat" id="chatRight">
       <div class="siper-chat-header" id="chatRightHeader">
         <span class="siper-chat-header-name" id="chatRightHeaderName">SiPer</span>
+      </div>
+      <div class="siper-thinking-panel" id="chatThinkingPanel">
+        <div class="siper-thinking-header"><span class="siper-thinking-icon">💭</span><span>正在思考</span></div>
+        <div class="siper-thinking-body" id="chatThinkingBody"></div>
       </div>
       <div class="siper-content" id="chatContentArea"></div>
     </div>`;
@@ -292,10 +297,6 @@ export function renderChatPage(container, skipSidebar) {
   } else if (typeof Input.updateChatHeader === 'function') Input.updateChatHeader();
 
   container.innerHTML = '' +
-    '<div class="siper-thinking-panel" id="chatThinkingPanel">' +
-      '<div class="siper-thinking-header"><span class="siper-thinking-icon">💭</span><span>正在思考</span></div>' +
-      '<div class="siper-thinking-body" id="chatThinkingBody"></div>' +
-    '</div>' +
     '<div class="siper-messages" id="chatMessages" aria-live="polite" aria-atomic="false">' +
       '<div class="siper-empty-state" id="chatEmptyState"><div class="siper-empty-state-icon">💬</div><div>通过agent发送消息</div></div>' +
     '</div>' +

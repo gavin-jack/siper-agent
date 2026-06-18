@@ -264,10 +264,10 @@ export function renderSettingsModelsList() {
   list.innerHTML = html;
 
   // 入场动画（仅新卡片）
-  const currentCount = list.querySelectorAll('.siper-card.model-card').length;
+  const currentCount = list.querySelectorAll('.card.model-card').length;
   if (currentCount > _lastRenderCount) {
     requestAnimationFrame(() => {
-      const allCards = list.querySelectorAll('.siper-card.model-card');
+      const allCards = list.querySelectorAll('.card.model-card');
       for (let i = _lastRenderCount; i < allCards.length; i++) {
         const card = allCards[i];
         card.classList.add('model-card-animate');
@@ -308,7 +308,7 @@ function buildCardHtml(m, i) {
     ? '<button class="btn-sm btn-verify-pending" disabled title="检测中...">⏳</button>'
     : `<button class="btn-sm btn-verify" data-name="${escapeAttr(m.name)}" title="验证可用性">🔍</button>`;
   return `
-    <div class="siper-card model-card card-left-accent${m._verified === 'pending' ? ' model-card-verifying' : m._verified === true ? ' model-verify-pass' : m._verified === false ? ' model-verify-fail' : ''}" data-model-name="${escapeAttr(m.name)}" data-caps="${escapeAttr((m.capabilities || []).join(','))}" data-ttft="${m.ttft || 99999}" data-latency="${m._latency || m.latency || 99999}" data-context="${m.context_window || 0}">
+    <div class="card model-available card-left-accent${m._verified === 'pending' ? ' model-card-verifying' : m._verified === true ? ' model-verify-pass' : m._verified === false ? ' model-verify-fail' : ''}" data-model-name="${escapeAttr(m.name)}" data-caps="${escapeAttr((m.capabilities || []).join(','))}" data-ttft="${m.ttft || 99999}" data-latency="${m._latency || m.latency || 99999}" data-context="${m.context_window || 0}">
       <div class="model-card-header">
         <div class="model-name-scroll">
           <span class="model-name-text" title="${escapeAttr(m.name)}">${escapeHtml(m.name)}</span>
@@ -610,7 +610,7 @@ export function renderDiscoveredModels(allModels, newCount, provider, totalCount
       const caps = (m.capabilities || []).slice().sort((a, b) => (capOrder[a] ?? 50) - (capOrder[b] ?? 50));
       const capBadges = caps.map(c => `<span class="cap-badge cap-badge-${c}" title="${c}">${capIcons[c] || c}</span>`).join('');
       const ctx = m.context_window ? (m.context_window >= 1000000 ? (m.context_window / 1000000).toFixed(1) + 'M' : (m.context_window / 1000).toFixed(0) + 'K') : '-';
-      html += `<div class="model-card card-left-accent model-card-discover" data-name="${escapeAttr(m.name || m.id)}">
+      html += `<div class="card model-discover card-left-accent" data-name="${escapeAttr(m.name || m.id)}">
         <div class="model-card-header">
           <input type="checkbox" class="discover-check" data-name="${escapeAttr(m.name || m.id)}" style="flex-shrink:0;cursor:pointer;">
           <div class="model-name-scroll">
@@ -634,7 +634,7 @@ export function chatFilterDiscovered() {
   const clearBtn = document.getElementById('discoverFilterClear');
   if (input && clearBtn) clearBtn.style.display = input.value ? 'block' : 'none';
   const text = (input?.value || '').trim().toLowerCase();
-  const cards = document.querySelectorAll('#discoverResult .model-card-discover');
+  const cards = document.querySelectorAll('#discoverResult .model-discover');
   let shown = 0;
   cards.forEach(card => {
     const name = (card.dataset.name || '').toLowerCase();

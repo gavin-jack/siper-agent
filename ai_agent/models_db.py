@@ -142,6 +142,11 @@ class ModelsDB:
         """插入/更新 provider，返回 id。base_url 作为唯一标识。"""
         now = time.time()
         with self._connect() as conn:
+            # 如果 api_key 为空，保留 DB 中已有的 key（不覆盖）
+            if not api_key:
+                existing = conn.execute("SELECT api_key FROM providers WHERE base_url=?", (base_url,)).fetchone()
+                if existing and existing["api_key"]:
+                    api_key = existing["api_key"]
             cursor = conn.execute("""
                 INSERT INTO providers (base_url, provider, provider_alias, api_key, updated_at)
                 VALUES (?, ?, ?, ?, ?)
@@ -335,6 +340,9 @@ class ModelsDB:
             prov_id = m.get("provider", 0)
             base_url = m.get("base_url", "")
             api_key = m.get("api_key", "")
+            # 跳过 masked key（* 开头），避免覆盖 DB 中已有的真实 key
+            if api_key.startswith("*"):
+                api_key = ""
             prov_name = m.get("provider_name", "") or m.get("provider", "")
             prov_alias = m.get("provider_alias", "")
 

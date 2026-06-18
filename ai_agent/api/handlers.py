@@ -45,6 +45,7 @@ snapshot_mgr = None
 
 # 以下全局变量在 siper_web.py 的 main() 中初始化，通过 set_globals() 注入
 _models_db = None
+_config_db = None
 _agent_session_managers = {}
 _log_buffer = []
 _token_usage_history = []
@@ -66,7 +67,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 def set_globals(**kwargs):
     """由 siper_web.py 调用，注入运行时全局变量。"""
-    global _models_db, _agent_session_managers, _log_buffer, _token_usage_history
+    global _models_db, _config_db, _agent_session_managers, _log_buffer, _token_usage_history
     global _token_db_conn, _upgrade_cache, _upgrade_cache_lock
     global start_time, port, ws_port
     global _SESSION_LIST_LIMIT, _LOG_BUFFER_MAX, _TOKEN_USAGE_MAX
@@ -76,6 +77,8 @@ def set_globals(**kwargs):
             globals()["agent"] = v
         elif k == "models_db":
             _models_db = v
+        elif k == "config_db":
+            _config_db = v
         elif k == "agent_session_managers":
             _agent_session_managers = v
         elif k == "log_buffer":
@@ -688,6 +691,7 @@ def api_get_agents():
     try:
         from agents import list_agents, get_agent_dir, load_agent_config_file
         available = list_agents()
+        with open('/tmp/siper_dbg.log', 'a') as _dbg: _dbg.write(f"available={available}\n")
         # Load global models for enriching agent available_models
         _all_global_models = _models_db.get_models_flat()["models"]
         result = []
@@ -696,17 +700,30 @@ def api_get_agents():
             soul_exists = (agent_dir / "soul.md").exists() if agent_dir else False
             config_exists = (agent_dir / "agent.md").exists() if agent_dir else False
             memory_exists = (agent_dir / "memory.md").exists() if agent_dir else False
-            # Load per-agent config (icon, avatar, models, display name) from config.json
-            cfg = load_agent_config_file(name) or {}
-            # Expand available_models from name list to full model objects
-            _agent_avail = cfg.get("available_models", [])
+            # Load per-agent config: primary config.db, fallback config.json
+            cfg = {}
+            if _config_db:
+                db_cfg = _config_db.get_agent_config(name)
+                if db_cfg:
+                    cfg = db_cfg
+            if not cfg:
+                cfg = load_agent_config_file(name) or {}
+            # Expand available_models: prefer agent_models table, fallback config.json
+            _agent_avail = []
+            if _config_db:
+                _agent_avail = _config_db.get_agent_model_ids(name)
+            if not _agent_avail:
+                _agent_avail = cfg.get("available_models", [])
+            # Resolve model names to full objects
             _agent_avail_models = []
             if _agent_avail:
                 for mname in _agent_avail:
-                    _gm = next((m for m in _all_global_models if m["name"] == mname), None)
-                    if _gm:
-                        _agent_avail_models.append(_gm)
-                    # else: model no longer in global list — skip (was deleted)
+                    if isinstance(mname, str):
+                        _gm = next((m for m in _all_global_models if m["name"] == mname), None)
+                        if _gm:
+                            _agent_avail_models.append(_gm)
+                    else:
+                        _agent_avail_models.append(mname)
             result.append({
                 "name": name,
                 "display_name": cfg.get("display_name") or cfg.get("name") or name,
@@ -741,31 +758,48 @@ def api_get_agents():
 
 
 def api_save_agent_meta(name, body):
-    """Save per-agent config.json (icon, avatar, name, model refs, display settings, session_timeout, max_tools)."""
+    """Save per-agent config.json — merge body into existing config (never drops fields)."""
     try:
         from agents import get_agent_dir, save_agent_config_file, load_agent_config_file
         agent_dir = get_agent_dir(name)
         if not agent_dir:
             return {"success": False, "error": "agent not found"}
-        # Build the data to save (only known config keys)
-        data = {}
-        for key in ("name", "icon", "avatar", "models", "default_model",
-                    "available_models", "default_chat_model", "default_vision_model", "default_tts_model",
-                    "appearance", "session_timeout", "max_tools", "max_tool_rounds",
-                    "llm_timeout", "llm_max_tokens", "llm_max_retries",
-                    "max_history_messages", "skill_pre_filter_top_k", "memory_integration"):
-            if key in body:
-                # memory_integration: merge with existing to preserve mode/position/template
-                if key == "memory_integration":
-                    existing = load_agent_config_file(name) or {}
-                    existing_mi = existing.get("memory_integration", {})
+        # Load existing config as base, then overlay body fields
+        data = load_agent_config_file(name) or {}
+        _known_keys = ("name", "icon", "avatar", "models", "default_model",
+                       "available_models", "default_chat_model", "default_vision_model", "default_tts_model",
+                       "appearance", "session_timeout", "max_tools", "max_tool_rounds",
+                       "llm_timeout", "llm_max_tokens", "llm_max_retries",
+                       "max_history_messages", "skill_pre_filter_top_k", "memory_integration")
+        for key in _known_keys:
+            if key not in body:
+                continue
+            if key == "memory_integration" and isinstance(body[key], dict):
+                # Deep-merge: preserve mode/position/template from existing
+                existing_mi = data.get("memory_integration") or {}
+                if isinstance(existing_mi, dict):
                     existing_mi.update(body[key])
                     data[key] = existing_mi
                 else:
                     data[key] = body[key]
+            elif key == "appearance" and isinstance(body[key], dict):
+                existing_app = data.get("appearance") or {}
+                if isinstance(existing_app, dict):
+                    existing_app.update(body[key])
+                    data[key] = existing_app
+                else:
+                    data[key] = body[key]
+            else:
+                data[key] = body[key]
         ok = save_agent_config_file(name, data)
         if not ok:
             return {"success": False, "error": "save failed"}
+        # Dual-write: also save to config.db
+        if _config_db:
+            try:
+                _config_db.upsert_agent_config(name, data)
+            except Exception as _e:
+                logger.warning(f"config.db 写入失败（不影响 JSON 写入）：{_e}")
         # If this is the active agent, apply config changes to runtime
         if name == agent.config.agent_name:
             if "name" in body:
@@ -2711,6 +2745,145 @@ def api_get_tools():
         "categories": categories,
         "total": len(tools_list),
     }
+
+
+# ===== Config DB API =====
+
+def api_get_config_global():
+    """GET /api/config/global — 读取全局设置（按前缀分组）"""
+    try:
+        if not _config_db:
+            return {"error": "config_db not initialized", "settings": {}}
+        grouped = _config_db.get_global_settings_grouped()
+        return {"settings": grouped}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def api_save_config_global(body):
+    """POST /api/config/global — 批量更新全局设置"""
+    try:
+        if not _config_db:
+            return {"success": False, "error": "config_db not initialized"}
+        if not isinstance(body, dict):
+            return {"success": False, "error": "body must be a dict"}
+        _config_db.set_global_settings_batch(body)
+        return {"success": True, "updated": len(body)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def api_get_config_agent(name):
+    """GET /api/config/agent/{name} — 读取 agent 配置"""
+    try:
+        if not _config_db:
+            return {"error": "config_db not initialized"}
+        config = _config_db.get_agent_config(name)
+        if not config:
+            return {"error": f"agent '{name}' not found"}
+        return {"config": config}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def api_save_config_agent(name, body):
+    """POST /api/config/agent/{name} — 更新 agent 配置"""
+    try:
+        if not _config_db:
+            return {"success": False, "error": "config_db not initialized"}
+        if not isinstance(body, dict):
+            return {"success": False, "error": "body must be a dict"}
+        _config_db.upsert_agent_config(name, body)
+        # 同步更新运行时 agent 配置
+        if agent and hasattr(agent, 'config') and name == agent.config.agent_name:
+            _apply_agent_config_to_runtime(body)
+        return {"success": True}
+    except Exception as e:
+        import traceback
+        logger.error(f"api_save_config_agent [{name}] 失败：{e}\n{traceback.format_exc()}")
+        return {"success": False, "error": str(e)}
+
+
+def api_get_agent_models_api(name):
+    """GET /api/config/agent/{name}/models — 读取 agent 可用模型列表（含模型详情）"""
+    try:
+        if not _config_db:
+            return {"error": "config_db not initialized"}
+        models = _config_db.get_agent_models(name)
+        return {"models": models}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def api_save_agent_models_api(name, body):
+    """POST /api/config/agent/{name}/models — 更新 agent 可用模型（事务：先删后插）"""
+    try:
+        if not _config_db:
+            return {"success": False, "error": "config_db not initialized"}
+        if not isinstance(body, dict):
+            return {"success": False, "error": "body must be a dict"}
+        model_names = body.get("model_names", [])
+        default_name = body.get("default_name")
+        if not isinstance(model_names, list):
+            return {"success": False, "error": "model_names must be a list"}
+        _config_db.set_agent_models(name, model_names, default_name)
+        return {"success": True, "count": len(model_names)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def api_set_agent_model(name, body):
+    """POST /api/config/agent/{name}/model — 设置 agent 当前使用的模型"""
+    try:
+        if not _config_db:
+            return {"success": False, "error": "config_db not initialized"}
+        if not isinstance(body, dict):
+            return {"success": False, "error": "body must be a dict"}
+        model_name = body.get("model_name")
+        if not model_name:
+            return {"success": False, "error": "model_name is required"}
+        _config_db.set_agent_default_model(name, model_name)
+        # 同步更新运行时
+        if agent and hasattr(agent, 'config') and name == agent.config.agent_name:
+            agent.config.default_chat_model = model_name
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def _apply_agent_config_to_runtime(body):
+    """将 agent 配置变更同步到运行时 agent.config"""
+    try:
+        if "name" in body:
+            agent.config.name = body["name"]
+        if "icon" in body:
+            agent.config.icon = body["icon"]
+        if "avatar" in body:
+            agent.config.avatar = body["avatar"]
+        if "available_models" in body:
+            agent.config.available_models = body["available_models"]
+        if "default_chat_model" in body:
+            agent.config.default_chat_model = body["default_chat_model"]
+        if "default_vision_model" in body:
+            agent.config.default_vision_model = body["default_vision_model"]
+        if "default_tts_model" in body:
+            agent.config.default_tts_model = body["default_tts_model"]
+        if "llm_timeout" in body:
+            agent.config.llm_timeout = int(body["llm_timeout"])
+        if "llm_max_tokens" in body:
+            agent.config.llm_max_tokens = int(body["llm_max_tokens"])
+        if "llm_max_retries" in body:
+            agent.config.llm_max_retries = int(body["llm_max_retries"])
+        if "max_history_messages" in body:
+            agent.config.max_history_messages = int(body["max_history_messages"])
+        if "session_timeout" in body:
+            agent.config.session_timeout = int(body["session_timeout"])
+        if "max_tools" in body:
+            agent.config.max_concurrent_tools = int(body["max_tools"])
+        if "max_tool_rounds" in body:
+            agent.config.max_tool_rounds = int(body["max_tool_rounds"])
+    except Exception as e:
+        logger.warning(f"同步 agent 配置到运行时失败：{e}")
 
 
 # ===== Token Stats API =====

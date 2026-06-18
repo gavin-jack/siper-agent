@@ -17,6 +17,7 @@ import { renderFull, applyDelta } from './renderer.js';
 import { appendStream, finalizeStream, handleStopped } from './chat/stream.js';
 import { setConnected, getStreamState } from './chat/state.js';
 import { setIsThinking, setThinkingSteps } from './chat/state.js';
+import { chatThinkingShow, chatThinkingAddToolStep } from './chat/thinking.js';
 
 let ws = null;
 let _ver = 0;
@@ -106,6 +107,15 @@ function dispatch(msg) {
                     setThinkingSteps(steps);
                     setIsThinking(true);
                 }
+                // 实时渲染到 thinking-panel body
+                chatThinkingShow();
+                chatThinkingAddToolStep(
+                    msg.call_id || msg.tool_name,
+                    msg.tool_name,
+                    msg.status || 'running',
+                    msg.params || {},
+                    msg.result_summary || ''
+                );
             }
             break;
         case 'toast':

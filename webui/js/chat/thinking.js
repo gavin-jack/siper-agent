@@ -7,7 +7,11 @@ import { escapeHtml } from '../utils/escape.js';
 
 export function chatThinkingShow() {
     const panel = document.getElementById('chatThinkingPanel');
-    if (panel) panel.classList.add('open');
+    if (!panel) return;
+    // Position below header
+    const header = document.getElementById('chatRightHeader');
+    if (header) panel.style.top = header.offsetHeight + 'px';
+    panel.classList.add('open');
 }
 
 export function chatThinkingHide() {

@@ -386,6 +386,35 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
     def api_token_get():
         return local_handlers["api_get_token_stats"]()
 
+    # --- 配置管理 ---
+    @router.get("/api/config/global")
+    def api_config_global_get():
+        return local_handlers["api_get_config_global"]()
+
+    @router.post("/api/config/global")
+    def api_config_global_post(body):
+        return local_handlers["api_save_config_global"](body)
+
+    @router.get("/api/config/agent/{name}")
+    def api_config_agent_get(name):
+        return local_handlers["api_get_config_agent"](name)
+
+    @router.post("/api/config/agent/{name}")
+    def api_config_agent_post(body, **kwargs):
+        return local_handlers["api_save_config_agent"](kwargs.get("name", ""), body)
+
+    @router.get("/api/config/agent/{name}/models")
+    def api_config_agent_models_get(name):
+        return local_handlers["api_get_agent_models_api"](name)
+
+    @router.post("/api/config/agent/{name}/models")
+    def api_config_agent_models_post(body, **kwargs):
+        return local_handlers["api_save_agent_models_api"](kwargs.get("name", ""), body)
+
+    @router.post("/api/config/agent/{name}/model")
+    def api_config_agent_model_post(body, **kwargs):
+        return local_handlers["api_set_agent_model"](kwargs.get("name", ""), body)
+
     # --- 文件上传 ---
     @router.post("/api/upload")
     def api_upload_post(body):

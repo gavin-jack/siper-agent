@@ -51,6 +51,7 @@
   height: 100%;
   min-width: 0;
   background: var(--color-toolbar);
+  position: relative;
 }
 
 /* Content container for chat — constrains child heights via flex */
@@ -58,7 +59,6 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  height: 100%;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -284,13 +284,68 @@
 /* Typing indicator - deprecated, replaced by siper-thinking-panel */
 .siper-thinking-panel {
   display: none;
-  position: sticky;
-  top: 0;
+  position: absolute;
+  left: 8px;
+  right: 8px;
   background: var(--color-input-bg);
-  border-bottom: 1px solid var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
   max-height: 200px;
   overflow: hidden;
   z-index: var(--z-base);
+  margin-top: 6px;
+  box-shadow: 0 2px 8px var(--color-shadow, rgba(0,0,0,0.15));
+}
+.siper-thinking-panel.open {
+  display: block;
+}
+
+/* Thinking details inside message bubble */
+.siper-thinking-details {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border);
+  font-size: 13px;
+  color: var(--color-text-dim);
+}
+.siper-thinking-detail-text {
+  margin: 3px 0;
+  font-style: italic;
+  color: var(--color-text-dim);
+}
+.siper-thinking-detail-tool {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0;
+}
+.siper-thinking-detail-icon {
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+.siper-thinking-detail-name {
+  font-weight: 500;
+}
+.siper-thinking-detail-id {
+  color: var(--color-text-dim);
+  opacity: 0.6;
+  font-size: 11px;
+}
+
+/* Tool summary in stream (when no text, only tool calls) */
+.siper-tool-summary {
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--color-text-dim);
+}
+
+/* Error indicator in stream */
+.siper-stream-error {
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--color-danger, #e53e3e);
+  font-weight: 500;
 }
 
 /* Attachments */

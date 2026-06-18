@@ -111,7 +111,18 @@ def get_agent_dir(name: str) -> Path:
 
 
 def list_agents() -> List[str]:
-    """List all agent names (subdirectories with config.json under agents/)."""
+    """List all agent names. Primary: config.db agent_configs table. Fallback: config.json files."""
+    # Try config.db first
+    try:
+        from pathlib import Path as _Path
+        from ai_agent.config_db import ConfigDB as _ConfigDB
+        db = _ConfigDB(str(_Path(__file__).resolve().parent.parent / "config.db"))
+        agents = db.list_agents()
+        if agents:
+            return agents
+    except Exception:
+        pass
+    # Fallback: scan config.json files
     if not AGENTS_DIR.exists():
         return []
     return [

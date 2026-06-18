@@ -11,11 +11,12 @@ import {
     setChatStreamAcc, setChatStreamRow, setChatStreamBubble,
     setIsThinking, updateStreamingBadge,
 } from './state.js';
-import { chatEscapeHtml, chatRenderMarkdown, buildMetaHtml, updateCtxInfoDisplay } from './message.js';
+import { chatEscapeHtml, chatRenderMarkdown, buildMetaHtml, updateCtxInfoDisplay, playNotifySound } from './message.js';
 import { updateCtxFromStreamEnd, resetSendState } from './session.js';
 import { chatThinkingHide, chatThinkingClear, chatThinkingAddTextRow, chatThinkingShow } from './thinking.js';
 import { _showNewMsgIndicator, _hideNewMsgIndicator } from './badge.js';
 import { renderFull, applyDelta } from '../renderer.js';
+import { markSessionUnread } from './sidebar.js';
 
 // 流式 DOM 元素（当前会话）
 let _streamTextEl = null;
@@ -118,6 +119,9 @@ export function finalizeStream(data, streamSessionId) {
 
     if (data && data.usage) updateCtxFromStreamEnd(data.usage);
 
+    // 保存 thinking steps 用于渲染到气泡
+    const steps = [..._thinkingSteps];
+
     // 复用流式 DOM，直接更新内容
     if (_chatStreamRow) {
         _chatStreamRow.classList.remove('siper-stream-row');
@@ -137,6 +141,18 @@ export function finalizeStream(data, streamSessionId) {
                     summary.className = 'siper-tool-summary';
                     summary.textContent = '🔧 执行工具：' + (toolNames.length ? toolNames.join(', ') : data.tool_call_steps.length + ' calls');
                     parent.appendChild(summary);
+                }
+                // 报错标记
+                if (data && data.success === false) {
+                    const errEl = document.createElement('div');
+                    errEl.className = 'siper-stream-error';
+                    errEl.textContent = '⚠️ LLM 响应异常';
+                    parent.appendChild(errEl);
+                }
+                // 追加过程思考/工具调用详情
+                if (steps.length > 0) {
+                    const detailsEl = buildThinkingDetails(steps);
+                    if (detailsEl) parent.appendChild(detailsEl);
                 }
             }
         }
@@ -202,9 +218,14 @@ export function finalizeStream(data, streamSessionId) {
     syncStreamToCurrent();
     resetSendState();
     _hideNewMsgIndicator();
+    chatThinkingClear();
     chatThinkingHide();
-    // 起源：侧边栏更新由 agents delta 自动处理（sync_agents → renderAgentList → renderMiddleList）
-    // 不再需要 updateSessionPreview 旧链路
+
+    // 停止交流后：提示音 + 未选中红点
+    playNotifySound();
+    if (_chatSessionId && streamSessionId && _chatSessionId !== streamSessionId) {
+        markSessionUnread(streamSessionId);
+    }
 }
 
 /**
@@ -212,6 +233,7 @@ export function finalizeStream(data, streamSessionId) {
  */
 export function handleStopped() {
     syncStreamFromCurrent();
+    const stoppedSessionId = _chatSessionId;
     if (_chatStreamRow) {
         const text = _chatStreamAcc;
         const streamRow = _chatStreamRow;
@@ -235,9 +257,42 @@ export function handleStopped() {
     setIsThinking(false);
     resetSendState();
     _hideNewMsgIndicator();
+    chatThinkingClear();
     chatThinkingHide();
     if (_chatSessionId && typeof updateStreamingBadge === 'function') updateStreamingBadge(_chatSessionId, false);
-    // 起源：侧边栏更新由 agents delta 自动处理
+
+    // 停止交流后：提示音 + 未选中红点
+    playNotifySound();
+    if (_chatSessionId && stoppedSessionId && _chatSessionId !== stoppedSessionId) {
+        markSessionUnread(stoppedSessionId);
+    }
+}
+
+/**
+ * 构建过程思考/工具调用详情 HTML
+ */
+function buildThinkingDetails(steps) {
+    if (!steps || steps.length === 0) return null;
+    const container = document.createElement('div');
+    container.className = 'siper-thinking-details';
+    for (const step of steps) {
+        if (step.type === 'text') {
+            const row = document.createElement('div');
+            row.className = 'siper-thinking-detail-text';
+            row.textContent = step.text || '';
+            container.appendChild(row);
+        } else if (step.toolName) {
+            const row = document.createElement('div');
+            row.className = 'siper-thinking-detail-tool';
+            const icon = step.status === 'completed' ? '✓' : step.status === 'failed' ? '✗' : '⟳';
+            row.innerHTML = '<span class="siper-thinking-detail-icon">' + icon + '</span><span class="siper-thinking-detail-name">' + chatEscapeHtml(step.toolName) + '</span>';
+            if (step.callId && step.callId !== step.toolName) {
+                row.innerHTML += ' <span class="siper-thinking-detail-id">' + chatEscapeHtml(step.callId) + '</span>';
+            }
+            container.appendChild(row);
+        }
+    }
+    return container;
 }
 
 

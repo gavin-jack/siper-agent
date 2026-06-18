@@ -524,8 +524,55 @@ async def main():
         _gm_default = _flat.get("default_model", "")
         logger.info(f"配置：从 models.db 加载了 {len(_gm_models)} 个模型，默认={_gm_default}")
     _p = f"✔ 模型写入内存：{len(_gm_models)} 个模型已加载"
-    print(_p)
-    with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
+    try:
+        with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
+    except Exception: pass
+
+    # Load config from SQLite (config.db) — migrate from JSON on first run
+    try:
+        logger.info("config.db: starting initialization")
+    except Exception: pass
+    try:
+        from ai_agent.config_db import ConfigDB as _ConfigDB
+        _config_db = _ConfigDB(str(PROJECT_ROOT / "config.db"))
+        # Migrate global settings if empty
+        _cfg_count = _config_db.get_all_global_settings()
+        if not _cfg_count:
+            _migrated_global, _ = _config_db.migrate_from_json(
+                str(PROJECT_ROOT / "settings.json"),
+                str(PROJECT_ROOT / "agents")
+            )
+            logger.info(f"配置迁移：全局 {_migrated_global} 项")
+            print(f"✔ 配置迁移完成：全局 {_migrated_global} 项")
+        else:
+            logger.info(f"配置：从 config.db 加载了 {len(_cfg_count)} 项全局设置")
+            print(f"✔ 配置加载：{len(_cfg_count)} 项全局设置")
+        # Migrate agent configs if empty (independent of global migration)
+        _existing_agents = _config_db.list_agents()
+        if not _existing_agents:
+            from pathlib import Path as _Path
+            _agents_dir = _Path(str(PROJECT_ROOT / "agents"))
+            if _agents_dir.exists():
+                for _agent_dir in sorted(_agents_dir.iterdir()):
+                    if _agent_dir.is_dir() and (_agent_dir / "config.json").exists():
+                        try:
+                            import json as _json
+                            _cfg = _json.loads((_agent_dir / "config.json").read_text(encoding="utf-8"))
+                            _config_db._migrate_agent_config(_agent_dir.name, _cfg)
+                            logger.info(f"Agent 配置迁移完成：{_agent_dir.name}")
+                        except Exception as _e:
+                            logger.error(f"Agent 配置迁移失败 [{_agent_dir.name}]：{_e}")
+            print(f"✔ Agent 配置迁移完成")
+    except Exception as _e:
+        logger.error(f"config.db 初始化失败：{_e}")
+        import traceback; traceback.print_exc()
+        _config_db = None
+
+    # Inject config_db into handlers module
+    if _config_db:
+        from ai_agent.api import handlers as _handlers
+        _handlers._config_db = _config_db
+        print(f"✔ config_db injected into handlers")
     # API key priority: env LONGCAT_API_KEY > default model key > .env file
     if _gm_models:
         _first = _gm_models[0]
@@ -1831,17 +1878,30 @@ async def main():
                 soul_exists = (agent_dir / "soul.md").exists() if agent_dir else False
                 config_exists = (agent_dir / "agent.md").exists() if agent_dir else False
                 memory_exists = (agent_dir / "memory.md").exists() if agent_dir else False
-                # Load per-agent config (icon, avatar, models, display name) from config.json
-                cfg = load_agent_config_file(name) or {}
-                # Expand available_models from name list to full model objects
-                _agent_avail = cfg.get("available_models", [])
+                # Load per-agent config: primary config.db, fallback config.json
+                cfg = {}
+                if _config_db:
+                    db_cfg = _config_db.get_agent_config(name)
+                    if db_cfg:
+                        cfg = db_cfg
+                if not cfg:
+                    cfg = load_agent_config_file(name) or {}
+                # Expand available_models: prefer agent_models table, fallback config.json
+                _agent_avail = []
+                if _config_db:
+                    _agent_avail = _config_db.get_agent_model_ids(name)
+                if not _agent_avail:
+                    _agent_avail = cfg.get("available_models", [])
+                # Resolve model names to full objects
                 _agent_avail_models = []
                 if _agent_avail:
                     for mname in _agent_avail:
-                        _gm = next((m for m in _all_global_models if m["name"] == mname), None)
-                        if _gm:
-                            _agent_avail_models.append(_gm)
-                        # else: model no longer in global list — skip (was deleted)
+                        if isinstance(mname, str):
+                            _gm = next((m for m in _all_global_models if m["name"] == mname), None)
+                            if _gm:
+                                _agent_avail_models.append(_gm)
+                        else:
+                            _agent_avail_models.append(mname)
                 result.append({
                     "name": name,
                     "display_name": cfg.get("display_name") or cfg.get("name") or name,
@@ -3697,7 +3757,13 @@ async def main():
 
     # 起源：注册 API 路由（一次性，在 main() 中完成）
     from ai_agent.api.router import register_routes as _register_routes
-    from ai_agent.api.handlers import api_get_system_stats, api_get_project_structure, api_get_tools
+    from ai_agent.api.handlers import (
+        api_get_system_stats, api_get_project_structure, api_get_tools,
+        api_get_config_global, api_save_config_global,
+        api_get_config_agent, api_save_config_agent,
+        api_get_agent_models_api, api_save_agent_models_api,
+        api_set_agent_model,
+    )
     import ai_agent.api.handlers as _h
     _h.start_time = start_time
     _h.port = port
@@ -3753,6 +3819,14 @@ async def main():
         "api_upload_file": api_upload_file,
         "api_get_logs": api_get_logs,
         "_handle_avatar_upload": _handle_avatar_upload,
+        # Config DB API
+        "api_get_config_global": api_get_config_global,
+        "api_save_config_global": api_save_config_global,
+        "api_get_config_agent": api_get_config_agent,
+        "api_save_config_agent": api_save_config_agent,
+        "api_get_agent_models_api": api_get_agent_models_api,
+        "api_save_agent_models_api": api_save_agent_models_api,
+        "api_set_agent_model": api_set_agent_model,
     }
     _register_routes(api_router, agent, snapshot_mgr, carrier_mgr, _handlers)
     logger.info(f"[起源] API 路由注册完成，共 {len(api_router.routes)} 条路由")
@@ -4268,11 +4342,10 @@ async def main():
             # Persist to shared token DB
             _save_token_to_db(entry)
 
-        # If streaming was used, always send stream_end even if text is empty.
+        # Always send stream_end if any streaming or tool calls happened.
         # Frontend needs stream_end to trigger reply-finished logic (hide thinking panel, etc.)
-        # The old `if _stream_acc["text"]:` condition caused tool_calls-only responses
-        # to be sent as `response` instead, breaking frontend reply-end detection.
-        if _stream_acc["text"] or _stream_delta_sent:
+        _had_tool_calls = result.get("tool_calls_executed", 0) > 0
+        if _stream_acc["text"] or _stream_delta_sent or _had_tool_calls:
             try:
                 # Attach image info for frontend rendering
                 if image_paths:
@@ -4385,6 +4458,16 @@ async def main():
         # 关闭 ModelsDB（无显式 close，SQLite 连接随 GC 回收）
         # 关闭 agent
         await agent.shutdown()
+        # 清理全局缓存和连接
+        _token_db_conn = None
+        _models_db = None
+        _config_db = None
+        _log_buffer.clear()
+        _upgrade_cache.clear()
+        # 强制 GC 释放内存
+        import gc
+        gc.collect()
+        logger.info(f"内存已清理，剩余会话管理器: {len(_agent_session_managers)}")
         # 清理 PID 文件
         try:
             pid_file.unlink(missing_ok=True)

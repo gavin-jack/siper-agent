@@ -46,8 +46,8 @@ function _renderSkillCard(s) {
   const enabledClass = s.enabled ? '' : 'skill-disabled';
   const activeClass = s.enabled ? 'skill-active' : '';
   return `
-    <div class="siper-card skill-card card-left-accent ${enabledClass} ${activeClass}">
-      <div class="skill-card-header">
+    <div class="card skill-card card-left-accent ${enabledClass} ${activeClass}">
+      <div class="card-header">
         <span class="skill-source">${sourceLabel}</span>
         <span class="skill-name">${s.name}</span>
         <span class="skill-version">${s.version || ''}</span>
