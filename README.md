@@ -342,6 +342,46 @@ siper/
 
 ## 更新记录
 
+### v0.2.4 (2026-06-23)
+
+#### 调整 (change)
+
+- **会话折叠改为 agent 级触发**：去掉独立的 `_sessions` 记忆 key，改为每次展开 agent 时检查会话数 >3 则自动折叠；折叠后再展开重新折叠，确保始终只显示 3 个 + "查看更多"按钮
+
+#### Bug 修复 (fix)
+
+- **stream.js finalizeStream if(parent) 块闭合缺失（补充修复）**：L150 处 `if (streamTextEl)` 块内 `if (parent)` 缺少闭合 `}` → 整个 ESM 加载链崩溃，页面空白
+
+---
+
+### v0.2.3 (2026-06-23)
+
+#### 新功能 (feat)
+
+- **会话折叠**：agent 展开时如果会话列表超过 3 个，自动折叠只显示前 3 个 + "查看更多 (N)"按钮
+- **工具调用合并同类项**：消息气泡 meta 中相同工具名合并显示 `tool_name (count)`，不再逐条列出
+- **去掉思考详情气泡**：LLM 回复气泡中不再追加思考详情（思考面板仍保留在右栏）
+- **初始页面保护**：未点击会话时右栏不创建消息容器、不自动创建输入框、不加载模型列表，防止 WS 推送污染
+- **WS 连接守护**：`connectWS()` 入口检查 `ws.readyState`，避免重复创建 WebSocket
+
+#### Bug 修复 (fix)
+
+- **stream.js SyntaxError（根因级）**：`finalizeStream()` 中 `if (parent)` 块缺少闭合 `}` → ESM 加载失败 → 页面完全空白
+- **core.js 重复 export connectWS**：语法错误导致双 WebSocket 连接风暴，每 ~1 秒断连重连
+- **input.js loadChatModels 覆盖 page_cache sessions**：会话切换后中栏会话列表为空
+- **agent-config.js agentConfigTitle null**：多余 DOM 引用导致 agent 配置页面崩溃
+- **theme.js/input.js 6 个函数未挂载 window**：inline onclick 调用报 undefined
+
+#### 重构 (refactor)
+
+- **console.log 清理**：input.js、core.js 中 12 处调试日志全部移除
+- **renderer.js 未使用 export 清理**：删除 `appendMeta` 和 `debugHighlight`
+- **markSessionReady 移除 _ensureChatInput**：配合初始页面保护
+- **loadChatModels 条件调用**：只在 `showInput=true` 时调用，防止覆盖初始标题
+- **cache-buster 正则修复**：Python raw string 转义错误导致 JS 更新不生效
+
+---
+
 ### v0.2.2 (2026-06-17)
 
 #### 新功能 (feat)
