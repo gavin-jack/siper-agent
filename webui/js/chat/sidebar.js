@@ -1,5 +1,5 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
-import { getWs } from '../core.js?v=1782147932071';
+import { getWs } from '../core.js?v=1782155584375';
 import {
   _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
@@ -7,13 +7,13 @@ import {
   _ctxMenu,
   setChatSessionId, setChatCurrentAgent, setSelectedAgent, setAgentConfigName,
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
-  setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
+  setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, setThinkingSteps, setIsThinking, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
-} from './state.js?v=1782147932071';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay } from './message.js?v=1782147932071';
-import { updateChatHeader } from './input.js?v=1782147932071';
-import { toast, showInput } from '../components/toast.js?v=1782147932071';
-import { chatConfirm } from './toast.js?v=1782147932071';
+} from './state.js?v=1782155584375';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay } from './message.js?v=1782155584375';
+import { updateChatHeader } from './input.js?v=1782155584375';
+import { toast, showInput } from '../components/toast.js?v=1782155584375';
+import { chatConfirm } from './toast.js?v=1782155584375';
 
 // ===== 从 page_cache 读取 agents 列表 =====
 function getAgentsFromCache() {
@@ -82,7 +82,7 @@ function _doRenderMiddle() {
     container.innerHTML = '<div class="siper-loading siper-loading--sm">加载中...</div>';
     return;
   }
-  // 默认首次展开：如果没有任何展开状态记录，全部展开
+  // 默认全部展开（agent 始终展开，会话列表按需折叠）
   if (_expandedAgents.size === 0) {
     for (const agent of agents) {
       _expandedAgents.set(agent.name, true);
@@ -139,7 +139,6 @@ function _doRenderMiddle() {
     const sessionsWrap = document.createElement('div');
     sessionsWrap.className = 'siper-agent-sessions';
     if (isExpanded) {
-      let _sessionIdx = 0;
       if (!agent.sessions.length) {
         const empty = document.createElement('div');
         empty.className = 'siper-session-empty';
@@ -147,8 +146,10 @@ function _doRenderMiddle() {
         sessionsWrap.appendChild(empty);
       } else {
         const SHOW_MAX = 3;
-        const sessionsExpanded = _expandedAgents.get(agent.name) === true;
-        agent.sessions.forEach((session, idx) => {
+        const showAll = _expandedAgents.get(agent.name + '_all') === true;
+        const sessionsToShow = showAll ? agent.sessions : agent.sessions.slice(0, SHOW_MAX);
+        const hiddenCount = agent.sessions.length - SHOW_MAX;
+        sessionsToShow.forEach((session) => {
           const item = document.createElement('div');
           const isActiveSession = _chatSessionId === session.session_id;
           const _unread = !isActiveSession && isSessionUnread(session.session_id);
@@ -156,7 +157,6 @@ function _doRenderMiddle() {
           item.dataset.sessionId = session.session_id;
           item.setAttribute('role', 'button');
           item.tabIndex = 0;
-          if (idx >= SHOW_MAX && !sessionsExpanded) item.classList.add('hidden');
           item.onclick = (e) => { e.stopPropagation(); selectChatSession(session, agent); };
           item.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); chatShowSessionMenu(e, session, agent); };
           item.ondblclick = (e) => { e.stopPropagation(); renameChatSession(session, agent); };
@@ -180,14 +180,14 @@ function _doRenderMiddle() {
           }
           sessionsWrap.appendChild(item);
         });
-        if (agent.sessions.length > SHOW_MAX && !sessionsExpanded) {
+        if (!showAll && hiddenCount > 0) {
           const moreBtn = document.createElement('button');
           moreBtn.className = 'siper-show-more-btn';
-          moreBtn.textContent = `查看更多 (${agent.sessions.length - SHOW_MAX})`;
+          moreBtn.textContent = `查看更多 (${hiddenCount})`;
           moreBtn.onclick = (e) => {
             e.stopPropagation();
-            const hidden = sessionsWrap.querySelectorAll('.siper-session-item.hidden');
-            if (hidden.length) { _expandedAgents.set(agent.name, true); hidden.forEach(el => el.classList.remove('hidden')); moreBtn.style.display = 'none'; }
+            _expandedAgents.set(agent.name + '_all', true);
+            renderMiddleList();
           };
           sessionsWrap.appendChild(moreBtn);
         }
@@ -208,6 +208,7 @@ export async function chatToggleAgent(agentName) {
     // 切换展开/折叠
     const current = _expandedAgents.get(agentName) === true;
     _expandedAgents.set(agentName, !current);
+    _expandedAgents.delete(agentName + '_all');
     // 重新渲染中间栏（更新展开/折叠状态和 active class）
     renderMiddleList();
     // 选中 agent + 加载会话
@@ -267,6 +268,9 @@ export function selectChatSession(session, agent) {
   const _sstb = document.getElementById('chatStopBtn');
   if (_sstb) _sstb.classList.add('hidden');
   syncStreamToCurrent();
+  // 切换会话时清除思考状态，防止上一个会话的"正在思考"残留
+  setThinkingSteps([]);
+  setIsThinking(false);
   // Hide stream row instead of removeChild — preserves DOM for seamless restore
   if (typeof _chatStreamRow !== 'undefined' && _chatStreamRow) _chatStreamRow.style.display = 'none';
   const prevSid = _chatSessionId;

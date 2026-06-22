@@ -1,11 +1,11 @@
 // pages/theme.js — 主题设置
 // 从 pages/page-theme.js 迁移
 
-import { t } from '../utils/i18n.js?v=1782147932071';
-import { showConfirm, showInput } from '../components/toast.js?v=1782147932071';
-import { toast } from '../components/toast.js?v=1782147932071';
-import { updateThemePaletteTrigger } from '../utils/dom.js?v=1782147932071';
-import { escapeHtml } from '../utils/escape.js?v=1782147932071';
+import { t } from '../utils/i18n.js?v=1782155584375';
+import { showConfirm, showInput } from '../components/toast.js?v=1782155584375';
+import { toast } from '../components/toast.js?v=1782155584375';
+import { updateThemePaletteTrigger } from '../utils/dom.js?v=1782155584375';
+import { escapeHtml } from '../utils/escape.js?v=1782155584375';
 
 // ===== Theme Settings =====
 const THEME_DEFAULTS = {
@@ -282,3 +282,9 @@ export function importTheme() {
     }
   });
 }
+
+// Window mounts for inline handlers
+window.applyThemeValue = applyThemeValue;
+window.loadThemeTemplate = loadThemeTemplate;
+window.deleteThemeTemplate = deleteThemeTemplate;
+window.exportSingleTemplate = exportSingleTemplate;

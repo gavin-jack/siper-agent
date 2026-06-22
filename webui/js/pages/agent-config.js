@@ -1,12 +1,12 @@
 // pages/agent-config.js — Agent 配置管理
 // 从 pages/page-agent-config.js 迁移
 
-import { t } from '../utils/i18n.js?v=1782147932071';
-import { escapeHtml } from '../utils/escape.js?v=1782147932071';
-import { showConfirm, showForm } from '../components/toast.js?v=1782147932071';
-import { toast } from '../components/toast.js?v=1782147932071';
-import { _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile, setChatAgentFiles, setChatCurAgentFile } from '../chat/state.js?v=1782147932071';
-import { loadGlobalModelsForAgent, renderAgentModelSection, renderAgentModelsForAgent, globalModelsList, modelsLoaded, setPendingAgentModels } from '../components/agent-models.js?v=1782147932071';
+import { t } from '../utils/i18n.js?v=1782155584375';
+import { escapeHtml } from '../utils/escape.js?v=1782155584375';
+import { showConfirm, showForm } from '../components/toast.js?v=1782155584375';
+import { toast } from '../components/toast.js?v=1782155584375';
+import { _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile, setChatAgentFiles, setChatCurAgentFile } from '../chat/state.js?v=1782155584375';
+import { loadGlobalModelsForAgent, renderAgentModelSection, renderAgentModelsForAgent, globalModelsList, modelsLoaded, setPendingAgentModels } from '../components/agent-models.js?v=1782155584375';
 export { loadGlobalModelsForAgent };
 
 // ===== Agent Config Page =====
@@ -18,7 +18,7 @@ export async function loadAgentSettings() {
   if (currentConfigAgent && agentConfigData && agentConfigData.agents) {
     const agent = agentConfigData.agents.find(a => a.name === currentConfigAgent);
     if (agent) {
-      document.getElementById('agentConfigTitle').innerHTML = '<strong>' + escapeHtml(agent.name) + ' - 设置</strong>';
+      // 标题由 selectChatAgent 的 chatRightHeaderName 更新，此处跳过
       document.getElementById('cfgAgentName').value = agent.display_name || agent.name || 'Siper Agent';
       const cfgAgentIconSpan = document.getElementById('cfgAgentIcon');
       if (cfgAgentIconSpan) cfgAgentIconSpan.textContent = agent.icon || '🎭';

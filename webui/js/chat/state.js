@@ -120,10 +120,6 @@ export function markSessionReady() {
     _sessionReady = true;
     const w = _sessionWaiters.splice(0);
     w.forEach(r => r());
-    // Ensure chat input element exists for manual testing or UI flow
-    if (typeof window !== 'undefined' && typeof window._ensureChatInput === 'function') {
-        window._ensureChatInput();
-    }
 }
 export function resetSessionReady() {
     _sessionReady = false;

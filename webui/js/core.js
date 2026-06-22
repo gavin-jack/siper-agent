@@ -13,11 +13,10 @@
  *   页面导航 → chat/nav.js
  *   会话管理 → chat/session.js
  */
-import { renderFull, applyDelta } from './renderer.js?v=1782147932071';
-import { appendStream, finalizeStream, handleStopped } from './chat/stream.js?v=1782147932071';
-import { setConnected, getStreamState, markSessionReady, setChatSessionId, setIsSending, setIsThinking, setThinkingSteps } from './chat/state.js?v=1782147932071';
-import { chatThinkingShow, chatThinkingAddToolStep, chatThinkingAddTextRow } from './chat/thinking.js?v=1782147932071';
-import { renderChatPage } from './pages/chat-pages/chat.js?v=1782147932071';
+import { renderFull, applyDelta } from './renderer.js?v=1782155584375';
+import { appendStream, finalizeStream, handleStopped } from './chat/stream.js?v=1782155584375';
+import { setConnected, getStreamState, markSessionReady, setChatSessionId, setIsSending, setIsThinking, setThinkingSteps } from './chat/state.js?v=1782155584375';
+import { chatThinkingShow, chatThinkingAddToolStep, chatThinkingAddTextRow } from './chat/thinking.js?v=1782155584375';
 
 let ws = null;
 let _ver = 0;
@@ -31,11 +30,8 @@ export function connectWS() {
     const wsPort = parseInt(location.port) + 1;
     ws = new WebSocket(`${proto}//${location.hostname}:${wsPort}`);
     ws.onopen = () => {
-        console.log('[SiPer] WS connected');
         setConnected(true);
-        // Auto‑create a session as soon as WS is ready – guarantees the backend receives a `new_session`
         if (typeof window !== 'undefined' && window.newSession) {
-            console.log('[SiPer] auto‑newSession() after WS open');
             window.newSession();
         }
     };
@@ -49,7 +45,6 @@ export function connectWS() {
     };
 
     ws.onclose = () => {
-        console.warn('[SiPer] WS closed, reconnect in 3s...');
         setConnected(false);
         setTimeout(connectWS, 3000);
     };
@@ -62,7 +57,6 @@ export function connectWS() {
 // ===== Send =====
 
 export function send(obj) {
-    console.log('[send] outgoing message', obj);
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(obj));
     }
@@ -74,7 +68,6 @@ export function setWs(val) { ws = val; }
 // ===== Message Dispatch =====
 
 function dispatch(msg) {
-    console.log('[dispatch] incoming message', msg);
     switch (msg.type) {
         case 'state_full':
             _ver = msg.version;
@@ -115,20 +108,23 @@ function dispatch(msg) {
                     setThinkingSteps(steps);
                     setIsThinking(true);
                 }
-                // 实时渲染到 thinking-panel body
-                chatThinkingShow();
-                chatThinkingAddToolStep(
-                    msg.call_id || msg.tool_name,
-                    msg.tool_name,
-                    msg.status || 'running',
-                    msg.params || {},
-                    msg.result_summary || ''
-                );
+                // 只有当前会话才显示思考面板，非当前会话只更新 per-session 状态
+                if (!_chatSessionId || sid === _chatSessionId) {
+                    chatThinkingShow();
+                    chatThinkingAddToolStep(
+                        msg.call_id || msg.tool_name,
+                        msg.tool_name,
+                        msg.status || 'running',
+                        msg.params || {},
+                        msg.result_summary || ''
+                    );
+                }
             }
             break;
         case 'thinking_text':
             // 过程思考文本（DeepSeek R1 等推理模型）
-            if (msg.text) {
+            // thinking_text 无 session_id，只对当前会话显示
+            if (msg.text && (!_chatSessionId || msg.session_id === _chatSessionId)) {
                 chatThinkingShow();
                 chatThinkingAddTextRow(msg.text);
             }
@@ -149,27 +145,19 @@ function dispatch(msg) {
             }
             break;
         case 'connected':
-            console.log('[SiPer] server connected:', msg.connection_id);
             // WS 重连后重置发送状态，防止 _isSending 残留导致后续消息被拦截
             if (typeof setIsSending === 'function') setIsSending(false);
-            // The backend includes session_id in the connected message – treat it as session ready
+            // 保存 session_id 但不自动渲染聊天页面——等用户主动选择会话后再渲染
             if (msg.session_id) {
                 if (typeof setChatSessionId === 'function') setChatSessionId(msg.session_id);
                 if (typeof markSessionReady === 'function') markSessionReady();
-                // expose globally for debugging / external callers
                 if (typeof window !== 'undefined') {
                     window._chatSessionId = msg.session_id;
                     window._sessionReady = true;
-                    // 直接渲染右栏（不通过事件中转，避免监听器时序问题）
-                    var chatContent = document.getElementById('chatContentArea');
-                    if (chatContent && typeof renderChatPage === 'function') {
-                        renderChatPage(chatContent);
-                    }
                 }
             }
             break;
         case 'session_created':
-            console.log('[SiPer] new session:', msg.session_id);
             // 保存会话 ID 并标记已就绪，解除 ensureSessionReady 的等待
             if (typeof setChatSessionId === 'function') setChatSessionId(msg.session_id);
             if (typeof markSessionReady === 'function') markSessionReady();
@@ -187,4 +175,4 @@ function dispatch(msg) {
 }
 
 // Re-export from state.js for app.js backward compat
-export { setConnected } from './chat/state.js?v=1782147932071';
+export { setConnected } from './chat/state.js?v=1782155584375';

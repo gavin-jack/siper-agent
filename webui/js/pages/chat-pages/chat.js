@@ -2,10 +2,10 @@
 // 从 pages/chat.js 拆分，包含 initSidebar + initChatPage
 // 包含消息列表、输入框、思考面板、模型选择
 
-import * as Message from '../../chat/message.js?v=1782147932071';
-import * as Input from '../../chat/input.js?v=1782147932071';
-import * as Sidebar from '../../chat/sidebar.js?v=1782147932071';
-import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1782147932071';
+import * as Message from '../../chat/message.js?v=1782155584375';
+import * as Input from '../../chat/input.js?v=1782155584375';
+import * as Sidebar from '../../chat/sidebar.js?v=1782155584375';
+import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1782155584375';
 
 // 从 page_cache 读取 agents（不再从 state.js import chatAgents）
 function _getAgents() {
@@ -89,6 +89,7 @@ export function initChatPage() {
       </div>
       <div class="siper-content" id="chatContentArea"></div>
     </div>`;
+  // 渲染初始页面（标题"选择一个 Agent 开始对话" + 空状态）
   const content = document.getElementById('chatContentArea');
   if (typeof window.renderChatPage === 'function') {
     window.renderChatPage(content);
@@ -137,11 +138,6 @@ async function loadAndRenderAgents() {
       // 渲染中栏（_doRenderMiddle 会自动首次展开所有 agent）
       if (typeof window.renderMiddleList === 'function') {
         window.renderMiddleList();
-      }
-      // agents 数据就绪后更新右栏（设置默认 agent + 渲染输入框）
-      var chatContent = document.getElementById('chatContentArea');
-      if (chatContent && typeof renderChatPage === 'function') {
-        renderChatPage(chatContent);
       }
     }
   } catch(e) {
@@ -270,7 +266,7 @@ window.selectChatAgent = async function(agentName) {
     window.selectConfigAgent(agentName);
   }
   if (typeof window.loadAgentSettings === 'function') {
-    window.loadAgentSettings(agentName);
+    window.loadAgentSettings();
   }
 };
 
@@ -322,11 +318,14 @@ export function renderChatPage(container, skipSidebar) {
   // 首次渲染：创建消息容器 + 输入框；后续切换会话只更新输入框区域
   var existingMessages = document.getElementById('chatMessages');
   if (!existingMessages) {
-    container.innerHTML = '' +
-      '<div class="siper-messages" id="chatMessages" aria-live="polite" aria-atomic="false">' +
-        '<div class="siper-empty-state" id="chatEmptyState"><div class="siper-empty-state-icon">💬</div><div>通过agent发送消息</div></div>' +
-      '</div>' +
-      (showInput ? '<div class="siper-input-area" id="chatInputArea"></div>' : '');
+    if (showInput) {
+      container.innerHTML = '' +
+        '<div class="siper-messages" id="chatMessages" aria-live="polite" aria-atomic="false">' +
+          '<div class="siper-empty-state" id="chatEmptyState"><div class="siper-empty-state-icon">💬</div><div>通过agent发送消息</div></div>' +
+        '</div>' +
+        '<div class="siper-input-area" id="chatInputArea"></div>';
+    }
+    // showInput=false 时不创建消息容器，防止 WS 推送的历史消息污染初始页面
   } else {
     // 保留消息容器，只更新输入框区域
     var existingInput = document.getElementById('chatInputArea');
@@ -369,7 +368,7 @@ export function renderChatPage(container, skipSidebar) {
       Sidebar.renderMiddleList();
     }
   }
-  Input.loadChatModels();
+  if (showInput) Input.loadChatModels();
 }
 
 /** 输入框：填充到 container 内的 siper-input-area 容器中 */

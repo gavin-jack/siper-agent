@@ -10,13 +10,13 @@ import {
     getStreamState, syncStreamFromCurrent, syncStreamToCurrent,
     setChatStreamAcc, setChatStreamRow, setChatStreamBubble,
     setIsThinking, updateStreamingBadge,
-} from './state.js?v=1782147932071';
-import { chatEscapeHtml, chatRenderMarkdown, buildMetaHtml, updateCtxInfoDisplay, playNotifySound } from './message.js?v=1782147932071';
-import { updateCtxFromStreamEnd, resetSendState } from './session.js?v=1782147932071';
-import { chatThinkingHide, chatThinkingClear, chatThinkingAddTextRow, chatThinkingShow } from './thinking.js?v=1782147932071';
-import { _showNewMsgIndicator, _hideNewMsgIndicator } from './badge.js?v=1782147932071';
-import { renderFull, applyDelta } from '../renderer.js?v=1782147932071';
-import { markSessionUnread } from './sidebar.js?v=1782147932071';
+} from './state.js?v=1782155584375';
+import { chatEscapeHtml, chatRenderMarkdown, buildMetaHtml, updateCtxInfoDisplay, playNotifySound } from './message.js?v=1782155584375';
+import { updateCtxFromStreamEnd, resetSendState } from './session.js?v=1782155584375';
+import { chatThinkingHide, chatThinkingClear, chatThinkingAddTextRow, chatThinkingShow } from './thinking.js?v=1782155584375';
+import { _showNewMsgIndicator, _hideNewMsgIndicator } from './badge.js?v=1782155584375';
+import { renderFull, applyDelta } from '../renderer.js?v=1782155584375';
+import { markSessionUnread } from './sidebar.js?v=1782155584375';
 
 // 流式 DOM 元素（当前会话）
 let _streamTextEl = null;
@@ -102,13 +102,11 @@ export function appendStream(delta, streamSessionId) {
  * 对应 core.js 的 chatHandleStreamEnd()
  */
 export function finalizeStream(data, streamSessionId) {
-    // 跨会话：只清理状态
+    // 跨会话：只清理 per-session 状态，不操作全局思考面板
     if (streamSessionId && _chatSessionId && streamSessionId !== _chatSessionId) {
         const s = getStreamState(streamSessionId);
         s.thinking = false;
         s.thinkingSteps = [];
-        setIsThinking(false);
-        chatThinkingHide();
         s.row = null; s.bubble = null; s.acc = '';
         updateStreamingBadge(streamSessionId, false);
         return;
@@ -149,11 +147,7 @@ export function finalizeStream(data, streamSessionId) {
                     errEl.textContent = '⚠️ LLM 响应异常';
                     parent.appendChild(errEl);
                 }
-                // 追加过程思考/工具调用详情
-                if (steps.length > 0) {
-                    const detailsEl = buildThinkingDetails(steps);
-                    if (detailsEl) parent.appendChild(detailsEl);
-                }
+                // 报错标记
             }
         }
         // 追加 meta

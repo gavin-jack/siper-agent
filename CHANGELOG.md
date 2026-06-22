@@ -4,6 +4,30 @@
 
 ---
 
+## v0.2.3 (2026-06-23)
+
+### 新功能 (feat)
+
+- **会话折叠**：agent 展开时会话列表超过 3 个自动折叠，显示"查看更多"按钮，点击展开全部会话；折叠 agent 后再次展开重新折叠
+- **工具调用合并同类项**：消息 meta 中相同工具名合并显示 `tool_name (count)`，不再逐条列出
+- **去掉思考详情气泡**：LLM 回复气泡中不再显示 siper-thinking-details，减少视觉干扰
+- **初始页面保护**：未点击会话时右栏不创建消息容器，防止 WS 推送历史消息污染初始页面
+- **stream.js 语法修复**：finalizeStream 中 if(parent) 块缺少闭合 brace 导致整个应用崩溃
+
+### Bug 修复 (fix)
+
+- **stream.js SyntaxError**：`finalizeStream()` L150 缺少 `if (parent)` 块闭合 `}` → 页面 ESM 加载失败，browser_snapshot 只返回 1 个元素
+- **WS 断连 + 会话切换 sessions 丢失 + app.js 重复 connectWS**：core.js 重复 export 导致双连接风暴；input.js loadChatModels 覆盖 page_cache sessions
+- **agent-config.js agentConfigTitle null**：删除 L21 多余标题引用
+- **theme.js/input.js window 挂载缺失**：6 个函数通过 inline handler 调用但未挂载到 window
+
+### 优化 (refactor)
+
+- **console.log 清理**：input.js、core.js 中 12 处调试日志全部移除
+- **renderer.js 未使用 export 清理**：删除 appendMeta 和 debugHighlight
+- **markSessionReady 不自动创建输入框**：防止初始页面残留输入框
+- **loadChatModels 只在 showInput=true 时调用**：防止 updateChatHeader 覆盖初始标题
+
 ## v0.2.2 (2026-06-17)
 
 ### 新功能 (feat)

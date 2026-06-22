@@ -1,3 +1,4 @@
+*.db-corrupt
 # Python
 __pycache__/
 *.pyc

@@ -81,7 +81,7 @@ export { _handlers };
 
 // ===== Message rendering (migrated from dom.js) =====
 
-import { escapeHtml } from './utils/escape.js?v=1782147932071';
+import { escapeHtml } from './utils/escape.js?v=1782155584375';
 
 /**
  * Add a message bubble to the chat.
@@ -90,25 +90,6 @@ import { escapeHtml } from './utils/escape.js?v=1782147932071';
 export function addMsg(content, role, meta) {
     if (typeof window.chatAddMessage === 'function') {
         window.chatAddMessage(content, role || 'assistant', meta);
-    }
-}
-
-/**
- * Append metadata to a message container.
- * Legacy no-op — meta rendering is now handled by chatAddMessage.
- */
-export function appendMeta(container, meta, messageId) {
-    // No-op: meta rendering handled by chatAddMessage
-}
-
-/**
- * Syntax highlight for debug JSON display.
- */
-export function debugHighlight(json) {
-    try {
-        return escapeHtml(JSON.stringify(json, null, 2));
-    } catch (e) {
-        return escapeHtml(String(json));
     }
 }
 

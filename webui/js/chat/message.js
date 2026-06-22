@@ -1,5 +1,5 @@
 // chat/message.js — 消息渲染与管理
-import { getWs } from '../core.js?v=1782147932071';
+import { getWs } from '../core.js?v=1782155584375';
 import {
   _chatSessionId, _chatCurrentAgent,
   _chatCurrentModel, _chatModelContextWindow,
@@ -12,10 +12,10 @@ import {
   setChatCurrentModel, setChatModelContextWindow,
   setChatSessionId, getIsSending, getStreamState,
   _isSending,
-} from '../chat/state.js?v=1782147932071';
-import { resetSendState } from '../chat/session.js?v=1782147932071';
-import { chatThinkingHide } from '../chat/thinking.js?v=1782147932071';
-import { toast } from '../components/toast.js?v=1782147932071';
+} from '../chat/state.js?v=1782155584375';
+import { resetSendState } from '../chat/session.js?v=1782155584375';
+import { chatThinkingHide } from '../chat/thinking.js?v=1782155584375';
+import { toast } from '../components/toast.js?v=1782155584375';
 
 // ===== Markdown & HTML Helpers =====
 
@@ -161,15 +161,19 @@ export function buildMetaHtml(meta) {
     if (parts.length) lines.push(parts.join('；'));
   }
   if (meta.tool_call_steps && meta.tool_call_steps.length) {
-    const toolNames = meta.tool_call_steps.map(s => s.tool_name).filter(Boolean);
-    lines.push('🔧 工具：' + (toolNames.length ? toolNames.join(', ') : meta.tool_call_steps.length + ' calls'));
+    const counts = new Map();
+    for (const s of meta.tool_call_steps) {
+      const name = s.tool_name || 'unknown';
+      counts.set(name, (counts.get(name) || 0) + 1);
+    }
+    const parts = [...counts.entries()].map(([k, v]) => v > 1 ? `${k} (${v})` : k);
+    lines.push('🔧 工具：' + parts.join(', '));
   }
   if (meta.skills_used && meta.skills_used.length) lines.push('🧩 技能：' + meta.skills_used.join(', '));
   if (meta.skills_recommended && meta.skills_recommended.length) {
     const notUsed = meta.skills_recommended.filter(s => !meta.skills_used || !meta.skills_used.includes(s));
     if (notUsed.length) lines.push('<span class="js-opacity-50">💡 推荐：' + notUsed.join(', ') + '</span>');
   }
-  if (meta.finish_reason && meta.finish_reason !== 'stop') lines.push('🏁 ' + meta.finish_reason);
   return lines.map(l => l.startsWith('<span') ? '<div>' + l + '</div>' : '<div>' + chatEscapeHtml(l) + '</div>').join('');
 }
 
