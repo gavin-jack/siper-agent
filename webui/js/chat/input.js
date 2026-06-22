@@ -1,5 +1,5 @@
 // chat/input.js — 输入框、文件上传、模型选择
-import { getWs, setWs } from '../core.js';
+import { getWs, setWs } from '../core.js?v=1782146353242';
 import {
   _chatSessionId, _chatCurrentAgent, _chatCurrentPage,
   _chatCurrentModel, _chatModelContextWindow,
@@ -11,7 +11,7 @@ import {
   fmtTokens,
   markSessionReady,
   setChatSessionId,
-} from '../chat/state.js';
+} from '../chat/state.js?v=1782146353242';
 
 // 从 page_cache 读取 agents 列表（替代已删除的 chatAgents 变量）
 function _getAgents() {
@@ -21,10 +21,81 @@ function _getAgents() {
   }
   return [];
 }
-import { resetSendState } from '../chat/session.js';
-import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js';
-import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js';
-import { toast } from '../components/toast.js';
+import { resetSendState } from '../chat/session.js?v=1782146353242';
+
+// 全局待发送文件列表，存放 base64 数据、mime、名称及分类
+window.chatPendingFiles = [];
+const chatPendingFiles = window.chatPendingFiles;
+import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js?v=1782146353242';
+
+// ------------------------------------------------
+// Ensure a chat input element exists (creates one if missing)
+// ------------------------------------------------
+function _ensureChatInput() {
+  // renderInputArea 已创建标准输入框，不需要兜底
+  if (document.getElementById('chatInputArea')) return;
+  if (document.getElementById('chatInput')) return; // already present
+
+  // Create a textarea that matches existing UI styling
+  const textarea = document.createElement('textarea');
+  textarea.id = 'chatInput';
+  textarea.className = 'siper-chat-input'; // use existing CSS class if defined
+  textarea.placeholder = '输入消息并回车发送…';
+  textarea.rows = 3;
+  textarea.style.resize = 'none';
+  textarea.style.overflow = 'hidden';
+
+  // Locate the chat content area to insert the input wrapper
+  const contentArea = document.getElementById('chatContentArea');
+  if (!contentArea) {
+    console.warn('_ensureChatInput: cannot find chatContentArea');
+    return;
+  }
+  const wrapper = document.createElement('div');
+  wrapper.id = 'chatInputWrapper';
+  wrapper.style.padding = '8px';
+  wrapper.appendChild(textarea);
+  contentArea.appendChild(wrapper);
+
+  // Bind the same events that the original input handling expects
+  textarea.addEventListener('input', function () { _adjustInputHeight(this); });
+  textarea.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSendMessage(); } });
+  // Paste, drag‑and‑drop handlers are attached later in the file via the generic input block if the element existed at load time.
+  // To ensure they work for this dynamically created element, we re‑attach them now.
+  textarea.addEventListener('paste', function (e) {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        const reader = new FileReader();
+        reader.onload = function (ev) { chatPendingFiles.push({ data: ev.target.result, mime: item.type, name: 'pasted-image', category: 'image' }); renderChatFilePreviews(); };
+        reader.readAsDataURL(file);
+        break;
+      }
+    }
+  });
+  // Simple drag‑over / drop support
+  textarea.addEventListener('dragover', function (e) { e.preventDefault(); this.style.borderColor = 'var(--color-success)'; });
+  textarea.addEventListener('dragleave', function (e) { this.style.borderColor = ''; });
+  textarea.addEventListener('drop', function (e) {
+    e.preventDefault();
+    this.style.borderColor = '';
+    const files = e.dataTransfer.files;
+    for (const file of files) {
+      const category = getChatFileCategory(file.name);
+      const reader = new FileReader();
+      reader.onload = function (ev) { chatPendingFiles.push({ data: ev.target.result, mime: file.type, name: file.name, category }); renderChatFilePreviews(); };
+      reader.readAsDataURL(file);
+    }
+  });
+  // expose helper for external calls
+  if (typeof window !== 'undefined') window._adjustInputHeight = _adjustInputHeight;
+}
+
+import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js?v=1782146353242';
+import { toast } from '../components/toast.js?v=1782146353242';
 
 // ===== File Upload & Preview =====
 
@@ -185,7 +256,7 @@ export async function chatUploadFiles(files) {
 }
 
 // ===== Model Capability Icons =====
-import { CAP_ICONS } from '../utils/capabilities.js';
+import { CAP_ICONS } from '../utils/capabilities.js?v=1782146353242';
 
 function _renderCapBadges(capabilities) {
   if (!capabilities || !capabilities.length) return '';
@@ -199,8 +270,25 @@ export async function loadChatModels() {
     let models = [];
     let noModels = false;
     if (_chatCurrentAgent && _chatCurrentAgent.name) {
-      const agents = _getAgents();
-      const agent = agents.find(a => a.name === _chatCurrentAgent.name);
+      let agents = _getAgents();
+      let agent = agents.find(a => a.name === _chatCurrentAgent.name);
+      // page_cache 可能缺少 available_models（被 sync_agents 覆盖），从 API 补全
+      if (agent && !agent.available_models) {
+        try {
+          const r = await fetch('/api/agents');
+          const d = await r.json();
+          const fresh = d.agents?.find(a => a.name === _chatCurrentAgent.name);
+          if (fresh?.available_models) {
+            agent = fresh;
+            // 同步更新 page_cache
+            if (typeof window.__setPageCache === 'function') {
+              const idx = agents.findIndex(a => a.name === agent.name);
+              if (idx >= 0) agents[idx] = agent;
+              window.__setPageCache('agents', agents);
+            }
+          }
+        } catch(_) {}
+      }
       if (agent && agent.available_models && agent.available_models.length > 0) {
         models = agent.available_models;
       } else if (agent) {
@@ -223,7 +311,7 @@ export async function loadChatModels() {
     const btn = document.getElementById('chatModelBtn');
     if (btn) {
       if (noModels) {
-        btn.onclick = () => { if (typeof window.chatSwitchPage === 'function') window.chatSwitchPage('agent-config'); };
+        btn.onclick = () => { if (typeof window.chatSwitchPage === 'function') window.chatSwitchPage('model-settings'); };
       } else if (!models.length) {
         btn.onclick = () => { if (typeof window.chatSwitchPage === 'function') window.chatSwitchPage('model-settings'); };
       } else {
@@ -246,11 +334,11 @@ export function renderChatModelDropdown(models, showNoModels) {
   const item = document.createElement('div');
   item.className = 'siper-model-item siper-model-item-disabled js-cursor-pointer';
   if (showNoModels) {
-    // agent 未配置可用模型
-    item.textContent = '未设置可选模型，点击前往配置';
+    // agent 未配置可用模型 → 跳转到全局模型管理
+    item.textContent = '未设置可选模型，点击前往模型管理';
       item.addEventListener('click', () => {
         closeChatModelDropdown();
-        if (typeof chatSwitchPage === 'function') chatSwitchPage('agent-config');
+        if (typeof chatSwitchPage === 'function') chatSwitchPage('model-settings');
       });
     } else {
       // DB 为空，无模型可添加
@@ -327,27 +415,38 @@ export function updateChatHeader() {
 
 export async function chatSendMessage() {
   const input = document.getElementById('chatInput');
+  if (!input) { console.warn('chatSendMessage: chatInput element not found'); return; }
   const text = (input.value || input.textContent || input.innerText || '').trim();
   if (!text && !chatPendingFiles.length) return;
-  if (getIsSending()) return;
+  
+  // 防御性检查：_isSending 残留（WS 断连/流中断导致 finalizeStream 未调用），必须重置才能继续
+  if (getIsSending()) {
+    console.warn('[chatSendMessage] _isSending=true (stale), resetting state');
+    resetSendState();
+  }
+
+  // 立即清空输入框 + 渲染用户气泡（不等 session/WS，给用户即时反馈）
+  input.value = '';
+  renderChatFilePreviews();
+  _adjustInputHeight(input);
+  chatAppendUserMsg(text || '[文件]');
+
   // Show thinking panel immediately — does not depend on WS
   chatThinkingShow();
   chatThinkingClear();
   chatThinkingAddTextRow('正在思考...');
-  // Wait for session to be ready before sending
-  await ensureSessionReady();
-  if (!_chatSessionId) return; // still no session, abort
-  // Wait for WS to be connected
-  const ws = getWs();
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
   setIsSending(true);
   const sendBtn = document.getElementById('chatSendBtn');
   if (sendBtn) sendBtn.disabled = true;
   const stopBtn = document.getElementById('chatStopBtn');
   if (stopBtn) { stopBtn.classList.remove('hidden'); stopBtn.classList.add('btn-pop'); setTimeout(() => stopBtn.classList.remove('btn-pop'), 300); }
-  chatAppendUserMsg(text || '[文件]');
+
+  // Wait for session to be ready before sending
+  await ensureSessionReady();
+  if (!_chatSessionId) { resetSendState(); return; }
+
   // Start streaming wave badge on session immediately (before LLM responds)
-  if (_chatSessionId) updateStreamingBadge(_chatSessionId, true);
+  updateStreamingBadge(_chatSessionId, true);
   setIsThinking(true);
   const filesToUpload = [...chatPendingFiles];
   if (filesToUpload.length > 0) {
@@ -365,27 +464,56 @@ export async function chatSendMessage() {
     chatUploadFiles(filesToUpload).catch(e => { console.error('[input] background upload failed:', e); });
     // 立即通过 WS 发送（不等上传完成）
     const payload = { type: 'message', content, session_id: _chatSessionId };
-    if (images.length > 0) payload.images = images;
-    if (_chatCurrentAgent) payload.agent = _chatCurrentAgent.name;
-    if (_chatCurrentModel) payload.model = _chatCurrentModel;
-    ws.send(JSON.stringify(payload));
+    if (!_wsSend(payload)) { resetSendState(); return; }
+    // also send images if any
+    if (images.length) {
+      if (!_wsSend({ type: 'message', content, session_id: _chatSessionId, images })) { resetSendState(); return; }
+    }
   } else {
-    const payload = { type: 'message', content: text, session_id: _chatSessionId };
-    if (_chatCurrentAgent) payload.agent = _chatCurrentAgent.name;
-    if (_chatCurrentModel) payload.model = _chatCurrentModel;
-    ws.send(JSON.stringify(payload));
+    // plain text message
+    if (!_wsSend({ type: 'message', content: text, session_id: _chatSessionId })) { resetSendState(); return; }
   }
-  input.value = '';
+
+  // clear pending files after sending
+  chatPendingFiles = [];
   renderChatFilePreviews();
-  _adjustInputHeight(input);
+
+  // Reset UI state – UI will be updated by incoming stream messages
+  resetSendState();
 }
 
-// ===== Input Binding =====
+// Safe WS send: always re-fetch ws reference, check state, wrap in try/catch
+function _wsSend(payload) {
+  try {
+    const ws = getWs();
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.warn('[input] _wsSend: WS not open, readyState=' + (ws ? ws.readyState : 'null'));
+      return false;
+    }
+    const data = JSON.stringify(payload);
+    ws.send(data);
+    console.log('[input] _wsSend: sent ' + data.length + ' bytes, session_id=' + payload.session_id);
+    return true;
+  } catch (e) {
+    console.warn('[input] _wsSend failed:', e.message);
+    return false;
+  }
+}
 
+// expose for debugging / manual testing
+if (typeof window !== 'undefined') {
+  window.chatSendMessage = chatSendMessage;
+  window._ensureChatInput = _ensureChatInput;
+}
+
+// ---- input event handling ----
 export function bindChatInput() {
   const input = document.getElementById('chatInput');
   if (!input) return;
-  input.addEventListener('input', function() {
+  // 防止重复绑定：如果已有标记则跳过
+  if (input.dataset.jsBound === '1') return;
+  input.dataset.jsBound = '1';
+  input.addEventListener('input', function () {
     _adjustInputHeight(this);
     const baseUsed = (window.chatCtxTokens && window.chatCtxTokens.used) ? window.chatCtxTokens.used : 0;
     const total = _chatModelContextWindow || 0;
@@ -430,6 +558,8 @@ export function bindChatInput() {
   });
   window._adjustInputHeight = _adjustInputHeight;
 }
+// 页面加载时自动绑定
+bindChatInput();
 
 // Close model dropdown on outside click
 document.addEventListener('click', function(e) {

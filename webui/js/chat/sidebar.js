@@ -1,5 +1,5 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
-import { getWs } from '../core.js';
+import { getWs } from '../core.js?v=1782146353242';
 import {
   _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
@@ -9,11 +9,11 @@ import {
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
-} from './state.js';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay } from './message.js';
-import { updateChatHeader } from './input.js';
-import { toast, showInput } from '../components/toast.js';
-import { chatConfirm } from './toast.js';
+} from './state.js?v=1782146353242';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay } from './message.js?v=1782146353242';
+import { updateChatHeader } from './input.js?v=1782146353242';
+import { toast, showInput } from '../components/toast.js?v=1782146353242';
+import { chatConfirm } from './toast.js?v=1782146353242';
 
 // ===== 从 page_cache 读取 agents 列表 =====
 function getAgentsFromCache() {
@@ -523,6 +523,21 @@ window.renderMiddleList = renderMiddleList;
  */
 window.renderAgentList = function(agents) {
   if (!Array.isArray(agents)) return;
+  // 从旧 page_cache 保留 available_models 等字段（sync_agents 不含这些字段）
+  const oldAgents = (typeof window.__getPageCache === 'function') ? (window.__getPageCache('agents') || []) : [];
+  if (oldAgents.length > 0) {
+    for (const newAgent of agents) {
+      const old = oldAgents.find(a => a.name === newAgent.name);
+      if (old) {
+        // 保留旧数据中的 available_models / default_chat_model 等新字段
+        for (const key of ['available_models', 'default_chat_model', 'default_vision_model', 'default_tts_model', 'appearance', 'session_timeout', 'max_tools', 'max_tool_rounds', 'llm_timeout', 'llm_max_tokens', 'llm_max_retries', 'max_history_messages', 'skill_pre_filter_top_k', 'memory_integration']) {
+          if (newAgent[key] === undefined && old[key] !== undefined) {
+            newAgent[key] = old[key];
+          }
+        }
+      }
+    }
+  }
   // 同步到 page_cache
   if (typeof window.__onPageCacheUpdate === 'function') {
     window.__onPageCacheUpdate('agents', agents);

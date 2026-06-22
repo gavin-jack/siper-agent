@@ -251,9 +251,11 @@ class LLMClient:
                     continue
 
                 delta_content = getattr(delta, "content", "") or ""
+                # Capture reasoning_content (DeepSeek R1, etc.)
+                reasoning_content = getattr(delta, "reasoning_content", "") or ""
                 # DEBUG: log raw delta content for first 3 chunks
                 if chunk_count <= 3:
-                    self.logger.info(f"[_stream_inner] chunk#{chunk_count}: delta.content={getattr(delta, 'content', 'MISSING')!r}, delta.tool_calls={getattr(delta, 'tool_calls', 'MISSING')}, finish_reason={getattr(choice, 'finish_reason', 'MISSING')}")
+                    self.logger.info(f"[_stream_inner] chunk#{chunk_count}: delta.content={getattr(delta, 'content', 'MISSING')!r}, reasoning={reasoning_content[:50]!r}, delta.tool_calls={getattr(delta, 'tool_calls', 'MISSING')}, finish_reason={getattr(choice, 'finish_reason', 'MISSING')}")
                 # Filter out tool call XML that some models embed in content
                 delta_content = _filter_tool_call_xml(delta_content)
 
@@ -309,6 +311,10 @@ class LLMClient:
                                 "arguments": args_obj,
                             },
                         })
+
+                # Yield special thinking event if reasoning_content present
+                if reasoning_content:
+                    yield {"thinking": reasoning_content}
 
                 yield {
                     "delta": delta_content,

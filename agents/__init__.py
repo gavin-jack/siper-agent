@@ -116,7 +116,7 @@ def list_agents() -> List[str]:
     try:
         from pathlib import Path as _Path
         from ai_agent.config_db import ConfigDB as _ConfigDB
-        db = _ConfigDB(str(_Path(__file__).resolve().parent.parent / "config.db"))
+        db = _ConfigDB(str(_Path(__file__).resolve().parent.parent / "data" / "config.db"))
         agents = db.list_agents()
         if agents:
             return agents

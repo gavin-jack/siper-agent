@@ -2507,7 +2507,7 @@ def api_get_system_stats():
 
     # Token usage count
     try:
-        token_db = PROJECT_ROOT / "agents" / "token.db"
+        token_db = PROJECT_ROOT / "data" / "token.db"
         if token_db.exists():
             conn = sqlite3.connect(str(token_db), check_same_thread=False)
             cur = conn.cursor()

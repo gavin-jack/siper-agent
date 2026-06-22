@@ -243,6 +243,11 @@ class ModelsDB:
             if not row:
                 return None
             d = dict(row)
+            # 同时暴露 api_key / base_url 字段（兼容 agent.py model_cfg.get("api_key") 调用）
+            if "prov_api_key" in d:
+                d["api_key"] = d["prov_api_key"]
+            if "prov_base_url" in d:
+                d["base_url"] = d["prov_base_url"]
             d["capabilities"] = self._cols_to_caps(d)
             return d
 
@@ -296,6 +301,11 @@ class ModelsDB:
             if not row:
                 return None
             d = dict(row)
+            # 同时暴露 api_key / base_url 字段（兼容 agent.py model_cfg.get("api_key") 调用）
+            if "prov_api_key" in d:
+                d["api_key"] = d["prov_api_key"]
+            if "prov_base_url" in d:
+                d["base_url"] = d["prov_base_url"]
             d["capabilities"] = self._cols_to_caps(d)
             return d
 
@@ -340,7 +350,7 @@ class ModelsDB:
             prov_id = m.get("provider", 0)
             base_url = m.get("base_url", "")
             api_key = m.get("api_key", "")
-            # 跳过 masked key（* 开头），避免覆盖 DB 中已有的真实 key
+            # masked key（* 开头）不覆盖 DB 中已有真实 key，由 upsert_provider 保留
             if api_key.startswith("*"):
                 api_key = ""
             prov_name = m.get("provider_name", "") or m.get("provider", "")

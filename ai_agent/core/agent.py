@@ -144,7 +144,7 @@ class AIAgent:
         # Skill system v2: registry, pre-filter, feedback
         self.skill_registry = SkillRegistry(skills_dir=config.skills_dir, agent=self)
         self.skill_feedback = SkillFeedback(
-            db_path=str(Path(__file__).parent.parent.parent / "skills" / "skill_call_log.db")
+            db_path=str(Path(__file__).parent.parent.parent / "data" / "skill_call_log.db")
         )
         self.skill_pre_filter = SkillPreFilter(
             registry=self.skill_registry,
@@ -378,8 +378,9 @@ class AIAgent:
                 'timestamp': datetime.now().isoformat(),
                 'session_id': session_id
             }
-            # Persist user message to database
+            # Persist user message to database immediately (prevent crash loss)
             await self.session_manager.add_message(session_id, 'user', message)
+            await self.session_manager.persist_session(session_id)
 
             # Build context for LLM (includes building multimodal user content)
             context = await self._build_context(message, session_id)
@@ -1747,6 +1748,19 @@ Always aim to be helpful, honest, and harmless in your responses.
                                 self.logger.info("LLM 流式读取被用户中断（stop_event）")
                                 break
                             last_chunk = chunk
+                            # Handle thinking/reasoning content (DeepSeek R1, etc.)
+                            thinking_text = chunk.get("thinking", "")
+                            if thinking_text and self.ws_send:
+                                try:
+                                    asyncio.run_coroutine_threadsafe(
+                                        self.ws_send({
+                                            "type": "thinking_text",
+                                            "text": thinking_text,
+                                            "session_id": self.ws_session_id,
+                                        }), loop
+                                    )
+                                except Exception:
+                                    pass
                             delta = chunk.get("delta", "")
                             if delta:
                                 collected_content.append(delta)

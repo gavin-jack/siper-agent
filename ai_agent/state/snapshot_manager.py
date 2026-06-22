@@ -14,7 +14,7 @@ import os
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-_SNAPSHOT_DB_PATH = os.path.join(os.path.dirname(__file__), "snapshot.db")
+_SNAPSHOT_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "snapshot.db")
 
 
 class SnapshotManager:

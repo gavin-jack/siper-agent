@@ -2,7 +2,7 @@
 // 目录已提升为独立页面
 
 // 注册 page_cache 回调：后端推送新数据时自动刷新
-import { escapeHtml } from '../../utils/escape.js';
+import { escapeHtml } from '../../utils/escape.js?v=1782146353242';
 
 if (typeof window.__onPageCacheRegister === 'function') {
   window.__onPageCacheRegister('monitor', function(data) {

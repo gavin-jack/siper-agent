@@ -2,10 +2,10 @@
 // 从 pages/chat.js 拆分，包含 initSidebar + initChatPage
 // 包含消息列表、输入框、思考面板、模型选择
 
-import * as Message from '../../chat/message.js';
-import * as Input from '../../chat/input.js';
-import * as Sidebar from '../../chat/sidebar.js';
-import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded } from '../../chat/state.js';
+import * as Message from '../../chat/message.js?v=1782146353242';
+import * as Input from '../../chat/input.js?v=1782146353242';
+import * as Sidebar from '../../chat/sidebar.js?v=1782146353242';
+import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1782146353242';
 
 // 从 page_cache 读取 agents（不再从 state.js import chatAgents）
 function _getAgents() {
@@ -129,9 +129,19 @@ async function loadAndRenderAgents() {
       if (typeof window.__setPageCache === 'function') {
         window.__setPageCache('agents', agentsData.agents);
       }
+      // 设置默认 agent（如果尚未设置）
+      if (!_chatCurrentAgent && agentsData.agents && agentsData.agents.length > 0) {
+        var defaultAgent = agentsData.agents.find(function(a) { return a.name === 'default'; }) || agentsData.agents[0];
+        setChatCurrentAgent(defaultAgent);
+      }
       // 渲染中栏（_doRenderMiddle 会自动首次展开所有 agent）
       if (typeof window.renderMiddleList === 'function') {
         window.renderMiddleList();
+      }
+      // agents 数据就绪后更新右栏（设置默认 agent + 渲染输入框）
+      var chatContent = document.getElementById('chatContentArea');
+      if (chatContent && typeof renderChatPage === 'function') {
+        renderChatPage(chatContent);
       }
     }
   } catch(e) {
@@ -289,18 +299,53 @@ export function renderChatPage(container, skipSidebar) {
   container.className = 'siper-content siper-chat-mode';
   var hasSession = !!_chatSessionId;
   var hasAgent = !!_chatCurrentAgent;
+  // 如果尚未设置 agent，从 page_cache 或 agents 列表中选择默认 agent
+  if (!hasAgent && hasSession) {
+    var cachedAgents = (typeof window.__getPageCache === 'function') ? (window.__getPageCache('agents') || []) : [];
+    if (cachedAgents.length > 0 && typeof setChatCurrentAgent === 'function') {
+      var defaultAgent = cachedAgents.find(function(a) { return a.name === 'default'; }) || cachedAgents[0];
+      setChatCurrentAgent(defaultAgent);
+      hasAgent = true;
+    }
+  }
   var showInput = hasSession && hasAgent;
 
+  var headerName = document.getElementById('chatRightHeaderName');
   if (!showInput) {
-    var headerName = document.getElementById('chatRightHeaderName');
     if (headerName) headerName.textContent = '选择一个 Agent 开始对话';
-  } else if (typeof Input.updateChatHeader === 'function') Input.updateChatHeader();
+  } else if (headerName && _chatCurrentAgent) {
+    // 直接设置标题（不依赖 Input.updateChatHeader，避免模块间时序问题）
+    var agentDisplay = _chatCurrentAgent.display_name || _chatCurrentAgent.name;
+    headerName.textContent = agentDisplay + ' — ' + (_chatSessionId ? _chatSessionId.substring(0, 8) : '');
+  }
 
-  container.innerHTML = '' +
-    '<div class="siper-messages" id="chatMessages" aria-live="polite" aria-atomic="false">' +
-      '<div class="siper-empty-state" id="chatEmptyState"><div class="siper-empty-state-icon">💬</div><div>通过agent发送消息</div></div>' +
-    '</div>' +
-    (showInput ? '<div class="siper-input-area" id="chatInputArea"></div>' : '');
+  // 首次渲染：创建消息容器 + 输入框；后续切换会话只更新输入框区域
+  var existingMessages = document.getElementById('chatMessages');
+  if (!existingMessages) {
+    container.innerHTML = '' +
+      '<div class="siper-messages" id="chatMessages" aria-live="polite" aria-atomic="false">' +
+        '<div class="siper-empty-state" id="chatEmptyState"><div class="siper-empty-state-icon">💬</div><div>通过agent发送消息</div></div>' +
+      '</div>' +
+      (showInput ? '<div class="siper-input-area" id="chatInputArea"></div>' : '');
+  } else {
+    // 保留消息容器，只更新输入框区域
+    var existingInput = document.getElementById('chatInputArea');
+    if (showInput) {
+      if (existingInput) {
+        existingInput.innerHTML = '';
+      } else {
+        var newInput = document.createElement('div');
+        newInput.className = 'siper-input-area';
+        newInput.id = 'chatInputArea';
+        container.appendChild(newInput);
+      }
+    } else {
+      if (existingInput) existingInput.remove();
+    }
+    // 移除旧的 "+ 新增智能体" 按钮（如果存在）
+    var oldAddBtn = container.querySelector('.js-btn-add-agent');
+    if (oldAddBtn) oldAddBtn.remove();
+  }
 
   if (showInput) {
     renderInputArea();
@@ -330,6 +375,9 @@ export function renderChatPage(container, skipSidebar) {
 function renderInputArea() {
   var area = document.getElementById('chatInputArea');
   if (!area) return;
+  // 移除 _ensureChatInput 创建的旧版 wrapper（如果存在）
+  var oldWrapper = document.getElementById('chatInputWrapper');
+  if (oldWrapper) oldWrapper.remove();
   area.innerHTML = '' +
     '<div class="siper-input-toolbar">' +
       '<input type="file" id="chatFileInput" multiple class="hidden" onchange="handleChatFileSelect(event)" aria-label="上传文件">' +
@@ -349,7 +397,7 @@ function renderInputArea() {
     '</div>' +
     '<div id="chatFilePreviewContainer" class="siper-file-preview-container hidden"></div>' +
     '<div class="siper-input-row">' +
-      '<textarea id="chatInput" placeholder="输入消息... (Enter 发送, Shift+Enter 换行)" rows="1" aria-label="聊天输入"></textarea>' +
+      '<textarea id="chatInput" placeholder="输入消息... (Enter 发送, Shift+Enter 换行)" rows="3" aria-label="聊天输入"></textarea>' +
       '<button class="siper-send-btn" id="chatSendBtn" onclick="chatSendMessage()">发送</button>' +
       '<button class="siper-stop-btn hidden" id="chatStopBtn" onclick="chatStopGeneration()" title="停止生成">⏹</button>' +
     '</div>';

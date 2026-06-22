@@ -1,5 +1,5 @@
 // chat/message.js — 消息渲染与管理
-import { getWs } from '../core.js';
+import { getWs } from '../core.js?v=1782146353242';
 import {
   _chatSessionId, _chatCurrentAgent,
   _chatCurrentModel, _chatModelContextWindow,
@@ -12,10 +12,10 @@ import {
   setChatCurrentModel, setChatModelContextWindow,
   setChatSessionId, getIsSending, getStreamState,
   _isSending,
-} from '../chat/state.js';
-import { resetSendState } from '../chat/session.js';
-import { chatThinkingHide } from '../chat/thinking.js';
-import { toast } from '../components/toast.js';
+} from '../chat/state.js?v=1782146353242';
+import { resetSendState } from '../chat/session.js?v=1782146353242';
+import { chatThinkingHide } from '../chat/thinking.js?v=1782146353242';
+import { toast } from '../components/toast.js?v=1782146353242';
 
 // ===== Markdown & HTML Helpers =====
 
@@ -301,10 +301,15 @@ window.renderChatMessages = function(messages) {
   if (!Array.isArray(messages)) return;
   const container = document.getElementById('chatMessages');
   if (!container) return;
+  // 保存当前流式 DOM（切换会话时 _chatStreamRow 可能隐藏但需要保留）
+  const streamRow = document.querySelector('.siper-stream-row');
+  if (streamRow) streamRow.remove();
   // Clear but keep empty state
   container.innerHTML = '';
   if (messages.length === 0) {
     container.innerHTML = '<div class="siper-empty-state" id="chatEmptyState"><div class="siper-empty-state-icon">💬</div><div>通过agent发送消息</div></div>';
+    // 恢复流式 DOM（如果有）
+    if (streamRow) container.appendChild(streamRow);
     return;
   }
   for (const msg of messages) {
@@ -323,6 +328,8 @@ window.renderChatMessages = function(messages) {
       msg.message_id || null
     );
   }
+  // 恢复流式 DOM（如果有）
+  if (streamRow) container.appendChild(streamRow);
   // 所有消息渲染完毕后滚动到底部
   requestAnimationFrame(function() {
     container.scrollTop = container.scrollHeight;

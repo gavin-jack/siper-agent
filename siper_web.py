@@ -77,7 +77,7 @@ def _mask_key(key: str) -> str:
 
 def _get_token_db_path():
     """Return path to the shared token database at agents/token.db."""
-    return str(Path(os.path.dirname(__file__)) / "agents" / "token.db")
+    return str(Path(os.path.dirname(__file__)) / "data" / "token.db")
 
 def _init_token_db():
     """Initialize the shared token database and load history into memory."""
@@ -368,33 +368,35 @@ def _render_index() -> str:
         if full.exists():
             return f'<script src="{js_path}?v={int(os.path.getmtime(full))}"></script>'
         return match.group(0)
-    html = _re.sub(r'<script src="(/static/(?:pages|js)/[^"]+)"></script>', _js_mtime, html)
-    # ESM entry: 用 start_time 作为 cache-buster（每次重启都变，确保浏览器不缓存旧版 app.js）
+    html = _re.sub(r'<script[^>]*src="(/static/(?:pages|js)/[^"]+)"[^>]*></script>', _js_mtime, html)
+    # Also patch ESM module entry: <script type="module" src="/js/app.js"></script>
+    _app_mtime = int(os.path.getmtime(PROJECT_ROOT / "webui" / "js" / "app.js")) if (PROJECT_ROOT / "webui" / "js" / "app.js").exists() else int(time.time() * 1000)
+    html = _re.sub(
+        r'<script type="module" src="/js/app\.js"></script>',
+        f'<script type="module" src="/js/app.js?v={_app_mtime}"></script>',
+        html,
+    )
     _js_entry = PROJECT_ROOT / "webui" / "js" / "app.js"
     if _js_entry.exists():
         _cb = str(int(start_time * 1000))
-        # 创建/更新符号链接 app-{start_time}.js → app.js
-        _symlink = PROJECT_ROOT / "webui" / "js" / f"app-{_cb}.js"
-        if not _symlink.exists() or os.readlink(str(_symlink)) != "app.js":
-            if _symlink.exists() or _symlink.is_symlink():
-                _symlink.unlink()
-            _symlink.symlink_to("app.js")
-        # Patch ESM static imports in app.js to include cache-buster
-        # 这样浏览器每次重启都会加载最新的内部模块（chat.js, agent-config.js 等）
-        _app_js_path = PROJECT_ROOT / "webui" / "js" / "app.js"
-        _app_js_orig = _app_js_path.read_text()
-        _app_js_patched = _re.sub(
-            r"from '(\./[^']+\.js)(\?v=[0-9]+)?'",
-            lambda m: f"from '{m.group(1)}?v={_cb}'",
-            _app_js_orig,
-        )
-        if _app_js_patched != _app_js_orig:
-            _app_js_path.write_text(_app_js_patched)
+        # Patch ESM static imports in ALL js files (except static/) to include cache-buster
+        _js_dir = PROJECT_ROOT / "webui" / "js"
+        _import_re = _re.compile(r"from '(\.\./[^']+\.js|\./[^']+\.js)(\?v=[0-9]+)?'")
+        for _js_file in _js_dir.rglob("*.js"):
+            if "static" in _js_file.relative_to(_js_dir).parts:
+                continue
+            _orig = _js_file.read_text()
+            _patched = _import_re.sub(
+                lambda m: f"from '{m.group(1)}?v={_cb}'",
+                _orig,
+            )
+            if _patched != _orig:
+                _js_file.write_text(_patched)
     else:
         _cb = str(int(time.time() * 1000))
     html = _re.sub(
         r'<script type="module" src="(/js/app\.js)"></script>',
-        lambda m: f'<script type="module" src="/js/app-{_cb}.js"></script>',
+        lambda m: f'<script type="module" src="/js/app.js?v={_cb}"></script>',
         html,
     )
     # Inject cache-busting CSS — base.css (global, always needed) + page.css (standalone pages)
@@ -515,7 +517,7 @@ async def main():
     _cfg_key_default = ""
     # Load models from SQLite (agents/default/models.db)
     from ai_agent.models_db import ModelsDB as _ModelsDB
-    _models_db = _ModelsDB(str(PROJECT_ROOT / "models.db"))
+    _models_db = _ModelsDB(str(PROJECT_ROOT / "data" / "models.db"))
     _gm_models = []
     _gm_default = ""
     if _models_db.get_all_models():
@@ -534,7 +536,7 @@ async def main():
     except Exception: pass
     try:
         from ai_agent.config_db import ConfigDB as _ConfigDB
-        _config_db = _ConfigDB(str(PROJECT_ROOT / "config.db"))
+        _config_db = _ConfigDB(str(PROJECT_ROOT / "data" / "config.db"))
         # Migrate global settings if empty
         _cfg_count = _config_db.get_all_global_settings()
         if not _cfg_count:
@@ -2533,7 +2535,7 @@ async def main():
     def api_reset_models():
         """删除 models.db 并重建，清空内存缓存，同步清理 agent 配置"""
         import os as _os
-        db_path = str(PROJECT_ROOT / "models.db")
+        db_path = str(PROJECT_ROOT / "data" / "models.db")
         # 1. 删除数据库文件
         if _os.path.exists(db_path):
             _os.remove(db_path)
@@ -2553,11 +2555,8 @@ async def main():
         return {"success": True}
 
     def api_get_global_models():
-        # 从 SQLite 返回，保留 _mask_key 逻辑
-        flat = _models_db.get_models_flat()
-        for m in flat.get("models", []):
-            m["api_key"] = _mask_key(m.get("api_key", ""))
-        return flat
+        # 从 SQLite 返回真实 api_key（DB 存真实 key，前端验证时使用）
+        return _models_db.get_models_flat()
 
     def api_rename_provider(body):
         old_id = (body.get("old_id") or "").strip()

@@ -1,8 +1,8 @@
 // components/model-test.js — 模型验证功能
 // 从 js/model-test.js 迁移
 
-import { CAP_LABELS, CAP_ICONS } from '../utils/capabilities.js';
-import { toast } from './toast.js';
+import { CAP_LABELS, CAP_ICONS } from '../utils/capabilities.js?v=1782146353242';
+import { toast } from './toast.js?v=1782146353242';
 
 // ===== Core: call backend test API =====
 export async function testModel(baseUrl, apiKey, modelName, providerId) {

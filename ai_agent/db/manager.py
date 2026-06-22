@@ -29,8 +29,8 @@ class DatabaseManager:
     def _path(self, name: str) -> Path:
         mapping = {
             "sessions": self._root / "agents" / "default" / "sessions" / "sessions.db",
-            "models": self._root / "models.db",
-            "token": self._root / "agents" / "token.db",
+            "models": self._root / "data" / "models.db",
+            "token": self._root / "data" / "token.db",
         }
         return mapping.get(name, self._root / f"{name}.db")
 

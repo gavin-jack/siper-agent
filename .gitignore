@@ -8,6 +8,7 @@ __pycache__/
 .siper.pid
 
 # Runtime data（程序自动生成）
+data/
 agents/
 models.json
 models.db

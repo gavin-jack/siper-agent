@@ -120,6 +120,10 @@ export function markSessionReady() {
     _sessionReady = true;
     const w = _sessionWaiters.splice(0);
     w.forEach(r => r());
+    // Ensure chat input element exists for manual testing or UI flow
+    if (typeof window !== 'undefined' && typeof window._ensureChatInput === 'function') {
+        window._ensureChatInput();
+    }
 }
 export function resetSessionReady() {
     _sessionReady = false;
@@ -216,3 +220,21 @@ export { _chatCurrentAgent as chatCurrentAgent };
 export { _chatCurrentModel as chatCurrentModel };
 export { _chatModelContextWindow as chatModelContextWindow };
 export { _chatSidebarExpanded as chatSidebarExpanded };
+
+// -------------------------------------------------------------------------
+// Expose key session functions to the global `window` object.
+// This ensures they are accessible from any script (including console or
+// modules that may import `core.js` without direct import of `state.js`).
+// -------------------------------------------------------------------------
+if (typeof window !== 'undefined') {
+  window.markSessionReady = markSessionReady;
+  window.setChatSessionId = setChatSessionId;
+  window.resetSessionReady = resetSessionReady;
+  window.ensureSessionReady = ensureSessionReady;
+  window.setChatCurrentAgent = setChatCurrentAgent;
+  // 用 getter 确保 window._chatCurrentAgent 总是返回最新值
+  Object.defineProperty(window, '_chatCurrentAgent', {
+    get: function() { return _chatCurrentAgent; },
+    configurable: true
+  });
+}

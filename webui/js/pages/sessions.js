@@ -4,10 +4,10 @@
  * 删除所有 fetch 调用，数据由后端快照通过 WS 推送。
  * 保留 UI 交互逻辑（点击、预览、删除确认）。
  */
-import { t } from '../utils/i18n.js';
-import { escapeHtml } from '../utils/escape.js';
-import { showConfirm, _getNotifRoot } from '../components/toast.js';
-import { toast } from '../components/toast.js';
+import { t } from '../utils/i18n.js?v=1782146353242';
+import { escapeHtml } from '../utils/escape.js?v=1782146353242';
+import { showConfirm, _getNotifRoot } from '../components/toast.js?v=1782146353242';
+import { toast } from '../components/toast.js?v=1782146353242';
 
 // 模块级状态
 let _currentSession = null;
