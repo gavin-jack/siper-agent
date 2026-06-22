@@ -1,11 +1,11 @@
 // pages/theme.js — 主题设置
 // 从 pages/page-theme.js 迁移
 
-import { t } from '../utils/i18n.js?v=1782146353242';
-import { showConfirm, showInput } from '../components/toast.js?v=1782146353242';
-import { toast } from '../components/toast.js?v=1782146353242';
-import { updateThemePaletteTrigger } from '../utils/dom.js?v=1782146353242';
-import { escapeHtml } from '../utils/escape.js?v=1782146353242';
+import { t } from '../utils/i18n.js?v=1782147932071';
+import { showConfirm, showInput } from '../components/toast.js?v=1782147932071';
+import { toast } from '../components/toast.js?v=1782147932071';
+import { updateThemePaletteTrigger } from '../utils/dom.js?v=1782147932071';
+import { escapeHtml } from '../utils/escape.js?v=1782147932071';
 
 // ===== Theme Settings =====
 const THEME_DEFAULTS = {

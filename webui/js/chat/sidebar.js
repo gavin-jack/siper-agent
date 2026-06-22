@@ -1,5 +1,5 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
-import { getWs } from '../core.js?v=1782146353242';
+import { getWs } from '../core.js?v=1782147932071';
 import {
   _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
@@ -9,11 +9,11 @@ import {
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
-} from './state.js?v=1782146353242';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay } from './message.js?v=1782146353242';
-import { updateChatHeader } from './input.js?v=1782146353242';
-import { toast, showInput } from '../components/toast.js?v=1782146353242';
-import { chatConfirm } from './toast.js?v=1782146353242';
+} from './state.js?v=1782147932071';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay } from './message.js?v=1782147932071';
+import { updateChatHeader } from './input.js?v=1782147932071';
+import { toast, showInput } from '../components/toast.js?v=1782147932071';
+import { chatConfirm } from './toast.js?v=1782147932071';
 
 // ===== 从 page_cache 读取 agents 列表 =====
 function getAgentsFromCache() {

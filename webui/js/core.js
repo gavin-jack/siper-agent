@@ -13,11 +13,11 @@
  *   页面导航 → chat/nav.js
  *   会话管理 → chat/session.js
  */
-import { renderFull, applyDelta } from './renderer.js?v=1782146353242';
-import { appendStream, finalizeStream, handleStopped } from './chat/stream.js?v=1782146353242';
-import { setConnected, getStreamState, markSessionReady, setChatSessionId, setIsSending, setIsThinking, setThinkingSteps } from './chat/state.js?v=1782146353242';
-import { chatThinkingShow, chatThinkingAddToolStep, chatThinkingAddTextRow } from './chat/thinking.js?v=1782146353242';
-import { renderChatPage } from './pages/chat-pages/chat.js?v=1782146353242';
+import { renderFull, applyDelta } from './renderer.js?v=1782147932071';
+import { appendStream, finalizeStream, handleStopped } from './chat/stream.js?v=1782147932071';
+import { setConnected, getStreamState, markSessionReady, setChatSessionId, setIsSending, setIsThinking, setThinkingSteps } from './chat/state.js?v=1782147932071';
+import { chatThinkingShow, chatThinkingAddToolStep, chatThinkingAddTextRow } from './chat/thinking.js?v=1782147932071';
+import { renderChatPage } from './pages/chat-pages/chat.js?v=1782147932071';
 
 let ws = null;
 let _ver = 0;
@@ -25,10 +25,11 @@ let _ver = 0;
 // ===== WebSocket Connection =====
 
 export function connectWS() {
+    // Guard: skip if already connected or connecting
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsPort = parseInt(location.port) + 1;
     ws = new WebSocket(`${proto}//${location.hostname}:${wsPort}`);
-
     ws.onopen = () => {
         console.log('[SiPer] WS connected');
         setConnected(true);
@@ -186,4 +187,4 @@ function dispatch(msg) {
 }
 
 // Re-export from state.js for app.js backward compat
-export { setConnected } from './chat/state.js?v=1782146353242';
+export { setConnected } from './chat/state.js?v=1782147932071';

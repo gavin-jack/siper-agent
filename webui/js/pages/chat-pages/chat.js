@@ -2,10 +2,10 @@
 // 从 pages/chat.js 拆分，包含 initSidebar + initChatPage
 // 包含消息列表、输入框、思考面板、模型选择
 
-import * as Message from '../../chat/message.js?v=1782146353242';
-import * as Input from '../../chat/input.js?v=1782146353242';
-import * as Sidebar from '../../chat/sidebar.js?v=1782146353242';
-import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1782146353242';
+import * as Message from '../../chat/message.js?v=1782147932071';
+import * as Input from '../../chat/input.js?v=1782147932071';
+import * as Sidebar from '../../chat/sidebar.js?v=1782147932071';
+import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1782147932071';
 
 // 从 page_cache 读取 agents（不再从 state.js import chatAgents）
 function _getAgents() {
@@ -363,7 +363,8 @@ export function renderChatPage(container, skipSidebar) {
   }
   if (!skipSidebar) {
     if (_getAgents().length === 0) {
-      // WS 推送 agents 后 renderAgentList 会自动渲染
+      // page_cache 尚未就绪（首次加载/WS重连），主动加载 agents
+      loadAndRenderAgents();
     } else {
       Sidebar.renderMiddleList();
     }

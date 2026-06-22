@@ -1,6 +1,6 @@
 // chat-pages/token.js — Token 统计页面渲染
 // 从 pages/chat.js 拆分
-import { renderMonitorCharts } from './monitor.js?v=1782146353242';
+import { renderMonitorCharts } from './monitor.js?v=1782147932071';
 
 export function renderTokenPageChat(container) {
   container.className = 'siper-content siper-full-content';

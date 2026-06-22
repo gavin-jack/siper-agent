@@ -6,6 +6,9 @@ Usage:
     python siper_web.py 7240      # Start on custom port
 """
 
+import sys
+sys.dont_write_bytecode = True  # 禁止生成 __pycache__ 目录
+
 import asyncio
 import json
 import logging
