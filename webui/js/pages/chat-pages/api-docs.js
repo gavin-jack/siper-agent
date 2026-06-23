@@ -1,6 +1,6 @@
 // chat-pages/api-docs.js — API 文档页面（Swagger UI）
 // CSS 由 app.js navigateToPage 加载 api-docs.css
-import { t } from '../../utils/i18n.js?v=1782227011228';
+import { t } from '../../utils/i18n.js?v=1782233785732';
 
 // DOM 翻译映射：CSS 选择器 → i18n key
 const _selMap = [
@@ -32,16 +32,17 @@ let _rafId = null;
 // bfcache 恢复：重新翻译已缓存的 DOM
 window.addEventListener('pageshow', (e) => {
   if (e.persisted && document.getElementById('swagger-ui')) {
-    _clearFlags();
+    _localized.clear();
     _localizeAll();
   }
 });
 
 export function renderApiDocsPageChat(container) {
+  container.id = 'page-api-docs';
   container.className = 'siper-content siper-full-content';
   container.innerHTML =
     '<div class="page-header">' +
-      '<h3>📖 ' + t('apiDocs.title') + ' <span class="tool-header-badge">OpenAPI 3.0</span></h3>' +
+      '<h3>📖 SiPer AI Agent API <span class="tool-header-badge">OAS 3.0</span></h3>' +
       '<div class="actions">' +
         '<a class="siper-btn" href="/api/openapi.json" target="_blank" download>⬇️ ' + t('apiDocs.download') + '</a>' +
       '</div>' +
@@ -59,11 +60,11 @@ function _loadSwaggerUI() {
   }
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/static/swagger/swagger-ui.css?v=' + Date.now();
+  link.href = '/static/swagger/swagger-ui.css?v=' + Math.floor(Date.now() / 1000);
   document.head.appendChild(link);
 
   const script = document.createElement('script');
-  script.src = '/static/swagger/swagger-ui-bundle.js?v=' + Date.now();
+  script.src = '/static/swagger/swagger-ui-bundle.js?v=' + Math.floor(Date.now() / 1000);
   script.onload = () => { _renderSwagger(); };
   script.onerror = () => {
     document.getElementById('swagger-ui').innerHTML =
@@ -88,8 +89,49 @@ function _renderSwagger() {
     el.innerHTML = '<div class="empty-state">⚠️ ' + t('apiDocs.renderFailed') + e.message + '</div>';
     return;
   }
+  // 隐藏 Swagger UI 的 info 区域（标题/版本/描述已在 page-header 中显示）
+  _hideSwaggerInfo();
   // 启动 MutationObserver 持续翻译增量 DOM
   _startObserver();
+}
+
+var _infoHideTimer = null;
+
+function _hideSwaggerInfo() {
+  // Swagger UI 异步加载 openapi.json 后才会渲染 info 区域，轮询删除
+  if (_infoHideTimer) clearInterval(_infoHideTimer);
+  var infoDone = false;
+  _infoHideTimer = setInterval(function() {
+    if (!infoDone) {
+      var el;
+      while (el = document.querySelector('#swagger-ui .information-container')) el.remove();
+      while (el = document.querySelector('#swagger-ui .scheme-container')) el.remove();
+      if (!document.querySelector('#swagger-ui .information-container') &&
+          !document.querySelector('#swagger-ui .scheme-container')) {
+        infoDone = true;
+      }
+    } else {
+      // info/scheme 清理完后，清理 SVG、空 div，并覆盖宽度为全宽
+      var svg = document.querySelector('#swagger-ui svg.svg-assets');
+      if (svg) svg.parentElement.remove();
+      document.querySelectorAll('#swagger-ui div').forEach(function(d) {
+        if (!d.children.length && !d.textContent.trim() && !d.id && !d.className) d.remove();
+      });
+      // 覆盖 Swagger UI 内联宽度 533px → 全宽
+      var block = document.querySelector('#swagger-ui .block.col-12');
+      if (block) { block.style.width = '100% !important'; block.style.maxWidth = '100% !important'; }
+      var wrapper = document.querySelector('#swagger-ui .wrapper');
+      if (wrapper) { wrapper.style.width = '100%'; wrapper.style.maxWidth = '100%'; }
+      if (!document.querySelector('#swagger-ui svg.svg-assets')) {
+        clearInterval(_infoHideTimer);
+        _infoHideTimer = null;
+      }
+    }
+  }, 100);
+  // 15 秒后自动停止
+  setTimeout(function() {
+    if (_infoHideTimer) { clearInterval(_infoHideTimer); _infoHideTimer = null; }
+  }, 15000);
 }
 
 function _startObserver() {
@@ -108,28 +150,6 @@ function _startObserver() {
     });
   });
   _observer.observe(el, { childList: true, subtree: true });
-  // 全局 click 监听：操作展开/折叠后翻译新增 DOM
-  document.addEventListener('click', _onClick);
-}
-
-function _onClick() {
-  // click 后翻译（等 Swagger UI 完成 DOM 更新）
-  // 用 RAF 确保在 UI 更新后执行
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      _clearFlags();
-      _localizeAll();
-    });
-  });
-}
-
-function _clearFlags() {
-  const el = document.getElementById('swagger-ui');
-  if (!el) return;
-  el.querySelectorAll('[data-js-localized]').forEach(n => {
-    n.removeAttribute('data-js-localized');
-  });
-  _localized.clear();
 }
 
 // ── 核心翻译函数 ──────────────────────────────────────
@@ -156,15 +176,7 @@ function _localizeAll() {
     });
   }
 
-  // 2. h4 标签
-  el.querySelectorAll('h4').forEach(h4 => {
-    if (_localized.has(h4)) return;
-    const txt = h4.textContent.trim();
-    if (txt === 'Responses') { h4.textContent = t('apiDocs.responses'); _localized.add(h4); }
-    else if (txt === 'Parameters') { h4.textContent = t('apiDocs.parameters'); _localized.add(h4); }
-  });
-
-  // 3. 文本节点
+  // 文本节点（含 h4）
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
   while (walker.nextNode()) {
     const node = walker.currentNode;
@@ -174,4 +186,7 @@ function _localizeAll() {
       _localized.add(node);
     }
   }
+  // 覆盖 Swagger UI 内联宽度 533px → 全宽
+  var block = document.querySelector('#swagger-ui .block.col-12');
+  if (block) { block.style.width = '100% !important'; block.style.maxWidth = '100% !important'; }
 }

@@ -1742,3 +1742,41 @@
   line-height: 1;
   flex-shrink: 0;
 }
+
+/* ===== API Docs Page ===== */
+#page-api-docs .siper-content {
+  padding: 0;
+}
+#page-api-docs .page-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+#page-api-docs .page-body {
+  padding: 0;
+}
+#swagger-ui {
+  max-width: 100%;
+}
+#swagger-ui .wrapper {
+  width: 100%;
+  max-width: 100%;
+}
+#swagger-ui .block.col-12 {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+#swagger-ui .opblock-tag-section {
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+#swagger-ui .opblock {
+  padding: 2px 0;
+}
+#swagger-ui .opblock-summary {
+  padding: 6px 12px;
+}
+#swagger-ui .opblock-summary-description {
+  font-size: 13px;
+  color: var(--color-text-dim);
+}
