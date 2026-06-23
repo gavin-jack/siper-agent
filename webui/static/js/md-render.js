@@ -1157,9 +1157,11 @@ function processBlocks(text, lines, codeBlocks, frag, _maxIter) {
     }
   }
   // Handle lines with text before table: "some text | col1 | col2 |"
+  // Also handles heading + table on same line: "### Title | col1 | col2 |"
   // Extract the table part and insert it as a new line to process
-  // Exclude heading lines (e.g. "### Title | col1 | col2 |") — those are handled by heading detection below
-  if (line.includes('|') && !line.trim().startsWith('|') && !/^#{1,6}\s*/.test(line.trim())) {
+  // Exclude: lines starting with | (pure table rows), and pure heading lines (no |)
+  const _isPureHeading = /^#{1,6}\s*/.test(line.trim()) && !line.includes('|');
+  if (line.includes('|') && !line.trim().startsWith('|') && !_isPureHeading) {
     const pipeIdx = line.indexOf('|');
     if (pipeIdx > 0) {
       const beforeText = line.substring(0, pipeIdx).trim();
@@ -1167,12 +1169,23 @@ function processBlocks(text, lines, codeBlocks, frag, _maxIter) {
       // Validate: table part must have >= 3 pipes (at least 2 columns) or contain ||
       const pipeCount = (tablePart.match(/\|/g) || []).length;
       if (tablePart && (pipeCount >= 3 || tablePart.includes('||')) && _splitTableRowSegments(tablePart).length > 0) {
-        // Render the text before the table as a plain line
+        // Render the text before the table (heading or paragraph)
         if (beforeText) {
-          const p = document.createElement('p');
-          p.className = 'md-paragraph';
-          p.innerHTML = inline(beforeText);
-          frag.appendChild(p);
+          const _hMatch = beforeText.match(/^(#{1,6})\s*(.*)/);
+          if (_hMatch) {
+            const _lvl = _hMatch[1].length;
+            const _txt = _hMatch[2].trim() || ' ';
+            const _tag = 'h' + _lvl;
+            const _hEl = document.createElement(_tag);
+            _hEl.className = 'md-heading md-h' + _lvl;
+            _hEl.innerHTML = inline(_txt);
+            frag.appendChild(_hEl);
+          } else {
+            const p = document.createElement('p');
+            p.className = 'md-paragraph';
+            p.innerHTML = inline(beforeText);
+            frag.appendChild(p);
+          }
         }
         // Insert the table part to be processed next
         lines.splice(i + 1, 0, tablePart);

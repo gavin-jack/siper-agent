@@ -1,5 +1,5 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
-import { getWs } from '../core.js?v=1782155584375';
+import { getWs } from '../core.js?v=1782157049636';
 import {
   _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
@@ -9,11 +9,11 @@ import {
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, setThinkingSteps, setIsThinking, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
-} from './state.js?v=1782155584375';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay } from './message.js?v=1782155584375';
-import { updateChatHeader } from './input.js?v=1782155584375';
-import { toast, showInput } from '../components/toast.js?v=1782155584375';
-import { chatConfirm } from './toast.js?v=1782155584375';
+} from './state.js?v=1782157049636';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay } from './message.js?v=1782157049636';
+import { updateChatHeader } from './input.js?v=1782157049636';
+import { toast, showInput } from '../components/toast.js?v=1782157049636';
+import { chatConfirm } from './toast.js?v=1782157049636';
 
 // ===== 从 page_cache 读取 agents 列表 =====
 function getAgentsFromCache() {
@@ -209,10 +209,9 @@ export async function chatToggleAgent(agentName) {
     const current = _expandedAgents.get(agentName) === true;
     _expandedAgents.set(agentName, !current);
     _expandedAgents.delete(agentName + '_all');
-    // 重新渲染中间栏（更新展开/折叠状态和 active class）
-    renderMiddleList();
-    // 选中 agent + 加载会话
+    // 先切换 agent（更新 _chatCurrentAgent），再渲染中栏，确保 active class 正确
     await switchToAgent(agentName);
+    renderMiddleList();
     // 展开态点击 → 折叠后显示 agent 设置页面（右栏）
     if (current && typeof window.selectChatAgent === 'function') {
       window.selectChatAgent(agentName);

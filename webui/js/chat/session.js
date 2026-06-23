@@ -8,11 +8,11 @@ import {
     setIsSending, setChatSessionId, setChatCurrentAgent,
     setChatCurrentModel, setChatModelContextWindow,
     setCurrentModel,
-} from './state.js?v=1782155584375';
-import { send } from '../core.js?v=1782155584375';
-import { chatThinkingHide } from './thinking.js?v=1782155584375';
-import { updateStreamingBadge } from './state.js?v=1782155584375';
-import { _hideNewMsgIndicator } from './badge.js?v=1782155584375';
+} from './state.js?v=1782157049636';
+import { send } from '../core.js?v=1782157049636';
+import { chatThinkingHide } from './thinking.js?v=1782157049636';
+import { updateStreamingBadge } from './state.js?v=1782157049636';
+import { _hideNewMsgIndicator } from './badge.js?v=1782157049636';
 
 // ===== Send State Reset =====
 

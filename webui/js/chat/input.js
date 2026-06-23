@@ -1,5 +1,5 @@
 // chat/input.js — 输入框、文件上传、模型选择
-import { getWs, setWs } from '../core.js?v=1782155584375';
+import { getWs, setWs } from '../core.js?v=1782157049636';
 import {
   _chatSessionId, _chatCurrentAgent, _chatCurrentPage,
   _chatCurrentModel, _chatModelContextWindow,
@@ -11,7 +11,7 @@ import {
   fmtTokens,
   markSessionReady,
   setChatSessionId,
-} from '../chat/state.js?v=1782155584375';
+} from '../chat/state.js?v=1782157049636';
 
 // 从 page_cache 读取 agents 列表（替代已删除的 chatAgents 变量）
 function _getAgents() {
@@ -21,12 +21,12 @@ function _getAgents() {
   }
   return [];
 }
-import { resetSendState } from '../chat/session.js?v=1782155584375';
+import { resetSendState } from '../chat/session.js?v=1782157049636';
 
 // 全局待发送文件列表，存放 base64 数据、mime、名称及分类
 window.chatPendingFiles = [];
 const chatPendingFiles = window.chatPendingFiles;
-import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js?v=1782155584375';
+import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js?v=1782157049636';
 
 // ------------------------------------------------
 // Ensure a chat input element exists (creates one if missing)
@@ -91,8 +91,8 @@ function _ensureChatInput() {
   if (typeof window !== 'undefined') window._adjustInputHeight = _adjustInputHeight;
 }
 
-import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js?v=1782155584375';
-import { toast } from '../components/toast.js?v=1782155584375';
+import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js?v=1782157049636';
+import { toast } from '../components/toast.js?v=1782157049636';
 
 // ===== File Upload & Preview =====
 
@@ -253,7 +253,7 @@ export async function chatUploadFiles(files) {
 }
 
 // ===== Model Capability Icons =====
-import { CAP_ICONS } from '../utils/capabilities.js?v=1782155584375';
+import { CAP_ICONS } from '../utils/capabilities.js?v=1782157049636';
 
 function _renderCapBadges(capabilities) {
   if (!capabilities || !capabilities.length) return '';

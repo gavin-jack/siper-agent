@@ -1,7 +1,7 @@
 // chat-pages/directory.js — 项目目录独立页面
 // 优先从 page_cache 读取，后端推送时自动刷新
 
-import { escapeHtml } from '../../utils/escape.js?v=1782155584375';
+import { escapeHtml } from '../../utils/escape.js?v=1782157049636';
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {

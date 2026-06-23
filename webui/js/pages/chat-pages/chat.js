@@ -2,10 +2,10 @@
 // 从 pages/chat.js 拆分，包含 initSidebar + initChatPage
 // 包含消息列表、输入框、思考面板、模型选择
 
-import * as Message from '../../chat/message.js?v=1782155584375';
-import * as Input from '../../chat/input.js?v=1782155584375';
-import * as Sidebar from '../../chat/sidebar.js?v=1782155584375';
-import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1782155584375';
+import * as Message from '../../chat/message.js?v=1782157049636';
+import * as Input from '../../chat/input.js?v=1782157049636';
+import * as Sidebar from '../../chat/sidebar.js?v=1782157049636';
+import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1782157049636';
 
 // 从 page_cache 读取 agents（不再从 state.js import chatAgents）
 function _getAgents() {
@@ -129,11 +129,6 @@ async function loadAndRenderAgents() {
       // 填充 page_cache，sidebar.js 的 getAgentsFromCache() 会读取
       if (typeof window.__setPageCache === 'function') {
         window.__setPageCache('agents', agentsData.agents);
-      }
-      // 设置默认 agent（如果尚未设置）
-      if (!_chatCurrentAgent && agentsData.agents && agentsData.agents.length > 0) {
-        var defaultAgent = agentsData.agents.find(function(a) { return a.name === 'default'; }) || agentsData.agents[0];
-        setChatCurrentAgent(defaultAgent);
       }
       // 渲染中栏（_doRenderMiddle 会自动首次展开所有 agent）
       if (typeof window.renderMiddleList === 'function') {
