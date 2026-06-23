@@ -2,7 +2,7 @@
 // 目录已提升为独立页面
 
 // 注册 page_cache 回调：后端推送新数据时自动刷新
-import { escapeHtml } from '../../utils/escape.js?v=1782227011228';
+import { escapeHtml } from '../../utils/escape.js?v=1782233785732';
 
 if (typeof window.__onPageCacheRegister === 'function') {
   window.__onPageCacheRegister('monitor', function(data) {
@@ -365,9 +365,6 @@ export async function renderMonitorPageChat(container) {
     <button class="siper-settings-tab active" data-tab="performance" onclick="window.switchMonitorTab('performance')">性能</button>
     <button class="siper-settings-tab" data-tab="token" onclick="window.switchMonitorTab('token')">词元</button>
     <button class="siper-settings-tab" data-tab="logs" onclick="window.switchMonitorTab('logs')">日志</button>
-  </div>
-  <div class="js-flex-shrink-0">
-    <button class="siper-btn" onclick="window.refreshMonitorTab()">刷新</button>
   </div>
 </div>
 <div id="monitorContent">

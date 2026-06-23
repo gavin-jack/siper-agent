@@ -1,41 +1,41 @@
 // app.js — ESM 入口
 // 三模板 SPA: chat(默认) | standalone(懒加载) | sidebar(常驻)
-import { connectWS, setConnected, getWs } from './core.js?v=1782227011228';
+import { connectWS, setConnected, getWs } from './core.js?v=1782233785732';
 // expose getWs globally for debugging
 window.getWs = getWs;
 // -------------------------------------------------
 // 初始化：立即建立 WebSocket 连接
 // -------------------------------------------------
 connectWS();
-import { registerAllHandlers } from './renderer.js?v=1782227011228';
+import { registerAllHandlers } from './renderer.js?v=1782233785732';
 
 // Utils
-import { escapeHtml } from './utils/escape.js?v=1782227011228';
-import { LANG, t, applyLang, selectLang } from './utils/i18n.js?v=1782227011228';
-import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js?v=1782227011228';
-import { apiGet, apiPost } from './utils/api.js?v=1782227011228';
-import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js?v=1782227011228';
+import { escapeHtml } from './utils/escape.js?v=1782233785732';
+import { LANG, t, applyLang, selectLang } from './utils/i18n.js?v=1782233785732';
+import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js?v=1782233785732';
+import { apiGet, apiPost } from './utils/api.js?v=1782233785732';
+import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js?v=1782233785732';
 
 // Components
-import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmDeleteModel, showInput, cancelInput, execInput, openImageLightbox } from './components/toast.js?v=1782227011228';
-import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js?v=1782227011228';
-import * as AgentModels from './components/agent-models.js?v=1782227011228';
+import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmDeleteModel, showInput, cancelInput, execInput, openImageLightbox } from './components/toast.js?v=1782233785732';
+import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js?v=1782233785732';
+import * as AgentModels from './components/agent-models.js?v=1782233785732';
 
 // Chat core (must load before DOMContentLoaded)
-import * as Chat from './pages/chat-pages/chat.js?v=1782227011228';
+import * as Chat from './pages/chat-pages/chat.js?v=1782233785732';
 
 // Chat input
-import { toggleChatModelDropdown } from './chat/input.js?v=1782227011228';
+import { toggleChatModelDropdown } from './chat/input.js?v=1782233785732';
 
 // Sidebar / UI
-import { startNewChat, expandAllAgents } from './chat/sidebar.js?v=1782227011228';
-import { newSession } from './chat/session.js?v=1782227011228';
+import { startNewChat, expandAllAgents } from './chat/sidebar.js?v=1782233785732';
+import { newSession } from './chat/session.js?v=1782233785732';
 
 // Template-clone pages (保留全量 import，后续逐步迁移)
-import * as Sessions from './pages/sessions.js?v=1782227011228';
-import * as Memory from './pages/memory.js?v=1782227011228';
-import * as AgentConfig from './pages/agent-config.js?v=1782227011228';
-import * as Theme from './pages/theme.js?v=1782227011228';
+import * as Sessions from './pages/sessions.js?v=1782233785732';
+import * as Memory from './pages/memory.js?v=1782233785732';
+import * as AgentConfig from './pages/agent-config.js?v=1782233785732';
+import * as Theme from './pages/theme.js?v=1782233785732';
 
 // ===== Window Global Mounts =====
 // Utils
@@ -295,7 +295,7 @@ const PAGE_RENDER_FN = {
 
 // ===== 动态页面模块加载器 =====
 // 2026-06-18: 增加 MutationObserver 防抖 + data-localized 标记避免重复翻译
-const _PAGE_CACHE_VER = Date.now();
+const _PAGE_CACHE_VER = Math.floor(Date.now() / 1000);
 const _pageModCache = {};
 async function _loadPageModule(page) {
   if (_pageModCache[page]) return _pageModCache[page];
@@ -320,12 +320,15 @@ const PAGE_LAZY_LOADER = {
 };
 
 // ===== CSS 按需加载 =====
-// 每次调用都移除旧 link 再重新加载，确保 CSS 修改后浏览器获取最新版本
+// 幂等：已存在则不重复加载，避免每次切换页面都重新下载 CSS
 function loadCss(href) {
-  document.querySelectorAll('link[href^="' + href + '"]').forEach(l => l.remove());
+  // 去掉 query string 匹配（旧 link 可能带 ?v=xxx）
+  const baseHref = href.split('?')[0];
+  const exists = document.querySelector('link[href^="' + baseHref + '"]');
+  if (exists) return; // 已加载，跳过
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = href + '?v=' + Date.now();
+  link.href = href;
   document.head.appendChild(link);
 }
 
