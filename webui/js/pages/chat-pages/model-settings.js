@@ -1,6 +1,6 @@
 // chat-pages/model-settings.js — 模型设置页面
 // 2026-08-25: 提取常量映射、CSS class 替代内联 style、简化 copyModelName
-import { fmtSpeed } from '../../utils/format.js?v=1782239267972';
+import { fmtSpeed } from '../../utils/format.js?v=1782239507443';
 
 // ===== 状态 =====
 export let settingsModelsCache = [];
@@ -95,6 +95,7 @@ export function renderModelSettingsPageChat(container) {
     '</div>' +
     // 发现模型侧栏
     '<div class="siper-form-card js-form-card-sidebar">' +
+    '<form class="js-discover-form">' +
     '<div class="siper-form-title">🔍 发现模型</div>' +
     '<div class="js-sort-group">' +
     '<div style="flex:1"><div class="text-dim js-label-sm">Provider</div>' +
@@ -105,7 +106,7 @@ export function renderModelSettingsPageChat(container) {
     '<input type="text" class="siper-input" id="discoverBaseUrl" placeholder="https://api.openai.com/v1" aria-label="发现 Base URL" class="js-input-sm">' +
     '</div></div>' +
     '<div class="js-mb-6"><div class="text-dim js-label-sm">API Key</div>' +
-    '<input type="password" class="siper-input" id="discoverApiKey" placeholder="sk-..." autocomplete="off" aria-label="发现 API Key" class="js-input-sm">' +
+    '<input type="password" class="siper-input js-input-sm" id="discoverApiKey" placeholder="sk-..." autocomplete="off" aria-label="发现 API Key">' +
     '</div>' +
     '<div class="js-select-group">' +
     '<button class="siper-btn primary" onclick="window.discoverModels()">获取模型列表</button>' +
@@ -114,7 +115,7 @@ export function renderModelSettingsPageChat(container) {
     '<button id="discoverFilterClear" onclick="window.chatClearDiscoverFilter()" class="js-model-card-action" title="清空筛选">×</button>' +
     '</div></div>' +
     '<div id="discoverResult" class="js-scroll-flex"></div>' +
-    '</div></div></div>' +
+    '</div></div></form></div>' +
     // 辅助 tab
     '<div id="modelSettingsTab-auxiliary" class="js-model-settings-tab-content" style="display:none">' +
     '<div class="siper-form-card"><div class="siper-form-title">🔧 辅助模型</div>' +
