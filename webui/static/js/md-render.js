@@ -1226,13 +1226,10 @@ function processBlocks(text, lines, codeBlocks, frag, _maxIter) {
     const nextIsTable = nextLine.includes('|') && nextLine.trim().startsWith('|');
     const prevIsTable = prevLine.includes('|') && prevLine.trim().startsWith('|');
     const nextIsSep = _isSep(nextLine.trim());
-    // Accept: multi-row line, has adjacent table line, has separator after,
-    // or single-row with 2+ columns (key-value table from tab conversion)
+    // Accept: multi-row line, has adjacent table line, or has separator after
     const isMultiRow = dataRowCount >= 2;
     const hasContext = nextIsTable || prevIsTable || nextIsSep;
-    const pipeCols = line.split('|').filter(s => s.trim());
-    const isSingleRowTable = !isMultiRow && !hasContext && pipeCols.length >= 2 && _splitTableRowSegments(line.trim()).filter(r => r && r !== '__sep__' && !_isSep(r)).length === 1;
-    if ((isMultiRow || hasContext || isSingleRowTable) && dataRowCount >= 1) {
+    if ((isMultiRow || hasContext) && dataRowCount >= 1) {
       const table = document.createElement('table');
       table.className = 'md-table';
       // Collect all table rows from this line and adjacent table lines
@@ -1281,20 +1278,27 @@ function processBlocks(text, lines, codeBlocks, frag, _maxIter) {
             if (s && s !== '__sep__' && !_isSep(s)) tableRows.push(s);
           });
           j++;
-        } else break;
+        } else {
+          // 非表格行：空行跳过，heading 中断（让外层循环处理），其他段落中断
+          const nonLine = cl.trim();
+          if (!nonLine) { j++; continue; }
+          if (/^#{1,6}\s/.test(nonLine)) { break; }  // heading → 中断，外层循环会处理
+          break;  // 其他段落 → 中断
+        }
       }
       if (tableRows.length >= 1) {
         const headers = tableRows[0].split('|').map(s => s.trim()).filter(Boolean);
-        const thead = document.createElement('thead');
-        const tr = document.createElement('tr');
+        // 表头行：用 td + CSS class 而非 th/thead，保持表格结构为单一体
+        const htr = document.createElement('tr');
+        htr.className = 'md-table-header-row';
         headers.forEach(h => {
-          const th = document.createElement('th');
-          th.innerHTML = inline(h);
-          tr.appendChild(th);
+          const td = document.createElement('td');
+          td.className = 'md-table-header-cell';
+          td.innerHTML = '<strong>' + inline(h) + '</strong>';
+          htr.appendChild(td);
         });
-        thead.appendChild(tr);
-        table.appendChild(thead);
-        const tbody = document.createElement('tbody');
+        table.appendChild(htr);
+        // 数据行
         for (let r = 1; r < tableRows.length; r++) {
           const rowCells = tableRows[r].split('|').map(s => s.trim()).filter(Boolean);
           const tr2 = document.createElement('tr');
@@ -1303,9 +1307,8 @@ function processBlocks(text, lines, codeBlocks, frag, _maxIter) {
             td.innerHTML = inline(c);
             tr2.appendChild(td);
           });
-          tbody.appendChild(tr2);
+          table.appendChild(tr2);
         }
-        table.appendChild(tbody);
         frag.appendChild(table);
       }
       i = j;

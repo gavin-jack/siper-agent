@@ -1,6 +1,6 @@
 // chat-pages/skills.js — 技能页面渲染
 // 优先从 page_cache 读取，后端推送时自动刷新
-import { t } from '../../utils/i18n.js?v=1782157049636';
+import { t } from '../../utils/i18n.js?v=1782227011228';
 
 let _skills = [];
 

@@ -892,3 +892,22 @@
   flex-direction: column;
   gap: 8px;
 }
+
+
+/* ===== Markdown Table ===== */
+.md-table {
+  display: table;
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.md-table td {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border, #333);
+  vertical-align: top;
+}
+.md-table-header-row td {
+  font-weight: 600;
+  background: var(--color-toolbar, rgba(255,255,255,0.05));
+}
