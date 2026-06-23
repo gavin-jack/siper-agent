@@ -1,6 +1,7 @@
 // chat-pages/monitor.js — 统计页面（性能 + 词元 + 日志）
-import { escapeHtml } from '../../utils/escape.js?v=1782233785732';
-import { fmtNum } from '../../utils/format.js?v=1782233785732';
+import { escapeHtml } from '../../utils/escape.js?v=1782239267972';
+import { fmtNum } from '../../utils/format.js?v=1782239267972';
+import { apiGetCached } from '../../utils/api.js?v=1782239267972';
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {
@@ -168,7 +169,7 @@ export function renderMonitorTokenTab() {
     _applyTokenData(cached.token);
     return;
   }
-  fetch('/api/token').then(function(r) { return r.json(); }).then(function(data) {
+  apiGetCached('/api/token', 'monitor').then(function(data) {
     _applyTokenData(data);
   }).catch(function(e) { console.error('[monitor] renderMonitorTokenTab fetch failed:', e); });
 }
@@ -288,7 +289,7 @@ function _applyPerfData(data) {
 function _loadPerfData() {
   var cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('monitor') : null;
   if (cached && cached.perf) { _applyPerfData(cached.perf); return; }
-  fetch('/api/stats').then(function(r) { return r.json(); }).then(function(data) {
+  apiGetCached('/api/stats', 'monitor').then(function(data) {
     _applyPerfData(data);
   }).catch(function(e) { console.error('[monitor] _loadPerfData failed:', e); });
 }

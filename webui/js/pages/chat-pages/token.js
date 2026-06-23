@@ -1,7 +1,8 @@
 // chat-pages/token.js — Token 统计页面
 // 从 pages/chat.js 拆分
-import { fmtNum } from '../../utils/format.js?v=1782233785732';
-import { renderMonitorCharts } from './monitor.js?v=1782233785732';
+import { fmtNum } from '../../utils/format.js?v=1782239267972';
+import { apiGetCached } from '../../utils/api.js?v=1782239267972';
+import { renderMonitorCharts } from './monitor.js?v=1782239267972';
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {
@@ -70,8 +71,7 @@ function refreshTokenStats() {
     _applyTokenData(cached.token);
     return;
   }
-  fetch('/api/token')
-    .then(function(r) { return r.json(); })
+  apiGetCached('/api/token', 'monitor')
     .then(function(data) {
       if (!data) {
         statsBox.innerHTML = '<div class="siper-empty">加载失败</div>';

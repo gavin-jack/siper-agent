@@ -3,6 +3,8 @@
  * 优先从 page_cache 读取，后端推送时自动刷新
  */
 
+import { apiGetCached } from '../../utils/api.js?v=1782239267972';
+
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {
   window.__onPageCacheRegister('tools', function(data) {
@@ -66,7 +68,7 @@ function _loadTools() {
     if (badge) badge.textContent = (cached.total || cached.tools.length) + ' 个';
     return;
   }
-  fetch('/api/tools').then(r => r.json()).then(data => {
+  apiGetCached('/api/tools', 'tools').then(data => {
     if (!data || !data.tools || data.tools.length === 0) {
       el.innerHTML = '<div style="padding:20px;color:var(--color-error-text)">暂无工具</div>';
       return;

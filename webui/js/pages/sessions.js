@@ -1,13 +1,15 @@
 /**
- * sessions.js — 会话管理页面（起源版：纯渲染）
- * 
- * 删除所有 fetch 调用，数据由后端快照通过 WS 推送。
- * 保留 UI 交互逻辑（点击、预览、删除确认）。
+ * sessions.js — 会话管理页面
+ *
+ * 数据由后端快照通过 WS 推送（page_cache）。
+ * 保留 UI 交互逻辑（点击、预览、删除确认、撤销）。
+ * DOM 构建改用模板字符串 + innerHTML，消除 ~80 行 createElement 代码。
  */
-import { t } from '../utils/i18n.js?v=1782233785732';
-import { escapeHtml } from '../utils/escape.js?v=1782233785732';
-import { showConfirm, _getNotifRoot } from '../components/toast.js?v=1782233785732';
-import { toast } from '../components/toast.js?v=1782233785732';
+import { t } from '../utils/i18n.js?v=1782239267972';
+import { escapeHtml } from '../utils/escape.js?v=1782239267972';
+import { fmtTime } from '../utils/format.js?v=1782239267972';
+import { showConfirm, _getNotifRoot } from '../components/toast.js?v=1782239267972';
+import { toast } from '../components/toast.js?v=1782239267972';
 
 // 模块级状态
 let _currentSession = null;
@@ -29,59 +31,28 @@ export function renderSessions(list) {
       '<br><span class="sessions-empty-hint">' + t('sessions.autoCreate') + '</span></div>';
     return;
   }
-  el.innerHTML = '';
-  for (const s of _sessionsList) {
-    const isActive = s.session_id === _currentSession;
-    const timeStr = _formatTime(s.last_time || s.updated_at || s.created_at);
-    const lastMsg = s.last_message ? escapeHtml(s.last_message) : '';
-    const item = document.createElement('div');
-    item.className = 'session-item' + (isActive ? ' active-session' : '');
-    item.dataset.sid = s.session_id;
-    item.onclick = () => _switchSession(s.session_id);
+  el.innerHTML = _sessionsList.map(s => _buildSessionItemHtml(s)).join('');
+}
 
-    const left = document.createElement('div');
-    left.className = 'session-left';
-
-    const header = document.createElement('div');
-    header.className = 'session-header';
-    const sid = document.createElement('span');
-    sid.className = 'sid';
-    sid.textContent = s.session_id.slice(0, 12) + '...';
-    header.appendChild(sid);
-    if (s.active) {
-      const badge = document.createElement('span');
-      badge.className = 'session-active-badge';
-      badge.textContent = t('sessions.active');
-      header.appendChild(badge);
-    }
-    const timeEl = document.createElement('span');
-    timeEl.className = 'session-time';
-    timeEl.textContent = timeStr;
-    header.appendChild(timeEl);
-    left.appendChild(header);
-
-    const sinfo = document.createElement('div');
-    sinfo.className = 'sinfo';
-    sinfo.textContent = s.message_count + ' ' + t('sessions.messages') + ' · ' + (s.agent_name || 'default');
-    left.appendChild(sinfo);
-
-    if (lastMsg) {
-      const msgEl = document.createElement('div');
-      msgEl.className = 'session-last-msg';
-      msgEl.title = lastMsg;
-      msgEl.textContent = '💬 ' + lastMsg;
-      left.appendChild(msgEl);
-    }
-
-    const del = document.createElement('span');
-    del.className = 'sdelete';
-    del.textContent = '✕';
-    del.onclick = (e) => { e.stopPropagation(); _deleteSession(s.session_id); };
-
-    item.appendChild(left);
-    item.appendChild(del);
-    el.appendChild(item);
-  }
+/** 构建单个会话项 HTML */
+function _buildSessionItemHtml(s) {
+  const isActive = s.session_id === _currentSession;
+  const timeStr = fmtTime(s.last_time || s.updated_at || s.created_at);
+  const lastMsg = s.last_message ? escapeHtml(s.last_message) : '';
+  const activeBadge = s.active ? '<span class="session-active-badge">' + t('sessions.active') + '</span>' : '';
+  const msgHtml = lastMsg ? '<div class="session-last-msg" title="' + lastMsg + '">💬 ' + lastMsg + '</div>' : '';
+  return '<div class="session-item' + (isActive ? ' active-session' : '') + '" data-sid="' + s.session_id + '">' +
+    '<div class="session-left">' +
+      '<div class="session-header">' +
+        '<span class="sid">' + s.session_id.slice(0, 12) + '...</span>' +
+        activeBadge +
+        '<span class="session-time">' + timeStr + '</span>' +
+      '</div>' +
+      '<div class="sinfo">' + s.message_count + ' ' + t('sessions.messages') + ' · ' + (s.agent_name || 'default') + '</div>' +
+      msgHtml +
+    '</div>' +
+    '<span class="sdelete" title="' + t('sessions.delete') + '">✕</span>' +
+  '</div>';
 }
 
 /**
@@ -99,59 +70,44 @@ export function renderSessionPreview(sid, messages) {
     return;
   }
 
-  preview.innerHTML = '';
-  const topBar = document.createElement('div');
-  topBar.className = 'preview-top-bar';
-  const info = document.createElement('div');
-  info.className = 'preview-info';
   const msgCount = _previewMessages.length;
-  info.textContent = (sid || '').slice(0, 16) + '... · ' + msgCount + ' ' + t('sessions.messages') +
+  const infoText = (sid || '').slice(0, 16) + '... · ' + msgCount + ' ' + t('sessions.messages') +
     (msgCount >= 100 ? ' (最新100条)' : '');
-  topBar.appendChild(info);
-  const openBtn = document.createElement('button');
-  openBtn.className = 'btn-sm primary';
-  openBtn.textContent = t('sessions.openChat');
-  openBtn.onclick = () => _switchSession(sid);
-  topBar.appendChild(openBtn);
-  preview.appendChild(topBar);
 
-  const msgsDiv = document.createElement('div');
-  msgsDiv.className = 'preview-msgs';
-  for (const m of _previewMessages) {
-    if (m.role === 'tool') continue;
-    if (m.role === 'assistant' && !m.content && !m.meta) continue;
-    const isUser = m.role === 'user';
-    const wrap = document.createElement('div');
-    wrap.className = 'preview-msg-wrap' + (isUser ? ' preview-msg-user' : ' preview-msg-agent');
-    const label = document.createElement('div');
-    label.className = 'preview-msg-label';
-    label.textContent = (isUser ? t('chat.user') : t('chat.agent')) + ' · ' + _formatTime(m.timestamp);
-    wrap.appendChild(label);
-    const bubble = document.createElement('div');
-    bubble.className = 'preview-msg-bubble' + (isUser ? ' preview-msg-bubble-user' : ' preview-msg-bubble-agent');
-    bubble.textContent = m.content || '';
-    wrap.appendChild(bubble);
-    msgsDiv.appendChild(wrap);
-  }
-  preview.appendChild(msgsDiv);
+  const msgsHtml = _previewMessages
+    .filter(m => m.role !== 'tool' && !(m.role === 'assistant' && !m.content && !m.meta))
+    .map(m => _buildPreviewMsgHtml(m))
+    .join('');
 
-  // 快速回复输入框
-  const pInput = document.createElement('div');
-  pInput.className = 'preview-input';
-  const pField = document.createElement('input');
-  pField.type = 'text';
-  pField.className = 'preview-input-field';
-  pField.placeholder = t('sessions.quickReply') || '输入消息...';
-  pField.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _sendPreviewMessage(sid, pField); } };
-  pInput.appendChild(pField);
-  const pSend = document.createElement('button');
-  pSend.className = 'preview-send-btn';
-  pSend.textContent = '➤';
-  pSend.title = t('sessions.send') || '发送';
-  pSend.onclick = () => _sendPreviewMessage(sid, pField);
-  pInput.appendChild(pSend);
-  preview.appendChild(pInput);
+  preview.innerHTML =
+    '<div class="preview-top-bar">' +
+      '<div class="preview-info">' + infoText + '</div>' +
+      '<button class="btn-sm primary" id="previewOpenBtn">' + t('sessions.openChat') + '</button>' +
+    '</div>' +
+    '<div class="preview-msgs">' + msgsHtml + '</div>' +
+    '<div class="preview-input">' +
+      '<input type="text" class="preview-input-field" placeholder="' + (t('sessions.quickReply') || '输入消息...') + '" id="previewInputField">' +
+      '<button class="preview-send-btn" title="' + (t('sessions.send') || '发送') + '" id="previewSendBtn">➤</button>' +
+    '</div>';
+
+  // 绑定事件（模板已渲染为字符串，需 querySelector）
+  document.getElementById('previewOpenBtn').onclick = () => _switchSession(sid);
+  document.getElementById('previewSendBtn').onclick = () => _sendPreviewMessage(sid, document.getElementById('previewInputField'));
+  const inputField = document.getElementById('previewInputField');
+  inputField.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _sendPreviewMessage(sid, inputField); } };
   preview.scrollTop = preview.scrollTop;
+}
+
+/** 构建单条预览消息 HTML */
+function _buildPreviewMsgHtml(m) {
+  const isUser = m.role === 'user';
+  const wrapCls = isUser ? ' preview-msg-user' : ' preview-msg-agent';
+  const bubbleCls = isUser ? ' preview-msg-bubble-user' : ' preview-msg-bubble-agent';
+  const label = (isUser ? t('chat.user') : t('chat.agent')) + ' · ' + fmtTime(m.timestamp);
+  return '<div class="preview-msg-wrap' + wrapCls + '">' +
+    '<div class="preview-msg-label">' + label + '</div>' +
+    '<div class="preview-msg-bubble' + bubbleCls + '">' + (m.content || '') + '</div>' +
+  '</div>';
 }
 
 /**
@@ -162,23 +118,19 @@ export function renderMessages(messages) {
   const chatEl = document.getElementById('chatMessages');
   if (!chatEl) return;
   chatEl.innerHTML = '';
-  if (!messages || !messages.length) {
-    chatEl.innerHTML = '';
-    return;
-  }
+  if (!messages || !messages.length) return;
+
   const BATCH_SIZE = 20;
-  let idx = 0;
   for (let i = 0; i < messages.length; i += BATCH_SIZE) {
     const batch = messages.slice(i, i + BATCH_SIZE);
     for (const m of batch) {
-      if (m.role === 'assistant' && !m.content && !m.meta) { idx++; continue; }
-      if (m.role === 'tool') { idx++; continue; }
+      if (m.role === 'assistant' && !m.content && !m.meta) continue;
+      if (m.role === 'tool') continue;
       const role = m.role === 'user' ? 'user' : 'agent';
       const meta = (role === 'agent' && m.meta) ? (typeof m.meta === 'string' ? JSON.parse(m.meta) : m.meta) : undefined;
       if (typeof window.addMsg === 'function') {
         window.addMsg(m.content || '', role, meta);
       }
-      idx++;
     }
   }
   chatEl.scrollTop = chatEl.scrollHeight;
@@ -188,15 +140,12 @@ export function renderMessages(messages) {
 
 function _switchSession(sid) {
   _currentSession = sid;
-  // 通知后端切换会话（通过 core.js 的 send）
   if (typeof window.siPerSwitchSession === 'function') {
     window.siPerSwitchSession(sid);
   }
-  // 导航到聊天页
   if (typeof window.siPerNavigate === 'function') {
     window.siPerNavigate('chat');
   }
-  // 更新列表高亮
   document.querySelectorAll('.session-item').forEach(el => {
     el.classList.toggle('active-session', el.dataset.sid === sid);
   });
@@ -210,44 +159,37 @@ function _deleteSession(sid) {
     danger: true,
     okText: '确认删除',
     onConfirm: async () => {
-      // 通过 WS 通知后端删除
       if (typeof window.siPerSend === 'function') {
         window.siPerSend({ type: 'delete_session', session_id: sid });
       }
-      // 同时通过 HTTP 删除（过渡期双写）
       try {
         await fetch('/api/sessions/' + sid, { method: 'DELETE' });
       } catch(e) {}
-      // 刷新列表
       if (typeof window.siPerSend === 'function') {
         window.siPerSend({ type: 'refresh_sessions' });
       }
-      // 显示带撤销的 toast
+      // 带撤销的 toast
       const undoEl = document.createElement('div');
       undoEl.className = 'siper-notif siper-notif-info siper-notif-in';
       undoEl.setAttribute('role', 'status');
       undoEl.setAttribute('aria-live', 'polite');
-      undoEl.innerHTML = `
-        <span class="siper-notif-icon">ℹ</span>
-        <span class="siper-notif-msg">${t('sessions.deleted')}</span>
-        <button class="siper-notif-undo">${t('sessions.undo')}</button>
-        <span class="siper-notif-progress"><span class="siper-notif-progress-bar"></span></span>
-      `;
+      undoEl.innerHTML =
+        '<span class="siper-notif-icon">ℹ</span>' +
+        '<span class="siper-notif-msg">' + t('sessions.deleted') + '</span>' +
+        '<button class="siper-notif-undo">' + t('sessions.undo') + '</button>' +
+        '<span class="siper-notif-progress"><span class="siper-notif-progress-bar"></span></span>';
       _getNotifRoot().appendChild(undoEl);
       requestAnimationFrame(() => {
         const bar = undoEl.querySelector('.siper-notif-progress-bar');
         if (bar) bar.style.width = '100%';
       });
-      const undoBtn = undoEl.querySelector('.siper-notif-undo');
       let undone = false;
-      undoBtn.onclick = () => {
+      undoEl.querySelector('.siper-notif-undo').onclick = () => {
         undone = true;
         undoEl.remove();
         toast.info('已撤销删除');
       };
-      setTimeout(() => {
-        if (!undone) undoEl.remove();
-      }, 5000);
+      setTimeout(() => { if (!undone) undoEl.remove(); }, 5000);
     },
   });
 }
@@ -261,22 +203,8 @@ function _sendPreviewMessage(sid, inputEl) {
   }
 }
 
-// ===== 工具函数 =====
-
-function _formatTime(isoStr) {
-  if (!isoStr) return '';
-  try {
-    const d = new Date(isoStr);
-    const now = new Date();
-    const diffMs = now - d;
-    if (diffMs < 60000) return t('time.justNow');
-    if (diffMs < 3600000) return Math.floor(diffMs / 60000) + t('time.minAgo');
-    if (diffMs < 86400000) return Math.floor(diffMs / 3600000) + t('time.hourAgo');
-    return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
-  } catch(e) {
-    return isoStr.slice(0, 16);
-  }
-}
+// ===== 事件委托（在 renderSessions 渲染后绑定一次） =====
+// session-item 的 onclick 和 .sdelete 的 onclick 通过内联事件属性绑定
 
 // ===== 向后兼容映射 =====
 window.renderSessions = renderSessions;

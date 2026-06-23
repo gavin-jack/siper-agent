@@ -1,6 +1,7 @@
 // chat-pages/directory.js — 项目目录独立页面
-import { escapeHtml } from '../../utils/escape.js?v=1782233785732';
-import { fmtSize } from '../../utils/format.js?v=1782233785732';
+import { escapeHtml } from '../../utils/escape.js?v=1782239267972';
+import { fmtSize } from '../../utils/format.js?v=1782239267972';
+import { apiGetCached } from '../../utils/api.js?v=1782239267972';
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {
@@ -76,7 +77,7 @@ function _loadDirectory() {
   treeEl.innerHTML = '<div class="siper-loading siper-loading--sm">加载中...</div>';
   var cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('directory') : null;
   if (cached && cached.tree) { _renderTree(cached.tree); return; }
-  fetch('/api/project-structure').then(function(r) { return r.json(); }).then(function(data) {
+  apiGetCached('/api/project-structure', 'directory').then(function(data) {
     if (!data || (!data.dirs && !data.files)) {
       treeEl.innerHTML = '<div class="siper-empty">加载失败</div>';
       return;

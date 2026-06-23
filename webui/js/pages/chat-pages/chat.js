@@ -2,10 +2,10 @@
 // 从 pages/chat.js 拆分，包含 initSidebar + initChatPage
 // 包含消息列表、输入框、思考面板、模型选择
 
-import * as Message from '../../chat/message.js?v=1782233785732';
-import * as Input from '../../chat/input.js?v=1782233785732';
-import * as Sidebar from '../../chat/sidebar.js?v=1782233785732';
-import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1782233785732';
+import * as Message from '../../chat/message.js?v=1782239267972';
+import * as Input from '../../chat/input.js?v=1782239267972';
+import * as Sidebar from '../../chat/sidebar.js?v=1782239267972';
+import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1782239267972';
 
 // 从 page_cache 读取 agents（不再从 state.js import chatAgents）
 function _getAgents() {

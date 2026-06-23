@@ -1,111 +1,29 @@
 // pages/agent-config.js — Agent 配置管理
-// 从 pages/page-agent-config.js 迁移
+// 优化：提取 _loadConfigWithCache / _buildAgentConfigBody 消除重复
 
-import { t } from '../utils/i18n.js?v=1782233785732';
-import { escapeHtml } from '../utils/escape.js?v=1782233785732';
-import { showConfirm, showForm } from '../components/toast.js?v=1782233785732';
-import { toast } from '../components/toast.js?v=1782233785732';
-import { _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile, setChatAgentFiles, setChatCurAgentFile } from '../chat/state.js?v=1782233785732';
-import { loadGlobalModelsForAgent, renderAgentModelSection, renderAgentModelsForAgent, globalModelsList, modelsLoaded, setPendingAgentModels } from '../components/agent-models.js?v=1782233785732';
+import { t } from '../utils/i18n.js?v=1782239267972';
+import { escapeHtml } from '../utils/escape.js?v=1782239267972';
+import { showConfirm, showForm } from '../components/toast.js?v=1782239267972';
+import { toast } from '../components/toast.js?v=1782239267972';
+import { _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile, setChatAgentFiles, setChatCurAgentFile } from '../chat/state.js?v=1782239267972';
+import { loadGlobalModelsForAgent, renderAgentModelSection, renderAgentModelsForAgent, globalModelsList, modelsLoaded, setPendingAgentModels } from '../components/agent-models.js?v=1782239267972';
 export { loadGlobalModelsForAgent };
 
-// ===== Agent Config Page =====
-// ===== Model =====
-// ===== Agent Settings & Models =====
+// ===== 共享辅助函数 =====
 
-export async function loadAgentSettings() {
-  // When agent-config page opens, load settings for the currently selected agent
-  if (currentConfigAgent && agentConfigData && agentConfigData.agents) {
-    const agent = agentConfigData.agents.find(a => a.name === currentConfigAgent);
-    if (agent) {
-      // 标题由 selectChatAgent 的 chatRightHeaderName 更新，此处跳过
-      document.getElementById('cfgAgentName').value = agent.display_name || agent.name || 'Siper Agent';
-      const cfgAgentIconSpan = document.getElementById('cfgAgentIcon');
-      if (cfgAgentIconSpan) cfgAgentIconSpan.textContent = agent.icon || '🎭';
-      document.getElementById('cfgAgentAvatar').value = agent.avatar || '';
-      const av = document.getElementById('cfgAvatarPreview');
-      av.src = '/api/avatar?agent=' + encodeURIComponent(currentConfigAgent || agent.name);
-      av.style.display = 'inline';
-      // Load per-agent session_timeout, max_tools, max_tool_rounds
-      const agentMaxTools = agent.max_tools;
-      const agentSessionTimeout = agent.session_timeout;
-      const agentMaxToolRounds = agent.max_tool_rounds;
-      if (agentMaxTools !== undefined && agentMaxTools !== null) {
-        document.getElementById('agentCfgMaxTools').value = agentMaxTools;
-      } else {
-        try {
-          let gd;
-          if (typeof window.__getPageCache === 'function') {
-            const cache = window.__getPageCache('agent-config');
-            if (cache?.config) gd = cache.config;
-          }
-          if (!gd) { const gr = await fetch('/api/config'); gd = await gr.json(); }
-          document.getElementById('agentCfgMaxTools').value = gd.max_tools || 10;
-        } catch(e) { document.getElementById('agentCfgMaxTools').value = 10; }
-      }
-      if (agentSessionTimeout !== undefined && agentSessionTimeout !== null) {
-        document.getElementById('agentCfgSessionTimeout').value = agentSessionTimeout;
-      } else {
-        try {
-          let gd;
-          if (typeof window.__getPageCache === 'function') {
-            const cache = window.__getPageCache('agent-config');
-            if (cache?.config) gd = cache.config;
-          }
-          if (!gd) { const gr = await fetch('/api/config'); gd = await gr.json(); }
-          document.getElementById('agentCfgSessionTimeout').value = gd.session_timeout || 3600;
-        } catch(e) { document.getElementById('agentCfgSessionTimeout').value = 3600; }
-      }
-      if (agentMaxToolRounds !== undefined && agentMaxToolRounds !== null) {
-        document.getElementById('agentCfgMaxToolRounds').value = agentMaxToolRounds;
-      } else {
-        try {
-          let gd;
-          if (typeof window.__getPageCache === 'function') {
-            const cache = window.__getPageCache('agent-config');
-            if (cache?.config) gd = cache.config;
-          }
-          if (!gd) { const gr = await fetch('/api/config'); gd = await gr.json(); }
-          document.getElementById('agentCfgMaxToolRounds').value = gd.max_tool_rounds || 100;
-        } catch(e) { document.getElementById('agentCfgMaxToolRounds').value = 100; }
-      }
-      // Load per-agent limits: llm_timeout, llm_max_tokens, llm_max_retries, max_history_messages, memory_max_tokens, skill_pre_filter_top_k
-      document.getElementById('agentCfgLlmTimeout').value = agent.llm_timeout !== undefined ? agent.llm_timeout : 120;
-      document.getElementById('agentCfgLlmMaxTokens').value = agent.llm_max_tokens !== undefined ? agent.llm_max_tokens : 8192;
-      document.getElementById('agentCfgLlmMaxRetries').value = agent.llm_max_retries !== undefined ? agent.llm_max_retries : 2;
-      document.getElementById('agentCfgMaxHistoryMessages').value = agent.max_history_messages !== undefined ? agent.max_history_messages : 50;
-      document.getElementById('agentCfgMemoryMaxTokens').value = (agent.memory_integration && agent.memory_integration.max_tokens !== undefined) ? agent.memory_integration.max_tokens : 20000;
-      document.getElementById('agentCfgSkillPreFilterTopK').value = agent.skill_pre_filter_top_k !== undefined ? agent.skill_pre_filter_top_k : 5;
-      // Set default vision model
-      if (agent.default_vision_model !== undefined) {
-        const visionSel = document.getElementById('agentDefaultVisionModel');
-        if (visionSel) visionSel.value = agent.default_vision_model || '— 使用全局默认 —';
-      }
-      // Sync agent label for limits tab
-      const _lblLimits = document.getElementById('currentAgentLabelLimits');
-      if (_lblLimits) _lblLimits.textContent = (agent.display_name || agent.name) + ' - 设置';
-    }
+/** 从 page_cache 或 HTTP 获取全局配置（消除 4 次重复的 cache→fetch 回退） */
+async function _loadConfigWithCache() {
+  if (typeof window.__getPageCache === 'function') {
+    const cache = window.__getPageCache('agent-config');
+    if (cache?.config) return cache.config;
   }
-  // If no agent selected yet, fall back to global config for defaults
-  if (!currentConfigAgent) {
-    try {
-      let d;
-      if (typeof window.__getPageCache === 'function') {
-        const cache = window.__getPageCache('agent-config');
-        if (cache?.config) d = cache.config;
-      }
-      if (!d) { const r = await fetch('/api/config'); d = await r.json(); }
-      document.getElementById('agentCfgMaxTools').value = d.max_tools || 10;
-      document.getElementById('agentCfgSessionTimeout').value = d.session_timeout || 3600;
-    } catch(e) {}
-  }
-  // 内联绑定 agent 配置 auto-save（避免 DOMContentLoaded 时机问题）
-  attachAgentAutoSaveListeners();
+  const r = await fetch('/api/config');
+  return await r.json();
 }
 
-export async function saveAgentSettings() {
-  if (!currentConfigAgent) { toast.warning(t('agent.selectFirst')); return; }
-  const body = {
+/** 构建 agent 配置 POST body（saveAgentSettings 和 triggerAgentAutoSave 共用） */
+function _buildAgentConfigBody() {
+  return {
     display_name: document.getElementById('cfgAgentName').value,
     icon: document.getElementById('cfgAgentIcon').textContent,
     avatar: document.getElementById('cfgAgentAvatar').value,
@@ -122,7 +40,80 @@ export async function saveAgentSettings() {
       max_tokens: parseInt(document.getElementById('agentCfgMemoryMaxTokens').value),
     },
   };
-  // Primary: write to config.db via new API
+}
+
+/** 从 agent 对象填充表单字段 */
+function _applyAgentToForm(agent) {
+  document.getElementById('cfgAgentName').value = agent.display_name || agent.name || 'Siper Agent';
+  const cfgAgentIconSpan = document.getElementById('cfgAgentIcon');
+  if (cfgAgentIconSpan) cfgAgentIconSpan.textContent = agent.icon || '🎭';
+  document.getElementById('cfgAgentAvatar').value = agent.avatar || '';
+  const av = document.getElementById('cfgAvatarPreview');
+  av.src = '/api/avatar?agent=' + encodeURIComponent(currentConfigAgent || agent.name);
+  av.style.display = 'inline';
+
+  // 有 per-agent 值用 per-agent，否则 fallback 全局配置
+  const fields = [
+    ['agentCfgMaxTools', 'max_tools', 10],
+    ['agentCfgSessionTimeout', 'session_timeout', 3600],
+    ['agentCfgMaxToolRounds', 'max_tool_rounds', 100],
+  ];
+  const needGlobalFallback = fields.some(([_, k]) => agent[k] === undefined || agent[k] === null);
+
+  if (needGlobalFallback) {
+    _loadConfigWithCache().then(gd => {
+      for (const [id, key, def] of fields) {
+        document.getElementById(id).value = (agent[key] !== undefined && agent[key] !== null) ? agent[key] : (gd[key] || def);
+      }
+    }).catch(() => {
+      for (const [id, , def] of fields) {
+        document.getElementById(id).value = def;
+      }
+    });
+  } else {
+    for (const [id, key] of fields) {
+      document.getElementById(id).value = agent[key];
+    }
+  }
+
+  // Limits 字段
+  document.getElementById('agentCfgLlmTimeout').value = agent.llm_timeout !== undefined ? agent.llm_timeout : 120;
+  document.getElementById('agentCfgLlmMaxTokens').value = agent.llm_max_tokens !== undefined ? agent.llm_max_tokens : 8192;
+  document.getElementById('agentCfgLlmMaxRetries').value = agent.llm_max_retries !== undefined ? agent.llm_max_retries : 2;
+  document.getElementById('agentCfgMaxHistoryMessages').value = agent.max_history_messages !== undefined ? agent.max_history_messages : 50;
+  document.getElementById('agentCfgMemoryMaxTokens').value = (agent.memory_integration?.max_tokens !== undefined) ? agent.memory_integration.max_tokens : 20000;
+  document.getElementById('agentCfgSkillPreFilterTopK').value = agent.skill_pre_filter_top_k !== undefined ? agent.skill_pre_filter_top_k : 5;
+
+  if (agent.default_vision_model !== undefined) {
+    const visionSel = document.getElementById('agentDefaultVisionModel');
+    if (visionSel) visionSel.value = agent.default_vision_model || '— 使用全局默认 —';
+  }
+  const _lblLimits = document.getElementById('currentAgentLabelLimits');
+  if (_lblLimits) _lblLimits.textContent = (agent.display_name || agent.name) + ' - 设置';
+}
+
+// ===== Agent Settings =====
+
+export async function loadAgentSettings() {
+  if (currentConfigAgent && agentConfigData?.agents) {
+    const agent = agentConfigData.agents.find(a => a.name === currentConfigAgent);
+    if (agent) {
+      _applyAgentToForm(agent);
+    }
+  }
+  if (!currentConfigAgent) {
+    try {
+      const d = await _loadConfigWithCache();
+      document.getElementById('agentCfgMaxTools').value = d.max_tools || 10;
+      document.getElementById('agentCfgSessionTimeout').value = d.session_timeout || 3600;
+    } catch(e) {}
+  }
+  attachAgentAutoSaveListeners();
+}
+
+export async function saveAgentSettings() {
+  if (!currentConfigAgent) { toast.warning(t('agent.selectFirst')); return; }
+  const body = _buildAgentConfigBody();
   const r = await fetch('/api/config/agent/' + currentConfigAgent, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -166,10 +157,7 @@ export function autoSaveAgentModels() {
   }, 300);
 }
 
-// Legacy functions removed — model selection now handled by checkboxes + default selects in saveAgentSettings
-
 // ===== Agent Config =====
-// Expose to window so selectChatAgent() can update from page-chat.js
 export let agentConfigData = { agents: [], active: 'default' };
 export let currentConfigAgent = '';
 let cachedConfigSoulContent = '';
@@ -183,7 +171,6 @@ export async function refreshConfigAgentPanel() {
     const agents = agentConfigData.agents || [];
     const active = agentConfigData.active || 'default';
 
-    // Update dropdown
     const sel = document.getElementById('agentSelector');
     if (sel) {
       const curSel = sel.value || active;
@@ -199,8 +186,6 @@ export async function refreshConfigAgentPanel() {
     }
 
     currentConfigAgent = active;
-
-    // Load active agent
     const activeAgent = agents.find(a => a.is_active);
     if (activeAgent) {
       selectConfigAgent(activeAgent.name);
@@ -211,12 +196,8 @@ export async function refreshConfigAgentPanel() {
   }
 }
 
-// handleEmptyModels 已废弃 — 模型渲染由 renderAgentModelsForAgent() 统一处理
-
-// ===== Agent Config =====
 export async function selectConfigAgent(name) {
-  // agentConfigData 可能尚未加载（sidebar 切换 agent 时 refreshConfigAgentPanel 异步未完成）
-  if (!agentConfigData || !agentConfigData.agents || agentConfigData.agents.length === 0) {
+  if (!agentConfigData?.agents?.length) {
     try {
       if (typeof window.__getPageCache === 'function') {
         const cache = window.__getPageCache('agent-config');
@@ -225,12 +206,12 @@ export async function selectConfigAgent(name) {
       if (!agentConfigData) { const r = await fetch('/api/agents'); agentConfigData = await r.json(); }
     } catch(e) {}
   }
-  const agents = (agentConfigData && agentConfigData.agents) || [];
+  const agents = agentConfigData?.agents || [];
   const agent = agents.find(a => a.name === name);
   if (!agent) return;
   currentConfigAgent = name;
 
-  // Load agent files (soul + config + memory)
+  // Load agent files
   let loadError = null;
   try {
     const [soulRes, configRes, memoryRes] = await Promise.all([
@@ -255,35 +236,19 @@ export async function selectConfigAgent(name) {
     if (memTa) memTa.value = cachedConfigMemoryContent;
   } catch(e) {
     loadError = e.message;
-    const soulTa = document.getElementById('agentSoulContentFiles');
-    const mdTa = document.getElementById('agentMdContent');
-    const memTa = document.getElementById('agentMemoryContent');
-    if (soulTa) soulTa.value = '';
-    if (mdTa) mdTa.value = '';
-    if (memTa) memTa.value = '';
-    // Show error in textareas
-    if (soulTa) soulTa.placeholder = '加载失败: ' + loadError;
-    if (mdTa) mdTa.placeholder = '加载失败: ' + loadError;
-    if (memTa) memTa.placeholder = '加载失败: ' + loadError;
+    const ids = ['agentSoulContentFiles', 'agentMdContent', 'agentMemoryContent'];
+    for (const id of ids) {
+      const ta = document.getElementById(id);
+      if (ta) { ta.value = ''; ta.placeholder = '加载失败: ' + loadError; }
+    }
   }
 
-  // Load agent meta into settings form
+  // Apply agent meta to form
   const agentConfigTitle = document.getElementById('agentConfigTitle');
   if (agentConfigTitle) agentConfigTitle.innerHTML = '<strong>' + escapeHtml(agent.name) + ' - 设置</strong>';
-  const cfgAgentName = document.getElementById('cfgAgentName');
-  if (cfgAgentName) cfgAgentName.value = agent.display_name || agent.name || 'Siper Agent';
-  const cfgAgentIconSpan = document.getElementById('cfgAgentIcon');
-  if (cfgAgentIconSpan) cfgAgentIconSpan.textContent = agent.icon || '🎭';
-  const cfgAgentIconBtn = document.getElementById('cfgAgentIconBtn');
-  if (cfgAgentIconBtn) cfgAgentIconBtn.textContent = agent.icon || '🎭';
-  const cfgAgentAvatar = document.getElementById('cfgAgentAvatar');
-  if (cfgAgentAvatar) cfgAgentAvatar.value = agent.avatar || '';
-  const av = document.getElementById('cfgAvatarPreview');
-  if (av) {
-    av.src = '/api/avatar?agent=' + currentConfigAgent;
-    av.style.display = 'inline';
-  }
-  // Add delete button below identity-avatar-row
+  _applyAgentToForm(agent);
+
+  // Add delete button
   const identityRow = document.querySelector('.identity-avatar-row');
   if (identityRow) {
     let delBtn = document.getElementById('cfgAgentDeleteBtn');
@@ -296,14 +261,13 @@ export async function selectConfigAgent(name) {
       identityRow.parentElement.insertBefore(delBtn, identityRow.nextSibling);
     }
   }
-  // Save agent model refs for renderAgentModelSection to apply after rendering
+
   setPendingAgentModels({
     avail: (agent.available_models || []).map(m => typeof m === 'string' ? m : m.name),
     defChat: agent.default_chat_model || '',
     defVision: agent.default_vision_model || '',
   });
 
-  // Load global models first, then render model section
   await loadGlobalModelsForAgent();
   renderAgentModelsForAgent(agent);
 }
@@ -319,7 +283,6 @@ export function switchConfigAgentPageTab(tab) {
   document.getElementById('agentTabContentMemory').classList[tab !== 'memory' ? 'add' : 'remove']('hidden');
   const tabLimits = document.getElementById('tab-limits');
   if (tabLimits) tabLimits.classList[tab !== 'limits' ? 'add' : 'remove']('hidden');
-  // Auto-load memory when switching to memory tab
   if (tab === 'memory' && currentConfigAgent) {
     loadAgentMemoryContent(currentConfigAgent);
   }
@@ -344,7 +307,6 @@ export async function loadAgentMemoryContent(name) {
     cachedConfigMemoryContent = d.memory || '';
     memTa = document.getElementById('agentMemoryContent');
     if (memTa) memTa.value = cachedConfigMemoryContent;
-    // Also update memory path display
     const pathEl = document.getElementById('agentCfgMemoryPath');
     if (pathEl) pathEl.value = 'agents/' + name + '/memory.md';
   } catch(e) {
@@ -355,10 +317,7 @@ export async function loadAgentMemoryContent(name) {
 }
 
 export async function saveAgentFile(fileType) {
-  if (!currentConfigAgent) {
-    toast.warning(t('agent.selectFirst'));
-    return;
-  }
+  if (!currentConfigAgent) { toast.warning(t('agent.selectFirst')); return; }
   if (!fileType) return;
   let ta;
   if (fileType === 'soul') ta = document.getElementById('agentSoulContentFiles');
@@ -390,19 +349,17 @@ export async function saveAgentFile(fileType) {
 export async function uploadAgentAvatar() {
   if (!currentConfigAgent) { toast.warning(t('agent.selectFirst')); return; }
   const fileInput = document.getElementById('avatarFileInput');
-  const file = fileInput && fileInput.files && fileInput.files[0];
+  const file = fileInput?.files?.[0];
   if (!file) { toast.warning('请先选择图片'); return; }
 
   const fd = new FormData();
   fd.append('file', file);
   fd.append('agent', currentConfigAgent);
   try {
-    // 起源：通过 WS 通知后端
-  if (typeof window.siPerSend === 'function') {
-    window.siPerSend({ type: 'upload_avatar', agent: currentConfigAgent });
-  }
-  // 过渡期：HTTP 请求
-  const r = await fetch('/api/avatar/upload', { method: 'POST', body: fd });
+    if (typeof window.siPerSend === 'function') {
+      window.siPerSend({ type: 'upload_avatar', agent: currentConfigAgent });
+    }
+    const r = await fetch('/api/avatar/upload', { method: 'POST', body: fd });
     const d = await r.json();
     if (d.success) {
       document.getElementById('cfgAgentAvatar').value = d.path;
@@ -411,10 +368,8 @@ export async function uploadAgentAvatar() {
       img.style.display = 'inline';
       toast.success('头像已保存');
       fileInput.value = '';
-      // 同步更新 sidebar 中该 agent 的头像
       document.querySelectorAll('.siper-agent-avatar').forEach(el => {
-        const src = el.getAttribute('src') || '';
-        if (src.includes('agent=' + currentConfigAgent)) {
+        if ((el.getAttribute('src') || '').includes('agent=' + currentConfigAgent)) {
           el.src = '/api/avatar?agent=' + currentConfigAgent + '&t=' + Date.now();
         }
       });
@@ -457,7 +412,6 @@ export function toggleIconPicker(e) {
   picker.style.top = (rect.bottom + 4) + 'px';
   picker.style.zIndex = '10000';
   _iconPickerVisible = true;
-  // Close on outside click
   setTimeout(() => {
     document.addEventListener('click', _iconPickerOutsideHandler);
   }, 10);
@@ -484,7 +438,7 @@ export function selectAgentIcon(icon) {
   triggerAgentAutoSave();
 }
 
-
+// ===== Auto-Save =====
 let _agentAutoSaveTimer = null;
 let _agentFileAutoSaveTimer = null;
 
@@ -492,22 +446,7 @@ export function triggerAgentAutoSave() {
   if (!currentConfigAgent) return;
   if (_agentAutoSaveTimer) clearTimeout(_agentAutoSaveTimer);
   _agentAutoSaveTimer = setTimeout(async () => {
-    const body = {
-      display_name: document.getElementById('cfgAgentName').value,
-      icon: document.getElementById('cfgAgentIcon').textContent,
-      avatar: document.getElementById('cfgAgentAvatar').value,
-      max_tools: parseInt(document.getElementById('agentCfgMaxTools').value),
-      max_tool_rounds: parseInt(document.getElementById('agentCfgMaxToolRounds').value),
-      session_timeout: parseInt(document.getElementById('agentCfgSessionTimeout').value),
-      llm_timeout: parseInt(document.getElementById('agentCfgLlmTimeout').value),
-      llm_max_tokens: parseInt(document.getElementById('agentCfgLlmMaxTokens').value),
-      llm_max_retries: parseInt(document.getElementById('agentCfgLlmMaxRetries').value),
-      max_history_messages: parseInt(document.getElementById('agentCfgMaxHistoryMessages').value),
-      skill_pre_filter_top_k: parseInt(document.getElementById('agentCfgSkillPreFilterTopK').value),
-      memory_integration: {
-        max_tokens: parseInt(document.getElementById('agentCfgMemoryMaxTokens').value),
-      },
-    };
+    const body = _buildAgentConfigBody();
     try {
       const r = await fetch('/api/config/agent/' + currentConfigAgent, {
         method: 'POST',
@@ -569,17 +508,12 @@ export function attachAgentAutoSaveListeners() {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener('change', triggerAgentAutoSave);
-      // Also listen on input for number fields (spinner buttons don't trigger change in all browsers)
       if (el.type === 'number') el.addEventListener('input', triggerAgentAutoSave);
     }
   });
-  // Icon button click → auto-save after picker selects
   const iconBtn = document.getElementById('cfgAgentIconBtn');
   if (iconBtn) iconBtn.addEventListener('click', triggerAgentAutoSave);
 }
-
-// attachAgentAutoSaveListeners() 已迁移到 loadAgentSettings() 末尾内联调用
-// DOMContentLoaded 在 ESM deferred 模块中可能已触发过，导致监听器未绑定
 
 // ===== Reset Limits to Defaults =====
 export function resetAgentLimits() {
@@ -596,13 +530,11 @@ export function resetAgentLimits() {
   toast.success(t('agent.limitsReset'), 1500);
 }
 
-// ===== Legacy Agent Config Functions (migrated from pre-ESM page-chat.js) =====
+// ===== Legacy Agent Config Functions =====
 
 export function switchChatAgentTab(tab, btn) {
-  // Update tab bar active state
   document.querySelectorAll('.agent-tab').forEach(function(el) { el.classList.remove('active'); });
   if (btn) btn.classList.add('active');
-  // Show/hide tab content
   document.querySelectorAll('.agent-tab-content').forEach(function(el) { el.classList.remove('active'); });
   var content = document.getElementById('agentTabContent' + tab.charAt(0).toUpperCase() + tab.slice(1));
   if (content) content.classList.add('active');
@@ -610,7 +542,6 @@ export function switchChatAgentTab(tab, btn) {
 
 export function switchChatAgentFile(type, btn) {
   setChatCurAgentFile(type);
-  // Load content into the corresponding editor
   var editor = document.getElementById('agent' + type.charAt(0).toUpperCase() + type.slice(1) + 'Content');
   if (!editor) return;
   if (_chatAgentFiles[type] !== undefined) {
@@ -700,11 +631,9 @@ function confirmDeleteAgent(name) {
     danger: true,
     okText: '确认删除',
     onConfirm: function() {
-      // 起源：通过 WS 通知后端
       if (typeof window.siPerSend === 'function') {
         window.siPerSend({ type: 'delete_agent', name });
       }
-      // 过渡期：HTTP 请求
       fetch('/api/agents/' + name, { method: 'DELETE' })
         .then(function(r) { return r.json(); })
         .then(function(data) {
@@ -758,5 +687,3 @@ window.confirmDeleteAgent = confirmDeleteAgent;
 window.switchConfigAgentPageTab = switchConfigAgentPageTab;
 window.triggerAgentFileAutoSave = triggerAgentFileAutoSave;
 window.autoSaveAgentModels = autoSaveAgentModels;
-window.loadGlobalModelsForAgent = loadGlobalModelsForAgent;
-window.toggleIconPicker = toggleIconPicker;

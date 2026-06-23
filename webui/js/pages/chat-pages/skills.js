@@ -1,5 +1,6 @@
 // chat-pages/skills.js — 技能页面渲染
-import { t } from '../../utils/i18n.js?v=1782233785732';
+import { t } from '../../utils/i18n.js?v=1782239267972';
+import { apiGetCached } from '../../utils/api.js?v=1782239267972';
 
 var _skills = [];
 
@@ -80,8 +81,7 @@ async function refreshSkills() {
   var cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('skills') : null;
   if (cached && cached.skills) { renderSkills(cached.skills); return; }
   try {
-    var r = await fetch('/api/skills');
-    var d = await r.json();
+    var d = await apiGetCached('/api/skills', 'skills');
     if (d.skills && typeof renderSkills === 'function') renderSkills(d.skills);
   } catch (e) {
     console.error('[skills] refresh failed:', e);

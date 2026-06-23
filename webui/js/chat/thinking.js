@@ -2,8 +2,8 @@
  * chat/thinking.js — 思考面板
  * 从 core.js 拆出。处理思考面板的显示/隐藏/添加步骤。
  */
-import { _thinkingSteps, setIsThinking } from './state.js?v=1782233785732';
-import { escapeHtml } from '../utils/escape.js?v=1782233785732';
+import { _thinkingSteps, setIsThinking } from './state.js?v=1782239267972';
+import { escapeHtml } from '../utils/escape.js?v=1782239267972';
 
 export function chatThinkingShow() {
     const panel = document.getElementById('chatThinkingPanel');

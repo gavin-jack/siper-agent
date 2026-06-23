@@ -1,41 +1,41 @@
 // app.js — ESM 入口
 // 三模板 SPA: chat(默认) | standalone(懒加载) | sidebar(常驻)
-import { connectWS, setConnected, getWs } from './core.js?v=1782233785732';
+import { connectWS, setConnected, getWs } from './core.js?v=1782239267972';
 // expose getWs globally for debugging
 window.getWs = getWs;
 // -------------------------------------------------
 // 初始化：立即建立 WebSocket 连接
 // -------------------------------------------------
 connectWS();
-import { registerAllHandlers } from './renderer.js?v=1782233785732';
+import { registerAllHandlers } from './renderer.js?v=1782239267972';
 
 // Utils
-import { escapeHtml } from './utils/escape.js?v=1782233785732';
-import { LANG, t, applyLang, selectLang } from './utils/i18n.js?v=1782233785732';
-import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js?v=1782233785732';
-import { apiGet, apiPost } from './utils/api.js?v=1782233785732';
-import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js?v=1782233785732';
+import { escapeHtml } from './utils/escape.js?v=1782239267972';
+import { LANG, t, applyLang, selectLang } from './utils/i18n.js?v=1782239267972';
+import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js?v=1782239267972';
+import { apiGet, apiPost } from './utils/api.js?v=1782239267972';
+import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js?v=1782239267972';
 
 // Components
-import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmDeleteModel, showInput, cancelInput, execInput, openImageLightbox } from './components/toast.js?v=1782233785732';
-import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js?v=1782233785732';
-import * as AgentModels from './components/agent-models.js?v=1782233785732';
+import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmDeleteModel, showInput, cancelInput, execInput, openImageLightbox } from './components/toast.js?v=1782239267972';
+import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js?v=1782239267972';
+import * as AgentModels from './components/agent-models.js?v=1782239267972';
 
 // Chat core (must load before DOMContentLoaded)
-import * as Chat from './pages/chat-pages/chat.js?v=1782233785732';
+import * as Chat from './pages/chat-pages/chat.js?v=1782239267972';
 
 // Chat input
-import { toggleChatModelDropdown } from './chat/input.js?v=1782233785732';
+import { toggleChatModelDropdown } from './chat/input.js?v=1782239267972';
 
 // Sidebar / UI
-import { startNewChat, expandAllAgents } from './chat/sidebar.js?v=1782233785732';
-import { newSession } from './chat/session.js?v=1782233785732';
+import { startNewChat, expandAllAgents } from './chat/sidebar.js?v=1782239267972';
+import { newSession } from './chat/session.js?v=1782239267972';
 
 // Template-clone pages (保留全量 import，后续逐步迁移)
-import * as Sessions from './pages/sessions.js?v=1782233785732';
-import * as Memory from './pages/memory.js?v=1782233785732';
-import * as AgentConfig from './pages/agent-config.js?v=1782233785732';
-import * as Theme from './pages/theme.js?v=1782233785732';
+import * as Sessions from './pages/sessions.js?v=1782239267972';
+import * as Memory from './pages/memory.js?v=1782239267972';
+import * as AgentConfig from './pages/agent-config.js?v=1782239267972';
+import * as Theme from './pages/theme.js?v=1782239267972';
 
 // ===== Window Global Mounts =====
 // Utils
