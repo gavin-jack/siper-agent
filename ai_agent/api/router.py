@@ -7,6 +7,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("router")
 
+# openapi.json 缓存（文件内容在运行期间不变，只加载一次）
+_openapi_cache = None
+
 
 import re
 
@@ -468,11 +471,15 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
     # --- API 文档 ---
     @router.get("/api/openapi.json")
     def api_openapi_spec():
-        """返回 OpenAPI 3.0 JSON 规范"""
+        """返回 OpenAPI 3.0 JSON 规范（首次加载后缓存）"""
+        global _openapi_cache
+        if _openapi_cache is not None:
+            return _openapi_cache
         import json as _json
         spec_path = _os.path.join(_os.path.dirname(__file__), "openapi.json")
         try:
             with open(spec_path, "r", encoding="utf-8") as f:
-                return _json.load(f)
+                _openapi_cache = _json.load(f)
+            return _openapi_cache
         except FileNotFoundError:
             return {"error": "openapi.json not found. Run scripts/generate_openapi.py to generate it."}

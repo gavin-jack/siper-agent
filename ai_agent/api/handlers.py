@@ -691,7 +691,6 @@ def api_get_agents():
     try:
         from agents import list_agents, get_agent_dir, load_agent_config_file
         available = list_agents()
-        with open('/tmp/siper_dbg.log', 'a') as _dbg: _dbg.write(f"available={available}\n")
         # Load global models for enriching agent available_models
         _all_global_models = _models_db.get_models_flat()["models"]
         result = []
@@ -1084,17 +1083,20 @@ def api_rename_agent(name, body):
 
 
 def api_get_status():
+    # 直接读内存字段，避免 async 调用开销（原走 ThreadPoolExecutor + asyncio.run）
     try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-    if loop and loop.is_running():
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            future = pool.submit(asyncio.run, agent.get_status())
-            status = future.result(timeout=5)
-    else:
-        status = asyncio.run(agent.get_status())
+        status = {
+            'agent_id': agent.agent_id,
+            'name': agent.config.name,
+            'is_running': agent.is_running,
+            'current_session': agent.current_session,
+            'active_skills': list(agent.active_skills.keys()),
+            'registered_tools': agent.tool_registry.list_tools(),
+            'metrics': agent.metrics.get_summary(),
+            'llm_configured': agent.llm_client is not None,
+        }
+    except Exception:
+        status = {"error": "agent not available"}
     return {
         "agent": status,
         "uptime": time.time() - start_time,
@@ -2713,25 +2715,27 @@ def api_get_project_structure():
 
 def api_get_tools():
     """Return all registered tools with metadata (name, description, schema, category, toolsets)."""
-    from ai_agent.tools.tool_registry import ToolRegistry
-    registry = ToolRegistry()
-    # Initialize to auto-discover tools
-    import asyncio
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-
-    if loop:
-        # Already in an async context, use run_coroutine_threadsafe or create task
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            fut = pool.submit(asyncio.run, registry.initialize())
-            fut.result(timeout=30)
+    # 复用 agent 启动时初始化的 tool_registry，避免每次请求重新扫描+实例化（原耗时 3.4s）
+    global agent
+    if agent and agent.tool_registry:
+        tools_list = agent.tool_registry.get_available_tools()
     else:
-        asyncio.run(registry.initialize())
-
-    tools_list = registry.get_available_tools()
+        # fallback: agent 未初始化时（极少发生），走原逻辑
+        from ai_agent.tools.tool_registry import ToolRegistry
+        import asyncio
+        registry = ToolRegistry()
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop:
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                fut = pool.submit(asyncio.run, registry.initialize())
+                fut.result(timeout=30)
+        else:
+            asyncio.run(registry.initialize())
+        tools_list = registry.get_available_tools()
     # Group by category
     categories = {}
     for t in tools_list:
