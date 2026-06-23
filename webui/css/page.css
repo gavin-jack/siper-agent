@@ -1746,15 +1746,41 @@
 /* ===== API Docs Page ===== */
 .siper-full-content.page-api-docs {
   padding: 0;
+  background: var(--color-bg);
 }
+
+/* page-header */
 .siper-full-content.page-api-docs .page-header {
   padding: 16px 24px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
+.siper-full-content.page-api-docs .page-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.siper-full-content.page-api-docs .page-header .actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* page-body */
 .siper-full-content.page-api-docs .page-body {
-  padding: 0;
+  padding: 16px 24px 24px;
 }
+
+/* Swagger UI 全宽覆盖 */
 #swagger-ui {
   max-width: 100%;
 }
@@ -1766,17 +1792,186 @@
   width: 100% !important;
   max-width: 100% !important;
 }
+
+/* 分组标题（opblock-tag-section） */
 #swagger-ui .opblock-tag-section {
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   border-bottom: 1px solid var(--color-border);
+  padding-bottom: 8px;
 }
+#swagger-ui .opblock-tag {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  padding: 4px 0;
+}
+
+/* 操作块（opblock） */
 #swagger-ui .opblock {
-  padding: 2px 0;
+  margin: 0 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+#swagger-ui .opblock:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 #swagger-ui .opblock-summary {
-  padding: 6px 12px;
+  padding: 8px 14px;
+  gap: 10px;
+}
+#swagger-ui .opblock-summary-method {
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 60px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-align: center;
+}
+#swagger-ui .opblock-summary-path {
+  font-size: 13px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--color-text);
 }
 #swagger-ui .opblock-summary-description {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--color-text-dim);
 }
+
+/* 展开详情区域 */
+#swagger-ui .opblock-body {
+  padding: 12px 16px;
+  background: var(--color-surface);
+}
+#swagger-ui .opblock-section-header {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 8px;
+}
+#swagger-ui .opblock-section-header h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* 参数表格 */
+#swagger-ui table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin: 4px 0;
+}
+#swagger-ui table th {
+  text-align: left;
+  padding: 6px 10px;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 600;
+  color: var(--color-text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+#swagger-ui table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
+  color: var(--color-text);
+  vertical-align: top;
+}
+#swagger-ui table tr:last-child td {
+  border-bottom: none;
+}
+
+/* 响应区域 */
+#swagger-ui .responses-wrapper {
+  margin-top: 8px;
+}
+#swagger-ui .response-col_status {
+  font-weight: 600;
+  font-size: 12px;
+}
+#swagger-ui .response-col_description {
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+/* Try it out 按钮 */
+#swagger-ui .try-out__btn {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 4px;
+}
+
+/* Execute / Cancel 按钮 */
+#swagger-ui .execute-wrapper {
+  padding: 8px 0;
+  display: flex;
+  gap: 8px;
+}
+#swagger-ui .execute-wrapper .btn {
+  font-size: 12px;
+  padding: 5px 14px;
+  border-radius: 4px;
+}
+
+/* 服务器选择器 */
+#swagger-ui .servers {
+  margin: 8px 0;
+}
+#swagger-ui .servers select {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* 模型定义区域 */
+#swagger-ui .model-box {
+  padding: 8px 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  margin: 4px 0;
+}
+#swagger-ui .model-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* 代码块 */
+#swagger-ui pre {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 10px 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+/* 下载按钮 hover */
+.siper-full-content.page-api-docs .page-header .siper-btn:hover {
+  background: var(--color-hover);
+  border-color: var(--color-primary);
+}
+
+/* ===== 统一语义颜色 class ===== */
+.text-success { color: var(--color-success) !important; }
+.text-warning { color: var(--color-warning) !important; }
+.text-danger { color: var(--color-error-text) !important; }
+
+/* 速度指示 */
+.speed-fast { color: #3b82f6; font-weight: 500; }
+.speed-medium { color: #f59e0b; font-weight: 500; }
+.speed-slow { color: #ef4444; font-weight: 500; }
+
+/* 进度条颜色 */
+.bar-success { background: var(--color-primary); }
+.bar-warning { background: var(--color-warning); }
+.bar-danger { background: var(--color-error-text); }

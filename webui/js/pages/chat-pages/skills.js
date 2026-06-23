@@ -1,8 +1,7 @@
 // chat-pages/skills.js — 技能页面渲染
-// 优先从 page_cache 读取，后端推送时自动刷新
 import { t } from '../../utils/i18n.js?v=1782233785732';
 
-let _skills = [];
+var _skills = [];
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {
@@ -13,73 +12,81 @@ if (typeof window.__onPageCacheRegister === 'function') {
   });
 }
 
+// ── 常量映射 ──────────────────────────────────────────
+
+var SOURCE_ICONS = { md: '📄', py: '🐍' };
+var SOURCE_DEFAULT = '🔧';
+
+// ── 模板函数 ──────────────────────────────────────────
+
+function _tplSkillsPage() {
+  return '<div class="page-header"><h3>🧩 ' + t('skills.title') + '</h3></div>' +
+    '<div class="page-body"><div id="chatSkillsList"></div></div>';
+}
+
+function _renderSkillCard(s) {
+  var caps = (s.capabilities || []).map(function(c) { return '<span class="cap-badge">' + c + '</span>'; }).join('');
+  var stats = s.stats;
+  var statsHtml = stats ? '<div class="skill-stats">' +
+    '<span>' + t('skills.triggered') + ': ' + (stats.triggered || 0) + '</span>' +
+    '<span>' + t('skills.selected') + ': ' + (stats.selected || 0) + '</span>' +
+    '<span>' + t('skills.success') + ': ' + (stats.success || 0) + '</span>' +
+    '<span>' + t('skills.successRate') + ': ' + ((stats.success_rate || 0) * 100).toFixed(0) + '%</span>' +
+    '<span>' + t('skills.effectiveness') + ': ' + ((stats.effectiveness || 0) * 100).toFixed(0) + '%</span>' +
+    '</div>' : '';
+  var sourceLabel = SOURCE_ICONS[s.source] || SOURCE_DEFAULT;
+  var enabledClass = s.enabled ? '' : 'skill-disabled';
+  var activeClass = s.enabled ? 'skill-active' : '';
+  return '<div class="card skill-card card-left-accent ' + enabledClass + ' ' + activeClass + '">' +
+    '<div class="card-header">' +
+    '<span class="skill-source">' + sourceLabel + '</span>' +
+    '<span class="skill-name">' + (s.name || '') + '</span>' +
+    '<span class="skill-version">' + (s.version || '') + '</span>' +
+    '<span class="skill-status ' + (s.enabled ? 'on' : 'off') + '">' + (s.enabled ? t('skills.enabled') : t('skills.disabled')) + '</span>' +
+    '</div>' +
+    '<div class="skill-desc">' + (s.description || '') + '</div>' +
+    '<div class="skill-caps">' + caps + '</div>' +
+    statsHtml +
+    '</div>';
+}
+
+// ── 渲染函数 ──────────────────────────────────────────
+
 function renderSkills(skills) {
   _skills = skills || [];
-  const list = document.getElementById('chatSkillsList') || document.getElementById('skillsList');
+  var list = document.getElementById('chatSkillsList');
   if (!list) return;
   if (!_skills.length) {
     list.innerHTML = '<div class="siper-empty">' + t('skills.empty') + '</div>';
     return;
   }
-  const mdSkills = _skills.filter(s => s.source === 'md');
-  const pySkills = _skills.filter(s => s.source === 'py');
-  const otherSkills = _skills.filter(s => s.source !== 'md' && s.source !== 'py');
-  let html = '';
-  if (mdSkills.length) html += mdSkills.map(s => _renderSkillCard(s)).join('');
-  if (pySkills.length) html += pySkills.map(s => _renderSkillCard(s)).join('');
-  if (otherSkills.length) html += otherSkills.map(s => _renderSkillCard(s)).join('');
+  var mdSkills = _skills.filter(function(s) { return s.source === 'md'; });
+  var pySkills = _skills.filter(function(s) { return s.source === 'py'; });
+  var otherSkills = _skills.filter(function(s) { return s.source !== 'md' && s.source !== 'py'; });
+  var html = '';
+  if (mdSkills.length) html += mdSkills.map(function(s) { return _renderSkillCard(s); }).join('');
+  if (pySkills.length) html += pySkills.map(function(s) { return _renderSkillCard(s); }).join('');
+  if (otherSkills.length) html += otherSkills.map(function(s) { return _renderSkillCard(s); }).join('');
   list.innerHTML = html;
 }
 
-function _renderSkillCard(s) {
-  const caps = (s.capabilities || []).map(c => '<span class="cap-badge">' + c + '</span>').join('');
-  const stats = s.stats;
-  const statsHtml = stats ? `
-    <div class="skill-stats">
-      <span>触发: ${stats.triggered || 0}</span>
-      <span>调用: ${stats.selected || 0}</span>
-      <span>成功: ${stats.success || 0}</span>
-      <span>成功率: ${((stats.success_rate || 0) * 100).toFixed(0)}%</span>
-      <span>有效性: ${((stats.effectiveness || 0) * 100).toFixed(0)}%</span>
-    </div>` : '';
-  const sourceLabel = s.source === 'md' ? '📄' : s.source === 'py' ? '🐍' : '🔧';
-  const enabledClass = s.enabled ? '' : 'skill-disabled';
-  const activeClass = s.enabled ? 'skill-active' : '';
-  return `
-    <div class="card skill-card card-left-accent ${enabledClass} ${activeClass}">
-      <div class="card-header">
-        <span class="skill-source">${sourceLabel}</span>
-        <span class="skill-name">${s.name}</span>
-        <span class="skill-version">${s.version || ''}</span>
-        <span class="skill-status ${s.enabled ? 'on' : 'off'}">${s.enabled ? '已启用' : '已禁用'}</span>
-      </div>
-      <div class="skill-desc">${s.description || ''}</div>
-      <div class="skill-caps">${caps}</div>
-      ${statsHtml}
-    </div>`;
-}
-
 export function renderSkillsPageChat(container) {
-  container.className = 'siper-content siper-full-content';
-  container.innerHTML = '<div id="chatSkillsList"></div>';
+  container.className = 'siper-content siper-full-content page-skills';
+  container.innerHTML = _tplSkillsPage();
   refreshSkills();
 }
 
 async function refreshSkills() {
-  // 优先从 page_cache 读取
-  const cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('skills') : null;
-  if (cached && cached.skills) {
-    renderSkills(cached.skills);
-    return;
-  }
+  var cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('skills') : null;
+  if (cached && cached.skills) { renderSkills(cached.skills); return; }
   try {
-    const r = await fetch('/api/skills');
-    const d = await r.json();
-    if (d.skills && typeof renderSkills === 'function') {
-      renderSkills(d.skills);
-    }
+    var r = await fetch('/api/skills');
+    var d = await r.json();
+    if (d.skills && typeof renderSkills === 'function') renderSkills(d.skills);
   } catch (e) {
     console.error('[skills] refresh failed:', e);
+    var list = document.getElementById('chatSkillsList');
+    if (list) list.innerHTML = '<div class="siper-empty">' + t('skills.loadFailed') + '</div>';
   }
 }
 

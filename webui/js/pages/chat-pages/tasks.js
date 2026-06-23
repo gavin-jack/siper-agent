@@ -1,7 +1,9 @@
 // chat-pages/tasks.js — 任务页面渲染
-// 从 pages/chat.js 拆分
+import { t } from '../../utils/i18n.js?v=1782233785732';
 
 export function renderTasksPageChat(container) {
-  container.className = 'siper-content siper-full-content';
-  container.innerHTML = '<div class="page-header"><h2>📋 任务管理</h2></div><div class="page-body"><div class="empty-state">任务管理功能开发中...</div></div></div>';
+  container.className = 'siper-content siper-full-content page-tasks';
+  container.innerHTML =
+    '<div class="page-header"><h3>📋 ' + t('tasks.title') + '</h3></div>' +
+    '<div class="page-body"><div class="empty-state">' + t('tasks.comingSoon') + '</div></div>';
 }

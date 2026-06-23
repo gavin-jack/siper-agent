@@ -1,7 +1,6 @@
 // chat-pages/directory.js — 项目目录独立页面
-// 优先从 page_cache 读取，后端推送时自动刷新
-
 import { escapeHtml } from '../../utils/escape.js?v=1782233785732';
+import { fmtSize } from '../../utils/format.js?v=1782233785732';
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {
@@ -10,79 +9,82 @@ if (typeof window.__onPageCacheRegister === 'function') {
   });
 }
 
-export function renderDirectoryPageChat(container) {
-  container.className = 'siper-content siper-full-content';
-  container.innerHTML = `
-<div class="page-header">
-  <h3>📁 项目目录</h3>
-  <button class="siper-btn" id="dirRefreshBtn" onclick="window._dirRefresh()">刷新</button>
-</div>
-<div class="page-body">
-  <div id="dirTree" class="siper-dir-tree">加载中...</div>
-</div>`;
-  _loadDirectory();
+// ── 常量映射 ──────────────────────────────────────────
+
+var FILE_ICONS = {
+  py: '🐍', md: '📝', json: '📋', sh: '⚡', js: '📜', css: '🎨',
+  html: '🌐', txt: '📃', yml: '⚙️', yaml: '⚙️', toml: '⚙️',
+};
+
+function _getFileIcon(name) {
+  var ext = name.split('.').pop().toLowerCase();
+  return FILE_ICONS[ext] || '📄';
 }
 
-function _fmtSize(kb) {
-  if (kb >= 1024) return (kb / 1024).toFixed(1) + ' MB';
-  return kb.toFixed(1) + ' KB';
-}
+// ── 模板函数 ──────────────────────────────────────────
 
-function _loadDirectory() {
-  const treeEl = document.getElementById('dirTree');
-  if (!treeEl) return;
-  treeEl.innerHTML = '<div class="siper-loading siper-loading--sm">加载中...</div>';
-  // 优先从 page_cache 读取
-  const cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('directory') : null;
-  if (cached && cached.tree) {
-    _renderTree(cached.tree);
-    return;
-  }
-  fetch('/api/project-structure').then(r => r.json()).then(data => {
-    if (!data || (!data.dirs && !data.files)) {
-      treeEl.innerHTML = '<div style="padding:20px;color:var(--color-error-text)">加载失败</div>';
-      return;
-    }
-    _renderTree(data);
-  }).catch(() => {
-    treeEl.innerHTML = '<div style="padding:20px;color:var(--color-error-text)">加载失败，请刷新重试</div>';
-  });
+function _tplDirectoryPage() {
+  return '<div class="page-header">' +
+    '<h3>📁 项目目录</h3>' +
+    '<button class="siper-btn" id="dirRefreshBtn" onclick="window._dirRefresh()">刷新</button>' +
+    '</div>' +
+    '<div class="page-body"><div id="dirTree" class="siper-dir-tree">加载中...</div></div>';
 }
 
 function _renderTree(data) {
-  const treeEl = document.getElementById('dirTree');
+  var treeEl = document.getElementById('dirTree');
   if (!treeEl) return;
-  let html = '';
-    // Directories
-    if (data.dirs && data.dirs.length > 0) {
-      html += '<div class="siper-dir-section"><div class="siper-dir-section-title">📂 目录</div>';
-      data.dirs.forEach(d => {
-        html += `<div class="siper-dir-item">
-          <span class="siper-dir-icon">📂</span>
-          <span class="siper-dir-name">${escapeHtml(d.name)}/</span>
-          <span class="siper-dir-meta">${d.count} 个文件</span>
-          <span class="siper-dir-size">${_fmtSize(d.size_kb)}</span>
-        </div>`;
-      });
-      html += '</div>';
-    }
-    // Root files
-    if (data.files && data.files.length > 0) {
-      html += '<div class="siper-dir-section"><div class="siper-dir-section-title">📄 根目录文件</div>';
-      data.files.forEach(f => {
-        const icon = f.name.endsWith('.py') ? '🐍' : f.name.endsWith('.md') ? '📝' : f.name.endsWith('.json') ? '📋' : f.name.endsWith('.sh') ? '⚡' : '📄';
-        html += `<div class="siper-dir-item">
-          <span class="siper-dir-icon">${icon}</span>
-          <span class="siper-dir-name">${escapeHtml(f.name)}</span>
-          <span class="siper-dir-meta"></span>
-          <span class="siper-dir-size">${_fmtSize(f.size_kb)}</span>
-        </div>`;
-      });
-      html += '</div>';
-    }
-    treeEl.innerHTML = html;
+  var html = '';
+  if (data.dirs && data.dirs.length > 0) {
+    html += '<div class="siper-dir-section"><div class="siper-dir-section-title">📂 目录</div>';
+    data.dirs.forEach(function(d) {
+      html += '<div class="siper-dir-item">' +
+        '<span class="siper-dir-icon">📂</span>' +
+        '<span class="siper-dir-name">' + escapeHtml(d.name) + '/</span>' +
+        '<span class="siper-dir-meta">' + d.count + ' 个文件</span>' +
+        '<span class="siper-dir-size">' + fmtSize(d.size_kb) + '</span>' +
+        '</div>';
+    });
+    html += '</div>';
+  }
+  if (data.files && data.files.length > 0) {
+    html += '<div class="siper-dir-section"><div class="siper-dir-section-title">📄 根目录文件</div>';
+    data.files.forEach(function(f) {
+      html += '<div class="siper-dir-item">' +
+        '<span class="siper-dir-icon">' + _getFileIcon(f.name) + '</span>' +
+        '<span class="siper-dir-name">' + escapeHtml(f.name) + '</span>' +
+        '<span class="siper-dir-meta"></span>' +
+        '<span class="siper-dir-size">' + fmtSize(f.size_kb) + '</span>' +
+        '</div>';
+    });
+    html += '</div>';
+  }
+  treeEl.innerHTML = html;
 }
 
-window._dirRefresh = function() {
+// ── 页面渲染入口 ──────────────────────────────────────
+
+export function renderDirectoryPageChat(container) {
+  container.className = 'siper-content siper-full-content page-directory';
+  container.innerHTML = _tplDirectoryPage();
   _loadDirectory();
-};
+}
+
+function _loadDirectory() {
+  var treeEl = document.getElementById('dirTree');
+  if (!treeEl) return;
+  treeEl.innerHTML = '<div class="siper-loading siper-loading--sm">加载中...</div>';
+  var cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('directory') : null;
+  if (cached && cached.tree) { _renderTree(cached.tree); return; }
+  fetch('/api/project-structure').then(function(r) { return r.json(); }).then(function(data) {
+    if (!data || (!data.dirs && !data.files)) {
+      treeEl.innerHTML = '<div class="siper-empty">加载失败</div>';
+      return;
+    }
+    _renderTree(data);
+  }).catch(function() {
+    treeEl.innerHTML = '<div class="siper-empty">加载失败，请刷新重试</div>';
+  });
+}
+
+window._dirRefresh = function() { _loadDirectory(); };
