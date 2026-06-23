@@ -1744,15 +1744,15 @@
 }
 
 /* ===== API Docs Page ===== */
-#page-api-docs .siper-content {
+.siper-full-content.page-api-docs {
   padding: 0;
 }
-#page-api-docs .page-header {
+.siper-full-content.page-api-docs .page-header {
   padding: 16px 24px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
 }
-#page-api-docs .page-body {
+.siper-full-content.page-api-docs .page-body {
   padding: 0;
 }
 #swagger-ui {

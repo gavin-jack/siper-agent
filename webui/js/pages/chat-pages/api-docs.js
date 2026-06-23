@@ -38,8 +38,7 @@ window.addEventListener('pageshow', (e) => {
 });
 
 export function renderApiDocsPageChat(container) {
-  container.id = 'page-api-docs';
-  container.className = 'siper-content siper-full-content';
+  container.className = 'siper-content siper-full-content page-api-docs';
   container.innerHTML =
     '<div class="page-header">' +
       '<h3>📖 SiPer AI Agent API <span class="tool-header-badge">OAS 3.0</span></h3>' +
