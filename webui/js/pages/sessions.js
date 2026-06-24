@@ -5,12 +5,28 @@
  * 保留 UI 交互逻辑（点击、预览、删除确认、撤销）。
  * DOM 构建改用模板字符串 + innerHTML，消除 ~80 行 createElement 代码。
  */
-import { t } from '../utils/i18n.js?v=1782239267972';
-import { escapeHtml } from '../utils/escape.js?v=1782239267972';
-import { fmtTime } from '../utils/format.js?v=1782239267972';
-import { showConfirm, _getNotifRoot } from '../components/toast.js?v=1782239267972';
-import { toast } from '../components/toast.js?v=1782239267972';
+import { t } from '../utils/i18n.js?v=1782262241789';
+import { escapeHtml } from '../utils/escape.js?v=1782262241789';
+import { fmtTime } from '../utils/format.js?v=1782262241789';
+import { showConfirm, _getNotifRoot } from '../components/toast.js?v=1782262241789';
+import { toast } from '../components/toast.js?v=1782262241789';
 
+// ===== 页面模板 =====
+export function _tplSessionsPage() {
+  return `<div class="page-header">
+    <h2 data-i18n="sessions.title">会话管理</h2>
+    <div class="actions">
+      <button class="btn-sm primary" onclick="newSession()" data-i18n="sessions.new">+ 新会话</button>
+      <button class="btn-sm" onclick="refreshSessions()" data-i18n="sessions.refresh">刷新</button>
+    </div>
+  </div>
+  <div class="page-body page-body-flex">
+    <div class="session-list" id="sessionsList"></div>
+    <div class="session-preview" id="sessionPreview">
+      <div class="empty-state" data-i18n="sessions.selectPrompt">← 点击会话查看消息</div>
+    </div>
+  </div>`;
+}
 // 模块级状态
 let _currentSession = null;
 let _sessionsList = [];

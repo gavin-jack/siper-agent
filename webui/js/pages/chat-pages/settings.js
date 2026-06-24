@@ -1,5 +1,6 @@
 // chat-pages/settings.js — 全局设置页面（系统参数 + Agent 管理）
-import { t } from '../../utils/i18n.js?v=1782239267972';
+import { t } from '../../utils/i18n.js?v=1782262241789';
+import { apiGetCached } from '../../utils/api.js?v=1782262241789';
 
 // ── 模板函数 ──────────────────────────────────────────
 
@@ -22,6 +23,9 @@ function _tplSettingsPage() {
     _settingRow('sysLogBufferSize', t('settings.logBuffer'), 100, 10000, 2000) +
     _settingRow('sysTokenUsageMax', t('settings.tokenMax'), 100, 5000, 500) +
     _settingRow('sysCtxWindowDefault', t('settings.ctxWindow'), 1024, 1000000, 8192) +
+    _settingRow('sysPort', t('settings.port'), 1024, 65535, 9724) +
+    '<div class="siper-settings-row"><label data-i18n="settings.logLevel">日志级别</label>' +
+    '<select id="sysLogLevel" class="siper-input"><option value="DEBUG">DEBUG</option><option value="INFO" selected>INFO</option><option value="WARN">WARN</option><option value="ERROR">ERROR</option></select></div>' +
     '</div></div></div>' +
     '<div id="chatGlobalAgents" class="js-hidden">' +
     '<div class="js-header-flex">' +
@@ -87,23 +91,23 @@ function _attachSettingsAutoSave() {
       try {
         var r = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ system: sys }) });
         var d = await r.json();
-        if (d.success) { if (typeof toast !== 'undefined' && toast) toast.success(t('settings.saved')); }
-        else { if (typeof toast !== 'undefined' && toast) toast.error(t('settings.saveFailed') + ': ' + (d.error || 'unknown')); }
-      } catch (e) { if (typeof toast !== 'undefined' && toast) toast.error(t('settings.saveFailed') + ': ' + e.message); }
+        if (d.success) { toast.success(t('settings.saved')); }
+        else { toast.error(t('settings.saveFailed') + ': ' + (d.error || 'unknown')); }
+      } catch (e) { toast.error(t('settings.saveFailed') + ': ' + e.message); }
     }, 500);
   }
   fields.forEach(function(id) {
     var el = document.getElementById(id);
-    if (el) { el.addEventListener('input', doSave); if (el.tagName === 'SELECT') el.addEventListener('change', doSave); }
+    if (el) { el.addEventListener('input', doSave); el.addEventListener('change', doSave); }
   });
 }
 
 // ── 重置 & 刷新 ──────────────────────────────────────
 
 export function resetSystemParams() {
-  var defaults = { sysWsHeartbeatTimeout: 300, sysSessionListLimit: 50, sysLogBufferSize: 2000, sysTokenUsageMax: 500, sysCtxWindowDefault: 8192 };
+  var defaults = { sysWsHeartbeatTimeout: 300, sysSessionListLimit: 50, sysLogBufferSize: 2000, sysTokenUsageMax: 500, sysCtxWindowDefault: 8192, sysPort: 9724 };
   for (var id in defaults) { var el = document.getElementById(id); if (el) el.value = defaults[id]; }
-  if (typeof toast !== 'undefined' && toast) toast.success(t('settings.resetDone'));
+  toast.success(t('settings.resetDone'));
 }
 
 export function refreshGlobalSettings() {
@@ -112,9 +116,9 @@ export function refreshGlobalSettings() {
 }
 
 function _populateSettingsFields() {
-  fetch('/api/config').then(function(r) { return r.json(); }).then(function(data) {
+  apiGetCached('/api/config', 'settings').then(function(data) {
     var sys = data.system || {};
-    var fields = { sysWsHeartbeatTimeout: sys.ws_heartbeat_timeout, sysSessionListLimit: sys.session_list_limit, sysLogBufferSize: sys.log_buffer_size, sysTokenUsageMax: sys.token_usage_max, sysCtxWindowDefault: sys.context_window_default };
+    var fields = { sysWsHeartbeatTimeout: sys.ws_heartbeat_timeout, sysSessionListLimit: sys.session_list_limit, sysLogBufferSize: sys.log_buffer_size, sysTokenUsageMax: sys.token_usage_max, sysCtxWindowDefault: sys.context_window_default, sysPort: sys.port, sysLogLevel: sys.log_level };
     for (var id in fields) { var el = document.getElementById(id); if (el && fields[id] != null) el.value = fields[id]; }
   }).catch(function(e) { console.error('[settings] _populateSettingsFields failed:', e); });
 }

@@ -1,5 +1,5 @@
 // chat/message.js — 消息渲染与管理
-import { getWs } from '../core.js?v=1782239267972';
+import { getWs } from '../core.js?v=1782262241789';
 import {
   _chatSessionId, _chatCurrentAgent,
   _chatCurrentModel, _chatModelContextWindow,
@@ -12,18 +12,14 @@ import {
   setChatCurrentModel, setChatModelContextWindow,
   setChatSessionId, getIsSending, getStreamState,
   _isSending,
-} from '../chat/state.js?v=1782239267972';
-import { resetSendState } from '../chat/session.js?v=1782239267972';
-import { chatThinkingHide } from '../chat/thinking.js?v=1782239267972';
-import { toast } from '../components/toast.js?v=1782239267972';
+} from '../chat/state.js?v=1782262241789';
+import { resetSendState } from '../chat/session.js?v=1782262241789';
+import { chatThinkingHide } from '../chat/thinking.js?v=1782262241789';
+import { toast } from '../components/toast.js?v=1782262241789';
 
 // ===== Markdown & HTML Helpers =====
 
-export function chatEscapeHtml(text) {
-  return window.escapeHtml ? window.escapeHtml(text) : String(text)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-}
+export function chatEscapeHtml(s) { return window.escapeHtml(s); }
 
 export function chatRenderMarkdown(text) {
   if (!text) return '';
@@ -347,7 +343,7 @@ window.copyChatMsg = function(btn) {
   if (!text) return;
   if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
     navigator.clipboard.writeText(text).then(function() {
-      if (typeof window.toast !== 'undefined' && window.toast && window.toast.success) window.toast.success('已复制');
+      window.toast.success('已复制');
     });
   } else {
     var ta = document.createElement('textarea');
@@ -369,8 +365,6 @@ window.insertChatMsg = function(btn) {
     input.value = text;
     input.focus();
     // Trigger input event for auto-resize
-    var evt = document.createEvent('Event');
-    evt.initEvent('input', true, true);
-    input.dispatchEvent(evt);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
   }
 };

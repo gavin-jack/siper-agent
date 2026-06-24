@@ -2,10 +2,11 @@
 // 从 pages/chat.js 拆分，包含 initSidebar + initChatPage
 // 包含消息列表、输入框、思考面板、模型选择
 
-import * as Message from '../../chat/message.js?v=1782239267972';
-import * as Input from '../../chat/input.js?v=1782239267972';
-import * as Sidebar from '../../chat/sidebar.js?v=1782239267972';
-import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1782239267972';
+import * as Message from '../../chat/message.js?v=1782262241789';
+import * as Input from '../../chat/input.js?v=1782262241789';
+import * as Sidebar from '../../chat/sidebar.js?v=1782262241789';
+import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1782262241789';
+import { escapeHtml } from '../../utils/escape.js?v=1782262241789';
 
 // 从 page_cache 读取 agents（不再从 state.js import chatAgents）
 function _getAgents() {
@@ -16,12 +17,9 @@ function _getAgents() {
   return [];
 }
 
-// ===== 侧边栏初始化（常驻，只执行一次） =====
-let _sidebarInitialized = false;
-export function initSidebar() {
-  if (_sidebarInitialized) return;
-  _sidebarInitialized = true;
-  document.getElementById('chatSidebar').innerHTML = `
+
+function _tplSidebar() {
+  return `
       <div class="sidebar-header" onclick="toggleChatSidebar()" title="展开/折叠">
         <img src="/static/default_avatar.webp" class="sidebar-avatar" alt="avatar" width="36" height="36" onerror="this.src='/static/default_avatar_256.png'">
         <span class="sidebar-brand">SiPer</span>
@@ -50,6 +48,14 @@ export function initSidebar() {
         <a class="siper-nav-item" data-page="global-settings" href="#/global-settings"><span>⚙️</span><span class="siper-nav-item-label" data-i18n="nav.globalSettings">全局</span></a>
       </div>
     `;
+}
+
+// ===== 侧边栏初始化（常驻，只执行一次） =====
+let _sidebarInitialized = false;
+export function initSidebar() {
+  if (_sidebarInitialized) return;
+  _sidebarInitialized = true;
+  document.getElementById('chatSidebar').innerHTML = _tplSidebar();
   document.querySelectorAll('.siper-nav-item').forEach(el => {
     el.addEventListener('click', function(e) {
       e.preventDefault();
@@ -60,14 +66,9 @@ export function initSidebar() {
 }
 window.initSidebar = initSidebar;
 
-// ===== Chat 页面初始化 =====
-let _chatInitialized = false;
-export function initChatPage() {
-  if (_chatInitialized) return;
-  _chatInitialized = true;
-  initSidebar();
-  const pageChat = document.getElementById('page-chat');
-  pageChat.innerHTML = `
+
+function _tplChatPage() {
+  return `
     <!-- 中栏 -->
     <div class="siper-middle" id="chatMiddle">
       <div class="siper-middle-header">
@@ -89,6 +90,16 @@ export function initChatPage() {
       </div>
       <div class="siper-content" id="chatContentArea"></div>
     </div>`;
+}
+
+// ===== Chat 页面初始化 =====
+let _chatInitialized = false;
+export function initChatPage() {
+  if (_chatInitialized) return;
+  _chatInitialized = true;
+  initSidebar();
+  const pageChat = document.getElementById('page-chat');
+  pageChat.innerHTML = _tplChatPage();
   // 渲染初始页面（标题"选择一个 Agent 开始对话" + 空状态）
   const content = document.getElementById('chatContentArea');
   if (typeof window.renderChatPage === 'function') {
@@ -314,7 +325,7 @@ export function renderChatPage(container, skipSidebar) {
   var existingMessages = document.getElementById('chatMessages');
   if (!existingMessages) {
     if (showInput) {
-      container.innerHTML = '' +
+      container.innerHTML =
         '<div class="siper-messages" id="chatMessages" aria-live="polite" aria-atomic="false">' +
           '<div class="siper-empty-state" id="chatEmptyState"><div class="siper-empty-state-icon">💬</div><div>通过agent发送消息</div></div>' +
         '</div>' +
@@ -366,14 +377,9 @@ export function renderChatPage(container, skipSidebar) {
   if (showInput) Input.loadChatModels();
 }
 
-/** 输入框：填充到 container 内的 siper-input-area 容器中 */
-function renderInputArea() {
-  var area = document.getElementById('chatInputArea');
-  if (!area) return;
-  // 移除 _ensureChatInput 创建的旧版 wrapper（如果存在）
-  var oldWrapper = document.getElementById('chatInputWrapper');
-  if (oldWrapper) oldWrapper.remove();
-  area.innerHTML = '' +
+
+function _tplInputArea() {
+  return '' +
     '<div class="siper-input-toolbar">' +
       '<input type="file" id="chatFileInput" multiple class="hidden" onchange="handleChatFileSelect(event)" aria-label="上传文件">' +
       '<button class="siper-attach-btn" onclick="document.getElementById(\'chatFileInput\').click()" title="上传文件">📎</button>' +
@@ -396,5 +402,15 @@ function renderInputArea() {
       '<button class="siper-send-btn" id="chatSendBtn" onclick="chatSendMessage()">发送</button>' +
       '<button class="siper-stop-btn hidden" id="chatStopBtn" onclick="chatStopGeneration()" title="停止生成">⏹</button>' +
     '</div>';
+}
+
+/** 输入框：填充到 container 内的 siper-input-area 容器中 */
+function renderInputArea() {
+  var area = document.getElementById('chatInputArea');
+  if (!area) return;
+  // 移除 _ensureChatInput 创建的旧版 wrapper（如果存在）
+  var oldWrapper = document.getElementById('chatInputWrapper');
+  if (oldWrapper) oldWrapper.remove();
+  area.innerHTML = _tplInputArea();
 }
 window.renderChatPage = renderChatPage;

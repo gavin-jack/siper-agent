@@ -3,7 +3,8 @@
  * 优先从 page_cache 读取，后端推送时自动刷新
  */
 
-import { apiGetCached } from '../../utils/api.js?v=1782239267972';
+import { apiGetCached } from '../../utils/api.js?v=1782262241789';
+import { escapeHtml } from '../../utils/escape.js?v=1782262241789';
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {
@@ -77,7 +78,7 @@ function _loadTools() {
     var badge = document.getElementById('toolHeaderBadge');
     if (badge) badge.textContent = data.total + ' 个';
   }).catch(err => {
-    el.innerHTML = '<div style="padding:20px;color:var(--color-error-text)">加载失败: ' + _escHtml(err.message) + '</div>';
+    el.innerHTML = '<div style="padding:20px;color:var(--color-error-text)">加载失败: ' + escapeHtml(err.message) + '</div>';
   });
 }
 
@@ -128,14 +129,14 @@ function _renderTools(container, tools, categories) {
  * 渲染单个工具卡片
  */
 function _renderToolCard(tool) {
-  const name = _escHtml(tool.name);
-  const desc = _escHtml(tool.description || '');
+  const name = escapeHtml(tool.name);
+  const desc = escapeHtml(tool.description || '');
   const toolsets = (tool.toolsets || []).join(', ');
   const params = _renderParams(tool.schema);
   return `<div class="card tool-card card-hover" data-tool="${name}">
     <div class="card-header">
       <span class="card-title">${name}</span>
-      ${toolsets ? `<span class="tool-card-toolset">${_escHtml(toolsets)}</span>` : ''}
+      ${toolsets ? `<span class="tool-card-toolset">${escapeHtml(toolsets)}</span>` : ''}
     </div>
     <div class="tool-card-desc">${desc}</div>
     ${params ? `<div class="tool-card-params">${params}</div>` : ''}
@@ -159,9 +160,9 @@ function _renderParams(schema) {
     const pDesc = p.description || '';
     const pType = p.type || '';
     html += `<div class="tool-param">
-      <span class="tool-param-name ${isReq ? 'tool-param-required' : ''}">${_escHtml(key)}</span>
-      <span class="tool-param-type">${_escHtml(pType)}</span>
-      ${pDesc ? `<span class="tool-param-desc">${_escHtml(pDesc)}</span>` : ''}
+      <span class="tool-param-name ${isReq ? 'tool-param-required' : ''}">${escapeHtml(key)}</span>
+      <span class="tool-param-type">${escapeHtml(pType)}</span>
+      ${pDesc ? `<span class="tool-param-desc">${escapeHtml(pDesc)}</span>` : ''}
     </div>`;
   }
   if (keys.length > 5) {
@@ -170,7 +171,4 @@ function _renderParams(schema) {
   return html;
 }
 
-function _escHtml(s) {
-  if (!s) return '';
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
+// escapeHtml imported from utils/escape.js

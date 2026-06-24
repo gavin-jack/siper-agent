@@ -1,14 +1,42 @@
 // pages/agent-config.js — Agent 配置管理
 // 优化：提取 _loadConfigWithCache / _buildAgentConfigBody 消除重复
 
-import { t } from '../utils/i18n.js?v=1782239267972';
-import { escapeHtml } from '../utils/escape.js?v=1782239267972';
-import { showConfirm, showForm } from '../components/toast.js?v=1782239267972';
-import { toast } from '../components/toast.js?v=1782239267972';
-import { _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile, setChatAgentFiles, setChatCurAgentFile } from '../chat/state.js?v=1782239267972';
-import { loadGlobalModelsForAgent, renderAgentModelSection, renderAgentModelsForAgent, globalModelsList, modelsLoaded, setPendingAgentModels } from '../components/agent-models.js?v=1782239267972';
+import { t } from '../utils/i18n.js?v=1782262241789';
+import { escapeHtml } from '../utils/escape.js?v=1782262241789';
+import { showConfirm, showForm } from '../components/toast.js?v=1782262241789';
+import { toast } from '../components/toast.js?v=1782262241789';
+import { _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile, setChatAgentFiles, setChatCurAgentFile } from '../chat/state.js?v=1782262241789';
+import { loadGlobalModelsForAgent, renderAgentModelSection, renderAgentModelsForAgent, globalModelsList, modelsLoaded, setPendingAgentModels } from '../components/agent-models.js?v=1782262241789';
 export { loadGlobalModelsForAgent };
 
+// ===== 页面模板 =====
+export function _tplAgentConfigPage() {
+  return `<div class="page-header">
+    <h2 data-i18n="agentConfig.title">智能体配置</h2>
+    <div class="actions">
+      <button class="btn-sm primary" onclick="navigateToPage('chat')" data-i18n="agentConfig.backToChat">← 返回对话</button>
+    </div>
+  </div>
+  <div id="agentConfigContent">
+    <div id="agentSelector" class="agent-selector"></div>
+    <div id="agentConfigTitle" class="agent-config-title"></div>
+    <div class="agent-tabs">
+      <button class="agent-tab active" data-tab="about" id="agentTabAbout" onclick="switchConfigAgentPageTab('about')">关于</button>
+      <button class="agent-tab" data-tab="files" id="agentTabFiles" onclick="switchConfigAgentPageTab('files')">属性文件</button>
+      <button class="agent-tab" data-tab="memory" id="agentTabMemory" onclick="switchConfigAgentPageTab('memory')">记忆</button>
+      <button class="agent-tab" data-tab="limits" onclick="switchConfigAgentPageTab('limits')">限制</button>
+    </div>
+    <div class="agent-tab-content active" id="agentTabContentAbout"></div>
+    <div class="agent-tab-content" id="agentTabContentFiles"></div>
+    <div class="agent-tab-content" id="agentTabContentMemory"></div>
+    <div class="agent-tab-content" id="tab-limits"></div>
+    <div class="agent-config-footer">
+      <button class="btn-sm" id="cfgAgentDeleteBtn" onclick="if(typeof confirmDeleteAgent==='function'&&currentConfigAgent)confirmDeleteAgent(currentConfigAgent)" data-i18n="agentConfig.deleteAgent">删除智能体</button>
+      <button class="btn-sm primary" onclick="saveAllChatAgentConfig()" data-i18n="agentConfig.saveAll">保存全部</button>
+    </div>
+  </div>
+  <div id="iconPickerPopup" class="icon-picker-popup hidden"></div>`;
+}
 // ===== 共享辅助函数 =====
 
 /** 从 page_cache 或 HTTP 获取全局配置（消除 4 次重复的 cache→fetch 回退） */

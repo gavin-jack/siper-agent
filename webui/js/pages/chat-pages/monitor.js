@@ -1,7 +1,7 @@
 // chat-pages/monitor.js — 统计页面（性能 + 词元 + 日志）
-import { escapeHtml } from '../../utils/escape.js?v=1782239267972';
-import { fmtNum } from '../../utils/format.js?v=1782239267972';
-import { apiGetCached } from '../../utils/api.js?v=1782239267972';
+import { escapeHtml } from '../../utils/escape.js?v=1782262241789';
+import { fmtNum } from '../../utils/format.js?v=1782262241789';
+import { apiGetCached } from '../../utils/api.js?v=1782262241789';
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {
@@ -90,7 +90,8 @@ function _tplTokenShell() {
 }
 
 function _tplLogsShell() {
-  return '<div class="siper-page-toolbar js-toolbar-logs">' +
+  return '<div class="page-header"><h3>📋 系统日志</h3></div>' +
+    '<div class="siper-page-toolbar js-toolbar-logs">' +
     '<input type="text" id="chatLogSearchInput" placeholder="搜索..." class="siper-input" style="width:140px;" oninput="window.applyLogLogsDebounced()" aria-label="日志搜索">' +
     '<select id="chatLogLogLevel" class="siper-input js-w-auto" onchange="window.applyChatLogLevelFilter()" aria-label="日志级别">' +
     '<option value="">全部级别</option><option value="DEBUG">DEBUG</option><option value="INFO">INFO</option><option value="WARN">WARN</option><option value="ERROR">ERROR</option></select>' +
@@ -143,6 +144,10 @@ export function renderMonitorPerformance() {
 
 // ── Monitor Page Shell ─────────────────────────────────
 
+function _tplMonitorPageHeader() {
+  return '<div class="page-header"><h3>📊 系统监控</h3></div>';
+}
+
 export async function renderMonitorPageChat(container) {
   if (typeof window.echarts === 'undefined') {
     await new Promise(function(resolve, reject) {
@@ -154,7 +159,7 @@ export async function renderMonitorPageChat(container) {
     });
   }
   container.className = 'siper-content siper-full-content page-monitor';
-  container.innerHTML = _tplMonitorShell();
+  container.innerHTML = _tplMonitorPageHeader() + _tplMonitorShell();
   renderMonitorPerformance();
 }
 
@@ -309,8 +314,8 @@ function _startMemHistory() {
 }
 
 function _collectMemPoint() {
-  fetch('/api/stats').then(function(r) { return r.json(); }).then(function(data) {
-    if (data.memory_rss_mb) {
+  apiGetCached('/api/stats', 'monitor').then(function(data) {
+    if (data && data.memory_rss_mb) {
       _memHistory.push({ t: Date.now(), v: data.memory_rss_mb });
       if (_memHistory.length > _memHistoryMax) _memHistory.shift();
       _renderMemHistory();
@@ -342,6 +347,7 @@ function _renderMemHistory() {
     tooltip: { trigger: 'axis', formatter: function(p) { return p[0].name + '<br/>内存: ' + p[0].value + ' MB'; } },
   });
 }
+
 
 // ── Token 数据 ────────────────────────────────────────
 
@@ -379,8 +385,7 @@ function _mReadCssVar(name) {
   document.body.appendChild(d);
   var computed = getComputedStyle(d).color;
   document.body.removeChild(d);
-  if (computed && computed !== 'rgb(0, 0, 0)' && computed !== 'rgba(0, 0, 0, 0)') return computed;
-  return '';
+  return (computed && computed !== 'rgb(0, 0, 0)' && computed !== 'rgba(0, 0, 0, 0)') ? computed : '';
 }
 
 function _mResolveColors() {

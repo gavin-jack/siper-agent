@@ -1,6 +1,7 @@
 // chat-pages/model-settings.js — 模型设置页面
 // 2026-08-25: 提取常量映射、CSS class 替代内联 style、简化 copyModelName
-import { fmtSpeed } from '../../utils/format.js?v=1782239507443';
+import { fmtSpeed } from '../../utils/format.js?v=1782262241789';
+import { apiGetCached } from '../../utils/api.js?v=1782262241789';
 
 // ===== 状态 =====
 export let settingsModelsCache = [];
@@ -36,6 +37,7 @@ function _fmtCtx(ctx) {
   if (!ctx) return '-';
   return ctx >= 1000000 ? (ctx / 1000000).toFixed(1) + 'M' : (ctx / 1000).toFixed(0) + 'K';
 }
+// _fmtCtx is kept for model card context formatting (format.js fmtNum doesn't handle M suffix)
 
 // ===== Tab 切换 ──────────────────────────────────────
 
@@ -94,28 +96,7 @@ export function renderModelSettingsPageChat(container) {
     '<div id="settingsModelsList"></div>' +
     '</div>' +
     // 发现模型侧栏
-    '<div class="siper-form-card js-form-card-sidebar">' +
-    '<form class="js-discover-form">' +
-    '<div class="siper-form-title">🔍 发现模型</div>' +
-    '<div class="js-sort-group">' +
-    '<div style="flex:1"><div class="text-dim js-label-sm">Provider</div>' +
-    '<select id="providerPreset" class="siper-input js-input-sm" onchange="window.applyProviderPreset()" aria-label="Provider 预设">' +
-    '<option value="">— 选择 —</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="deepseek">DeepSeek</option><option value="moonshot">Moonshot</option><option value="qwen">Qwen</option><option value="longcat">LongCat</option><option value="zhipuai">ZhipuAI</option><option value="minimax">MiniMax</option><option value="groq">Groq</option><option value="openrouter">OpenRouter</option><option value="ollama">Ollama</option><option value="custom">自定义</option></select>' +
-    '</div>' +
-    '<div style="flex:1.5"><div class="text-dim js-label-sm">Base URL</div>' +
-    '<input type="text" class="siper-input" id="discoverBaseUrl" placeholder="https://api.openai.com/v1" aria-label="发现 Base URL" class="js-input-sm">' +
-    '</div></div>' +
-    '<div class="js-mb-6"><div class="text-dim js-label-sm">API Key</div>' +
-    '<input type="password" class="siper-input js-input-sm" id="discoverApiKey" placeholder="sk-..." autocomplete="off" aria-label="发现 API Key">' +
-    '</div>' +
-    '<div class="js-select-group">' +
-    '<button class="siper-btn primary" onclick="window.discoverModels()">获取模型列表</button>' +
-    '<div id="discoverFilterWrap" class="js-discover-filter">' +
-    '<input type="text" class="siper-input js-input-search" id="discoverFilter" placeholder="筛选模型..." aria-label="筛选发现的模型" oninput="window.chatFilterDiscovered()">' +
-    '<button id="discoverFilterClear" onclick="window.chatClearDiscoverFilter()" class="js-model-card-action" title="清空筛选">×</button>' +
-    '</div></div>' +
-    '<div id="discoverResult" class="js-scroll-flex"></div>' +
-    '</div></div></form></div>' +
+    _tplDiscoverForm() +
     // 辅助 tab
     '<div id="modelSettingsTab-auxiliary" class="js-model-settings-tab-content" style="display:none">' +
     '<div class="siper-form-card"><div class="siper-form-title">🔧 辅助模型</div>' +
@@ -127,9 +108,35 @@ export function renderModelSettingsPageChat(container) {
 function _capFilterOptions() {
   var caps = ['chat', 'vision', 'reasoning', 'code', 'function_calling', 'tts', 'embedding', 'image_gen', 'long_context'];
   return caps.map(function(c) {
-    return '<div class="cap-filter-option" data-cap="' + c + '" onclick="window.selectCapFilter(\'' + c + '\')" class="js-cap-filter-option">' +
+    return '<div class="cap-filter-option js-cap-filter-option" data-cap="' + c + '" onclick="window.selectCapFilter(\'' + c + '\')">' +
       '<input type="checkbox" class="js-checkbox"> ' + (CAP_ICONS[c] || '') + CAP_LABELS[c] + '</div>';
   }).join('');
+}
+
+
+function _tplDiscoverForm() {
+  return '<div class="siper-form-card js-form-card-sidebar">' +
+    '<form class="js-discover-form">' +
+    '<div class="siper-form-title">🔍 发现模型</div>' +
+    '<div class="js-sort-group">' +
+    '<div style="flex:1"><div class="text-dim js-label-sm">Provider</div>' +
+    '<select id="providerPreset" class="siper-input js-input-sm" onchange="window.applyProviderPreset()" aria-label="Provider 预设">' +
+    '<option value="">— 选择 —</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="deepseek">DeepSeek</option><option value="moonshot">Moonshot</option><option value="qwen">Qwen</option><option value="longcat">LongCat</option><option value="zhipuai">ZhipuAI</option><option value="minimax">MiniMax</option><option value="groq">Groq</option><option value="openrouter">OpenRouter</option><option value="ollama">Ollama</option><option value="custom">自定义</option></select>' +
+    '</div>' +
+    '<div style="flex:1.5"><div class="text-dim js-label-sm">Base URL</div>' +
+    '<input type="text" class="siper-input js-input-sm" id="discoverBaseUrl" placeholder="https://api.openai.com/v1" aria-label="发现 Base URL">' +
+    '</div></div>' +
+    '<div class="js-mb-6"><div class="text-dim js-label-sm">API Key</div>' +
+    '<input type="password" class="siper-input js-input-sm" id="discoverApiKey" placeholder="sk-..." autocomplete="off" aria-label="发现 API Key">' +
+    '</div>' +
+    '<div class="js-select-group">' +
+    '<button class="siper-btn primary" onclick="window.discoverModels()">获取模型列表</button>' +
+    '<div id="discoverFilterWrap" class="js-discover-filter">' +
+    '<input type="text" class="siper-input js-input-search" id="discoverFilter" placeholder="筛选模型..." aria-label="筛选发现的模型" oninput="window.chatFilterDiscovered()">' +
+    '<button id="discoverFilterClear" onclick="window.chatClearDiscoverFilter()" class="js-model-card-action" title="清空筛选">×</button>' +
+    '</div></div>' +
+    '<div id="discoverResult" class="js-scroll-flex"></div>' +
+    '</div></div></form></div>';
 }
 
 // ===== 加载模型列表 ──────────────────────────────────
@@ -137,7 +144,7 @@ function _capFilterOptions() {
 export function loadSettingsModels() {
   var list = document.getElementById('settingsModelsList');
   if (list) list.innerHTML = '<div class="siper-loading siper-loading--sm">加载模型数据中...</div>';
-  fetch('/api/models/global').then(function(r) { return r.json(); }).then(function(data) {
+  apiGetCached('/api/models/global', 'model-settings').then(function(data) {
     settingsModelsCache = (data.models || []).map(function(m) {
       return Object.assign({}, m, {
         _ttft: m.ttft ?? m._ttft ?? null, _streaming: m.streaming ?? m._streaming ?? null,
@@ -193,8 +200,7 @@ export function renderSettingsModelsList() {
     var dir2 = _sortDir === 'asc' ? 1 : -1;
     filtered.sort(function(a, b) { return (a.name || '').localeCompare(b.name || '') * dir2; });
   }
-  var rect = list.getBoundingClientRect();
-  list.style.maxHeight = Math.max(200, window.innerHeight - rect.top - 20) + 'px';
+  list.style.maxHeight = Math.max(200, window.innerHeight - 200) + 'px';
   list.style.overflowY = 'auto';
   var html = '';
   if (showGroups) {
@@ -381,20 +387,14 @@ export function toggleSortDir() {
 export function editProviderName(baseUrl) {
   var current = settingsModelsCache.find(function(m) { return m.base_url === baseUrl; });
   var currentName = current ? (current.provider_name || current.provider || baseUrl) : baseUrl;
-  if (typeof window.showInput === 'function') {
-    window.showInput({
-      title: '编辑 Provider 名称',
-      placeholder: '请输入 Provider 名称（留空使用 Base URL）',
-      onConfirm: function(newName) {
-        if (!newName || !newName.trim() || newName.trim() === currentName) return;
-        _doRename(baseUrl, newName.trim());
-      }
-    });
-  } else {
-    var newName = prompt('请输入 Provider 名称（留空使用 Base URL）:', currentName);
-    if (newName === null) return;
-    _doRename(baseUrl, newName.trim());
-  }
+  window.showInput({
+    title: '编辑 Provider 名称',
+    placeholder: '请输入 Provider 名称（留空使用 Base URL）',
+    onConfirm: function(newName) {
+      if (!newName || !newName.trim() || newName.trim() === currentName) return;
+      _doRename(baseUrl, newName.trim());
+    }
+  });
 }
 
 function _doRename(baseUrl, trimmed) {
@@ -415,14 +415,7 @@ function _doRename(baseUrl, trimmed) {
 export function removeSettingsModel(idx) {
   var m = settingsModelsCache[idx];
   if (!m) return;
-  if (typeof window.showConfirm === 'function') {
-    window.showConfirm({ title: '删除模型', msg: '确定删除 "' + (m.name || m.id) + '"？', danger: true, onConfirm: function() { _doRemove(idx); } });
-  } else if (typeof window.confirmDeleteModel === 'function') {
-    window.confirmDeleteModel(m.name, function() { _doRemove(idx); });
-  } else {
-    if (!confirm('确定删除 "' + (m.name || m.id) + '"？')) return;
-    _doRemove(idx);
-  }
+  window.showConfirm({ title: '删除模型', msg: '确定删除 "' + (m.name || m.id) + '"？', danger: true, onConfirm: function() { _doRemove(idx); } });
 }
 
 function _doRemove(idx) {
@@ -430,18 +423,18 @@ function _doRemove(idx) {
   if (!m) return;
   fetch('/api/models/' + encodeURIComponent(m.id || m.name) + '?provider=' + encodeURIComponent(m.provider || ''), { method: 'DELETE' })
     .then(function(r) { return r.json(); }).then(function(d) {
-      if (!d.success) { if (window.toast) window.toast.error('删除失败: ' + (d.error || 'unknown')); return; }
+      if (!d.success) { window.toast.error('删除失败: ' + (d.error || 'unknown')); return; }
       settingsModelsCache.splice(idx, 1);
       renderSettingsModelsList();
-      if (window.toast) window.toast.success('已删除模型: ' + m.name);
-    }).catch(function(e) { if (window.toast) window.toast.error('删除失败: ' + e.message); });
+      window.toast.success('已删除模型: ' + m.name);
+    }).catch(function(e) { window.toast.error('删除失败: ' + e.message); });
 }
 
 export function removeSettingsModelByName(name) {
   for (var _i = 0; _i < settingsModelsCache.length; _i++) {
     if (settingsModelsCache[_i].name === name) { removeSettingsModel(_i); return; }
   }
-  if (window.toast) window.toast.error('未找到模型: ' + name);
+  window.toast.error('未找到模型: ' + name);
 }
 
 // ===== 复制模型名 ──────────────────────────────────────
@@ -454,11 +447,11 @@ export function copyModelName(e, name) {
     setTimeout(function() { btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><rect x="5" y="5" width="9" height="9" rx="1.5" opacity="0.6"/><rect x="2" y="2" width="9" height="9" rx="1.5"/></svg>'; }, 1200);
   };
   if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-    navigator.clipboard.writeText(name).then(function() { showOk(); if (window.toast) window.toast.success('已复制'); }).catch(function() {
+    navigator.clipboard.writeText(name).then(function() { showOk(); window.toast.success('已复制'); }).catch(function() {
       try {
         var ta = document.createElement('textarea'); ta.value = name; ta.style.cssText = 'position:fixed;left:0;top:0;opacity:0';
         document.body.appendChild(ta); ta.select();
-        if (document.execCommand('copy')) { document.body.removeChild(ta); showOk(); if (window.toast) window.toast.success('已复制'); return; }
+        if (document.execCommand('copy')) { document.body.removeChild(ta); showOk(); window.toast.success('已复制'); return; }
         document.body.removeChild(ta);
       } catch(ex) {}
       _copyFallback(name); showOk();
@@ -467,20 +460,7 @@ export function copyModelName(e, name) {
 }
 
 function _copyFallback(name) {
-  if (typeof window.showDictModal === 'function') {
-    window.showDictModal('复制', name);
-  } else {
-    var existing = document.getElementById('copyNameModal');
-    if (existing) existing.remove();
-    var overlay = document.createElement('div');
-    overlay.id = 'copyNameModal';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center';
-    overlay.innerHTML = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;max-width:90%;min-width:300px"><div style="font-weight:600;margin-bottom:12px">复制</div><input type="text" value="' + escapeAttr(name) + '" readonly style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;box-sizing:border-box" onclick="this.select()"><div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end"><button id="copyNameModalClose" class="btn-sm primary">关闭</button></div></div>';
-    document.body.appendChild(overlay);
-    overlay.querySelector('#copyNameModalClose').onclick = function() { overlay.remove(); };
-    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
-    setTimeout(function() { var inp = overlay.querySelector('input'); if (inp) { inp.focus(); inp.select(); } }, 50);
-  }
+  window.showDictModal('复制', name);
 }
 
 // ===== 模型发现 ──────────────────────────────────────
@@ -488,8 +468,8 @@ function _copyFallback(name) {
 export function discoverModels() {
   var baseUrl = document.getElementById('discoverBaseUrl')?.value.trim();
   var apiKey = document.getElementById('discoverApiKey')?.value.trim();
-  if (!baseUrl) { if (window.toast) window.toast.warning('请输入 Base URL'); return; }
-  if (!apiKey) { if (window.toast) window.toast.warning('请输入 API Key'); return; }
+  if (!baseUrl) { window.toast.warning('请输入 Base URL'); return; }
+  if (!apiKey) { window.toast.warning('请输入 API Key'); return; }
   var resultEl = document.getElementById('discoverResult');
   if (resultEl) resultEl.innerHTML = '<div class="settings-empty-msg">⏳ 正在获取模型列表...</div>';
   fetch('/api/models/discover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ base_url: baseUrl, api_key: apiKey }) })
@@ -596,7 +576,7 @@ export function chatClearDiscoverFilter() {
 
 export function addSelectedDiscoveredModels() {
   var checkboxes = document.querySelectorAll('#discoverResult .discover-check:checked');
-  if (checkboxes.length === 0) { if (window.toast) window.toast.warning('请先勾选要添加的模型'); return; }
+  if (checkboxes.length === 0) { window.toast.warning('请先勾选要添加的模型'); return; }
   var names = Array.from(checkboxes).map(function(cb) { return cb.dataset.name; });
   var models = discoveredModelsCache.filter(function(m) { return names.includes(m.name || m.id); });
   _addDiscoveredModels(models);
@@ -621,13 +601,13 @@ function _addDiscoveredModels(models) {
   Promise.all(promises).then(function(results) {
     results.forEach(function(r) { added += r; });
     if (added > 0) {
-      if (window.toast) window.toast.success('已添加 ' + added + ' 个模型');
+      window.toast.success('已添加 ' + added + ' 个模型');
       if (typeof window.loadSettingsModels === 'function') window.loadSettingsModels();
       var addedNames = models.map(function(m) { return m.name || m.id; });
       discoveredModelsCache.forEach(function(m) { if (addedNames.includes(m.name || m.id)) m._exists = true; });
       renderDiscoveredModels(discoveredModelsCache, 0, '', discoveredModelsCache.length);
     }
-  }).catch(function(e) { if (window.toast) window.toast.error('添加失败: ' + e.message); });
+  }).catch(function(e) { window.toast.error('添加失败: ' + e.message); });
 }
 
 function _saveModelsForProvider(providerId, models) {
@@ -655,7 +635,7 @@ async function saveModelsImmediate() {
     var r = await fetch('/api/models/global', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ models: modelsToSave }) });
     var d = await r.json();
     if (!d.success && window.toast) window.toast.error('保存失败: ' + (d.error || 'unknown'));
-  } catch(e) { if (window.toast) window.toast.error('保存失败: ' + e.message); }
+  } catch(e) { window.toast.error('保存失败: ' + e.message); }
 }
 
 export function autoSaveModels() {
@@ -699,14 +679,33 @@ export function resetSettingsModels() {
         try {
           var r = await fetch('/api/models/reset', { method: 'POST' });
           var d = await r.json();
-          if (d.success) { settingsModelsCache = []; discoveredModelsCache = []; renderSettingsModelsList(); if (window.toast) window.toast.success('已清除所有模型配置'); }
-          else { if (window.toast) window.toast.error(d.error || '重置失败'); }
-        } catch(e) { if (window.toast) window.toast.error('重置失败: ' + (e.message || e)); }
+          if (d.success) { settingsModelsCache = []; discoveredModelsCache = []; renderSettingsModelsList(); window.toast.success('已清除所有模型配置'); }
+          else { window.toast.error(d.error || '重置失败'); }
+        } catch(e) { window.toast.error('重置失败: ' + (e.message || e)); }
       }
     });
   } else {
     if (!confirm('重置所有模型配置？此操作不可恢复。')) return;
     fetch('/api/models/reset', { method: 'POST' }).then(function(r) { return r.json(); }).then(function() { loadSettingsModels(); }).catch(function(e) { console.error('[model-settings] reset failed:', e); });
+  }
+}
+
+
+/** 应用验证结果到模型对象（verifySingleModel 和 verifyAllModels 共用） */
+function _applyVerifyResult(m, d) {
+  if (d.success) {
+    var caps = d.capabilities || [];
+    if (caps.length) m.capabilities = Array.from(new Set((m.capabilities || []).concat(caps)));
+    m._verified = true; m._latency = d.latency_ms; m._ttft = d.ttft_ms; m.ttft = d.ttft_ms;
+    m.streaming = d.streaming; m._streaming = d.streaming || d._streaming;
+    m.json_mode = d.json_mode; m._json_mode = d.json_mode || d._json_mode;
+    m.context_window_tested = d.context_window_tested; m._context_window_tested = d.context_window_tested || d._context_window_tested;
+    m._error = null;
+    if (d.context_window_tested && d.context_window_tested > (m.context_window || 0)) m.context_window = d.context_window_tested;
+    return true;
+  } else {
+    m._verified = false; m._error = d.error || '连接失败';
+    return false;
   }
 }
 
@@ -718,34 +717,30 @@ export function verifySingleModel(modelName) {
     for (var _i = 0; _i < settingsModelsCache.length; _i++) { if (settingsModelsCache[_i].name === modelName) { idx = _i; m = settingsModelsCache[_i]; break; } }
   } else if (typeof modelName === 'number') { idx = modelName; m = settingsModelsCache[idx]; }
   if (!m) return;
-  if (!m.base_url || !m.api_key) { if (window.toast) window.toast.warning((m.name || m.id) + ' 未配置 base_url 或 api_key'); return; }
-  if (window.toast) window.toast.info('正在验证 ' + (m.name || m.id) + '...');
+  if (!m.base_url || !m.api_key) { window.toast.warning((m.name || m.id) + ' 未配置 base_url 或 api_key'); return; }
+  window.toast.info('正在验证 ' + (m.name || m.id) + '...');
   m._verified = 'pending';
   renderSettingsModelsList();
   fetch('/api/models/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ base_url: m.base_url, api_key: m.api_key, model: m.name || m.id, provider_id: m.provider || 0 }) })
     .then(function(r) { return r.json(); }).then(function(d) {
+      _applyVerifyResult(m, d);
+      renderSettingsModelsList();
       if (d.success) {
-        var caps = d.capabilities || [];
-        if (caps.length) m.capabilities = Array.from(new Set((m.capabilities || []).concat(caps)));
-        m._verified = true; m._latency = d.latency_ms; m._ttft = d.ttft_ms; m.ttft = d.ttft_ms;
-        m.streaming = d.streaming; m._streaming = d.streaming || d._streaming;
-        m.json_mode = d.json_mode; m._json_mode = d.json_mode || d._json_mode;
-        m.context_window_tested = d.context_window_tested; m._context_window_tested = d.context_window_tested || d._context_window_tested;
-        m._error = null;
-        if (d.context_window_tested && d.context_window_tested > (m.context_window || 0)) m.context_window = d.context_window_tested;
-        renderSettingsModelsList(); saveModelsImmediate();
+        saveModelsImmediate();
         var info = [d.latency_ms + 'ms'];
         if (d.ttft_ms) info.push('TTFT ' + d.ttft_ms + 'ms');
         if (d.streaming) info.push('流式');
         if (d.context_window_tested) info.push('ctx ' + _fmtCtx(d.context_window_tested));
-        if (window.toast) window.toast.success((m.name || m.id) + ' 验证通过 (' + info.join(' · ') + ')', 4000);
-      } else { m._verified = false; m._error = d.error || '连接失败'; renderSettingsModelsList(); if (window.toast) window.toast.error((m.name || m.id) + ' 验证失败: ' + (d.error || '连接失败'), 4000); }
+        window.toast.success((m.name || m.id) + ' 验证通过 (' + info.join(' · ') + ')', 4000);
+      } else {
+        window.toast.error((m.name || m.id) + ' 验证失败: ' + (d.error || '连接失败'), 4000);
+      }
     }).catch(function(e) { m._verified = false; m._error = e.message || '请求失败'; renderSettingsModelsList(); });
 }
 
 export function verifyAllModels() {
-  if (!settingsModelsCache.length) { if (window.toast) window.toast.warning('没有可验证的模型'); return; }
-  if (window.toast) window.toast.info('开始验证全部 ' + settingsModelsCache.length + ' 个模型...');
+  if (!settingsModelsCache.length) { window.toast.warning('没有可验证的模型'); return; }
+  window.toast.info('开始验证全部 ' + settingsModelsCache.length + ' 个模型...');
   var CONCURRENCY = 3;
   var queue = settingsModelsCache.entries().filter(function(item) { return item[1].base_url && item[1].api_key; });
   var done = 0, total = queue.length;
@@ -758,16 +753,7 @@ export function verifyAllModels() {
       try {
         var r = await fetch('/api/models/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ base_url: m.base_url, api_key: m.api_key, model: m.name || m.id, provider_id: m.provider || 0 }) });
         var d = await r.json();
-        if (d.success) {
-          var caps = d.capabilities || [];
-          if (caps.length) m.capabilities = Array.from(new Set((m.capabilities || []).concat(caps)));
-          m._verified = true; m._latency = d.latency_ms; m._ttft = d.ttft_ms; m.ttft = d.ttft_ms;
-          m.streaming = d.streaming; m._streaming = d.streaming || d._streaming;
-          m.json_mode = d.json_mode; m._json_mode = d.json_mode || d._json_mode;
-          m.context_window_tested = d.context_window_tested; m._context_window_tested = d.context_window_tested || d._context_window_tested;
-          m._error = null;
-          if (d.context_window_tested && d.context_window_tested > (m.context_window || 0)) m.context_window = d.context_window_tested;
-        } else { m._verified = false; m._error = d.error || '连接失败'; }
+        _applyVerifyResult(m, d);
       } catch(err) { m._verified = false; m._error = err.message || '请求失败'; }
       done++; renderSettingsModelsList();
     }
@@ -776,7 +762,7 @@ export function verifyAllModels() {
     autoSaveModels();
     var passed = settingsModelsCache.filter(function(m) { return m._verified === true; }).length;
     var failed = settingsModelsCache.filter(function(m) { return m._verified === false; }).length;
-    if (window.toast) window.toast.success('验证完成: ' + passed + ' 通过, ' + failed + ' 失败', 3000);
+    window.toast.success('验证完成: ' + passed + ' 通过, ' + failed + ' 失败', 3000);
   });
 }
 

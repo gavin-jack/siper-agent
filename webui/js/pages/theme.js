@@ -1,12 +1,46 @@
 // pages/theme.js — 主题设置
 // 从 pages/page-theme.js 迁移
 
-import { t } from '../utils/i18n.js?v=1782239267972';
-import { showConfirm, showInput } from '../components/toast.js?v=1782239267972';
-import { toast } from '../components/toast.js?v=1782239267972';
-import { updateThemePaletteTrigger } from '../utils/dom.js?v=1782239267972';
-import { escapeHtml } from '../utils/escape.js?v=1782239267972';
+import { t } from '../utils/i18n.js?v=1782262241789';
+import { showConfirm, showInput } from '../components/toast.js?v=1782262241789';
+import { toast } from '../components/toast.js?v=1782262241789';
+import { updateThemePaletteTrigger } from '../utils/dom.js?v=1782262241789';
+import { escapeHtml } from '../utils/escape.js?v=1782262241789';
 
+// ===== 页面模板 =====
+export function _tplThemePage() {
+  return `<div class="page-header">
+    <h2 data-i18n="theme.title">外观设置</h2>
+    <div class="actions">
+      <button class="btn-sm theme-reset-btn" onclick="resetTheme()" data-i18n="theme.reset">重置默认</button>
+      <button class="btn-sm" onclick="exportTheme()" data-i18n="theme.export">导出</button>
+      <button class="btn-sm" onclick="importTheme()" data-i18n="theme.import">导入</button>
+    </div>
+  </div>
+  <div class="theme-settings-content">
+    <div class="theme-section">
+      <div class="section-label" data-i18n="theme.preset">预设主题</div>
+      <div id="themePresetBar" class="theme-preset-bar"></div>
+    </div>
+    <div class="theme-section">
+      <div class="section-label" data-i18n="theme.customColors">自定义颜色</div>
+      <div id="themeCustomColors" class="color-grid"></div>
+    </div>
+    <div class="theme-section">
+      <div class="section-label" data-i18n="theme.sizeSettings">尺寸设置</div>
+      <div id="themeSizeSettings" class="size-settings"></div>
+    </div>
+    <div class="theme-section">
+      <div class="section-label" data-i18n="theme.templates">主题模板</div>
+      <div class="template-controls">
+        <input type="text" id="templateName" class="select-input" placeholder="模板名称" aria-label="主题模板名称">
+        <button class="btn-sm primary" onclick="saveThemeTemplate()" data-i18n="theme.saveTemplate">保存模板</button>
+        <button class="btn-sm" onclick="renderTemplateList()" data-i18n="theme.refreshTemplates">刷新</button>
+      </div>
+      <div id="themeTemplateList" class="template-list"></div>
+    </div>
+  </div>`;
+}
 // ===== Theme Settings =====
 const THEME_DEFAULTS = {
   '--bg': '#c8ebe5', '--bg-sidebar': '#b8ddd6', '--bg-card': '#ddf0ec',

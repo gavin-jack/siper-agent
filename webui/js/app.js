@@ -1,41 +1,41 @@
 // app.js — ESM 入口
 // 三模板 SPA: chat(默认) | standalone(懒加载) | sidebar(常驻)
-import { connectWS, setConnected, getWs } from './core.js?v=1782239267972';
+import { connectWS, setConnected, getWs } from './core.js?v=1782262241789';
 // expose getWs globally for debugging
 window.getWs = getWs;
 // -------------------------------------------------
 // 初始化：立即建立 WebSocket 连接
 // -------------------------------------------------
 connectWS();
-import { registerAllHandlers } from './renderer.js?v=1782239267972';
+import { registerAllHandlers } from './renderer.js?v=1782262241789';
 
 // Utils
-import { escapeHtml } from './utils/escape.js?v=1782239267972';
-import { LANG, t, applyLang, selectLang } from './utils/i18n.js?v=1782239267972';
-import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js?v=1782239267972';
-import { apiGet, apiPost } from './utils/api.js?v=1782239267972';
-import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js?v=1782239267972';
+import { escapeHtml } from './utils/escape.js?v=1782262241789';
+import { LANG, t, applyLang, selectLang } from './utils/i18n.js?v=1782262241789';
+import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js?v=1782262241789';
+import { apiGet, apiPost } from './utils/api.js?v=1782262241789';
+import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js?v=1782262241789';
 
 // Components
-import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmDeleteModel, showInput, cancelInput, execInput, openImageLightbox } from './components/toast.js?v=1782239267972';
-import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js?v=1782239267972';
-import * as AgentModels from './components/agent-models.js?v=1782239267972';
+import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmDeleteModel, showInput, cancelInput, execInput, openImageLightbox } from './components/toast.js?v=1782262241789';
+import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js?v=1782262241789';
+import * as AgentModels from './components/agent-models.js?v=1782262241789';
 
 // Chat core (must load before DOMContentLoaded)
-import * as Chat from './pages/chat-pages/chat.js?v=1782239267972';
+import * as Chat from './pages/chat-pages/chat.js?v=1782262241789';
 
 // Chat input
-import { toggleChatModelDropdown } from './chat/input.js?v=1782239267972';
+import { toggleChatModelDropdown } from './chat/input.js?v=1782262241789';
 
 // Sidebar / UI
-import { startNewChat, expandAllAgents } from './chat/sidebar.js?v=1782239267972';
-import { newSession } from './chat/session.js?v=1782239267972';
+import { startNewChat, expandAllAgents } from './chat/sidebar.js?v=1782262241789';
+import { newSession } from './chat/session.js?v=1782262241789';
 
 // Template-clone pages (保留全量 import，后续逐步迁移)
-import * as Sessions from './pages/sessions.js?v=1782239267972';
-import * as Memory from './pages/memory.js?v=1782239267972';
-import * as AgentConfig from './pages/agent-config.js?v=1782239267972';
-import * as Theme from './pages/theme.js?v=1782239267972';
+import * as Sessions from './pages/sessions.js?v=1782262241789';
+import * as Memory from './pages/memory.js?v=1782262241789';
+import * as AgentConfig from './pages/agent-config.js?v=1782262241789';
+import * as Theme from './pages/theme.js?v=1782262241789';
 
 // ===== Window Global Mounts =====
 // Utils
@@ -140,131 +140,6 @@ window.__onPageCacheUpdate = function(page, data) {
     }
 };
 
-// ===== 懒加载映射：页面名 → () => import(模块) =====
-function tplSessions() {
-  return `<div class="page-header">
-    <h2 data-i18n="sessions.title">会话管理</h2>
-    <div class="actions">
-      <button class="btn-sm primary" onclick="newSession()" data-i18n="sessions.new">+ 新会话</button>
-      <button class="btn-sm" onclick="refreshSessions()" data-i18n="sessions.refresh">刷新</button>
-    </div>
-  </div>
-  <div class="page-body page-body-flex">
-    <div class="session-list" id="sessionsList"></div>
-    <div class="session-preview" id="sessionPreview">
-      <div class="empty-state" data-i18n="sessions.selectPrompt">← 点击会话查看消息</div>
-    </div>
-  </div>`;
-}
-
-function tplMemory() {
-  return `<div class="page-header">
-    <h2 data-i18n="memory.title">记忆管理</h2>
-    <div class="actions flex-align-8">
-      <select id="memoryAgentSelector" onchange="onMemoryAgentChange(this.value)" class="select-input select-wide" aria-label="记忆智能体">
-        <option value="" data-i18n="memory.selectAgent">选择智能体...</option>
-      </select>
-      <button class="btn-sm" onclick="refreshMemoryPage()" data-i18n="memory.refresh">刷新</button>
-      <button class="btn-sm primary" onclick="saveMemoryMd()" data-i18n="memory.save">保存记忆</button>
-      <button class="btn-sm primary" onclick="saveMemoryConfig()" data-i18n="memory.saveConfig">保存配置</button>
-    </div>
-  </div>
-  <div class="memory-grid">
-    <div class="memory-file-section">
-      <div class="section-header">
-        <span class="model-badge badge-accent2">memory.md</span>
-        <span data-i18n="memory.mdFile">记忆文件</span>
-        <span id="memoryAgentLabel" class="text-muted-small"></span>
-      </div>
-      <textarea class="agent-file-editor code-editor-flex" id="memoryMdEditor" placeholder="加载中..." aria-label="记忆内容编辑器"></textarea>
-    </div>
-    <div class="memory-config-section">
-      <div class="section-header">
-        <span class="model-badge badge-green" data-i18n="memory.integration">记忆整合</span>
-        <span data-i18n="memory.integrationTitle">记忆整合进提示词的方式</span>
-      </div>
-      <div class="config-grid">
-        <div class="setting-label" data-i18n="memory.mode">整合模式</div>
-        <select id="memMode" class="select-input">
-          <option value="append" data-i18n="memory.modeAppend">追加到系统提示词后</option>
-          <option value="prepend" data-i18n="memory.modePrepend">插入到系统提示词前</option>
-          <option value="system" data-i18n="memory.modeSystem">替换系统提示词</option>
-          <option value="none" data-i18n="memory.modeNone">不整合（仅手动引用）</option>
-        </select>
-        <div class="setting-label" data-i18n="memory.maxTokens">最大 Token 数</div>
-        <input type="number" id="memMaxTokens" class="select-input" value="2000" min="100" max="10000" aria-label="最大 Token 数">
-        <div class="setting-label" data-i18n="memory.template">提示词模板</div>
-        <textarea id="memTemplate" rows="3" class="code-input" placeholder="提示词模板">{memory}</textarea>
-        <div class="section-label" data-i18n="memory.preview">预览效果</div>
-        <div id="memPreview" class="preview-box"></div>
-      </div>
-      <button class="btn-sm" onclick="showConfirm({title:'重置记忆配置',msg:'确定要重置记忆配置为默认值吗？',okText:'重置',onConfirm:resetMemoryConfig})" data-i18n="memory.resetConfig">重置</button>
-    </div>
-  </div>`;
-}
-
-function tplAgentConfig() {
-  return `<div class="page-header">
-    <h2 data-i18n="agentConfig.title">智能体配置</h2>
-    <div class="actions">
-      <button class="btn-sm primary" onclick="navigateToPage('chat')" data-i18n="agentConfig.backToChat">← 返回对话</button>
-    </div>
-  </div>
-  <div id="agentConfigContent">
-    <div id="agentSelector" class="agent-selector"></div>
-    <div id="agentConfigTitle" class="agent-config-title"></div>
-    <div class="agent-tabs">
-      <button class="agent-tab active" data-tab="about" id="agentTabAbout" onclick="switchConfigAgentPageTab('about')">关于</button>
-      <button class="agent-tab" data-tab="files" id="agentTabFiles" onclick="switchConfigAgentPageTab('files')">属性文件</button>
-      <button class="agent-tab" data-tab="memory" id="agentTabMemory" onclick="switchConfigAgentPageTab('memory')">记忆</button>
-      <button class="agent-tab" data-tab="limits" onclick="switchConfigAgentPageTab('limits')">限制</button>
-    </div>
-    <div class="agent-tab-content active" id="agentTabContentAbout"></div>
-    <div class="agent-tab-content" id="agentTabContentFiles"></div>
-    <div class="agent-tab-content" id="agentTabContentMemory"></div>
-    <div class="agent-tab-content" id="tab-limits"></div>
-    <div class="agent-config-footer">
-      <button class="btn-sm" id="cfgAgentDeleteBtn" onclick="if(typeof confirmDeleteAgent==='function'&&currentConfigAgent)confirmDeleteAgent(currentConfigAgent)" data-i18n="agentConfig.deleteAgent">删除智能体</button>
-      <button class="btn-sm primary" onclick="saveAllChatAgentConfig()" data-i18n="agentConfig.saveAll">保存全部</button>
-    </div>
-  </div>
-  <div id="iconPickerPopup" class="icon-picker-popup hidden"></div>`;
-}
-
-function tplTheme() {
-  return `<div class="page-header">
-    <h2 data-i18n="theme.title">外观设置</h2>
-    <div class="actions">
-      <button class="btn-sm theme-reset-btn" onclick="resetTheme()" data-i18n="theme.reset">重置默认</button>
-      <button class="btn-sm" onclick="exportTheme()" data-i18n="theme.export">导出</button>
-      <button class="btn-sm" onclick="importTheme()" data-i18n="theme.import">导入</button>
-    </div>
-  </div>
-  <div class="theme-settings-content">
-    <div class="theme-section">
-      <div class="section-label" data-i18n="theme.preset">预设主题</div>
-      <div id="themePresetBar" class="theme-preset-bar"></div>
-    </div>
-    <div class="theme-section">
-      <div class="section-label" data-i18n="theme.customColors">自定义颜色</div>
-      <div id="themeCustomColors" class="color-grid"></div>
-    </div>
-    <div class="theme-section">
-      <div class="section-label" data-i18n="theme.sizeSettings">尺寸设置</div>
-      <div id="themeSizeSettings" class="size-settings"></div>
-    </div>
-    <div class="theme-section">
-      <div class="section-label" data-i18n="theme.templates">主题模板</div>
-      <div class="template-controls">
-        <input type="text" id="templateName" class="select-input" placeholder="模板名称" aria-label="主题模板名称">
-        <button class="btn-sm primary" onclick="saveThemeTemplate()" data-i18n="theme.saveTemplate">保存模板</button>
-        <button class="btn-sm" onclick="renderTemplateList()" data-i18n="theme.refreshTemplates">刷新</button>
-      </div>
-      <div id="themeTemplateList" class="template-list"></div>
-    </div>
-  </div>`;
-}
-
 // Template-clone pages 已全量加载，直接映射
 const PAGE_TEMPLATE = {
   'sessions': Sessions,
@@ -365,11 +240,16 @@ async function navigateToPage(page, tab) {
   loadCss('/css/page.css');
   if (page === 'api-docs') loadCss('/css/api-docs.css');
   try {
-    // Template-clone pages: 先创建模板 DOM
-    if (PAGE_TEMPLATE[page]) {
-      const tplMap = { 'sessions': tplSessions, 'memory': tplMemory, 'agent-config': tplAgentConfig, 'theme': tplTheme };
-      container.innerHTML = tplMap[page] ? tplMap[page]() : '';
-    } else {
+    // Template-clone pages: 先创建模板 DOM（模板函数在各模块的 _tplXxxPage() 中）
+    if (PAGE_TEMPLATE[page] && typeof PAGE_TEMPLATE[page]._tplSessionsPage === 'function') {
+      container.innerHTML = PAGE_TEMPLATE[page]._tplSessionsPage();
+    } else if (PAGE_TEMPLATE[page] && typeof PAGE_TEMPLATE[page]._tplMemoryPage === 'function') {
+      container.innerHTML = PAGE_TEMPLATE[page]._tplMemoryPage();
+    } else if (PAGE_TEMPLATE[page] && typeof PAGE_TEMPLATE[page]._tplAgentConfigPage === 'function') {
+      container.innerHTML = PAGE_TEMPLATE[page]._tplAgentConfigPage();
+    } else if (PAGE_TEMPLATE[page] && typeof PAGE_TEMPLATE[page]._tplThemePage === 'function') {
+      container.innerHTML = PAGE_TEMPLATE[page]._tplThemePage();
+    } else if (!PAGE_TEMPLATE[page]) {
       container.innerHTML = '<div class="siper-loading">加载中...</div>';
     }
 
@@ -464,27 +344,6 @@ async function navigateToPage(page, tab) {
   }
 }
 window.navigateToPage = navigateToPage;
-
-// 提前挂载 agent-config 函数（selectChatAgent 在侧边栏中直接调用，不经过 navigateToPage）
-window.loadAgentSettings = AgentConfig.loadAgentSettings;
-window.saveAgentSettings = AgentConfig.saveAgentSettings;
-window.selectConfigAgent = AgentConfig.selectConfigAgent;
-window.refreshConfigAgentPanel = AgentConfig.refreshConfigAgentPanel;
-window.switchConfigAgentPageTab = AgentConfig.switchConfigAgentPageTab;
-window.loadAgentMemoryContent = AgentConfig.loadAgentMemoryContent;
-window.saveAgentFile = AgentConfig.saveAgentFile;
-window.uploadAgentAvatar = AgentConfig.uploadAgentAvatar;
-window.triggerAgentAutoSave = AgentConfig.triggerAgentAutoSave;
-window.attachAgentAutoSaveListeners = AgentConfig.attachAgentAutoSaveListeners;
-window.resetAgentLimits = AgentConfig.resetAgentLimits;
-window.toggleIconPicker = AgentConfig.toggleIconPicker;
-window.selectAgentIcon = AgentConfig.selectAgentIcon;
-window.switchChatAgentTab = AgentConfig.switchChatAgentTab;
-window.switchChatAgentFile = AgentConfig.switchChatAgentFile;
-window.saveChatAgentFile = AgentConfig.saveChatAgentFile;
-window.loadChatAgentFilesForAgent = AgentConfig.loadChatAgentFilesForAgent;
-window.saveAllChatAgentConfig = AgentConfig.saveAllChatAgentConfig;
-window.loadGlobalModelsForAgent = AgentConfig.loadGlobalModelsForAgent;
 
 // ===== 注册所有 renderer handlers =====
 registerAllHandlers();
