@@ -447,6 +447,22 @@ class AIAgent:
                 # Preserve any text content from the LLM before tool calls
                 # (e.g. "Let me search for that..." before calling web_search)
                 pre_tool_text = llm_response.get('content') or ''
+                # 推送引导语到前端思考面板
+                if pre_tool_text and self.ws_send and self.ws_session_id:
+                    try:
+                        _loop = asyncio.get_running_loop()
+                    except RuntimeError:
+                        _loop = asyncio.new_event_loop()
+                    try:
+                        asyncio.run_coroutine_threadsafe(
+                            self.ws_send({
+                                "type": "thinking_text",
+                                "text": pre_tool_text,
+                                "session_id": self.ws_session_id,
+                            }), _loop
+                        )
+                    except Exception:
+                        pass
                 response_content, tool_results, usage = await self._handle_tool_calls(
                     llm_response['tool_calls'],
                     session_id,
@@ -459,11 +475,7 @@ class AIAgent:
                 # If follow-up response is empty but LLM had pre-tool text, use it
                 if not response_content and pre_tool_text:
                     response_content = pre_tool_text
-                # Filter out filler text before tool calls
-                if isinstance(response_content, str):
-                    cleaned = response_content.lstrip()
-                    if cleaned.startswith('让我先'):
-                        response_content = ''
+                # 不再过滤引导语——引导语应显示在气泡和思考面板中
             elif llm_response.get('tool_calls') and _tool_round >= _MAX_TOOL_ROUNDS:
                 # Force text response after max tool rounds
                 self.logger.warning(f"工具调用轮次达到上限 ({_MAX_TOOL_ROUNDS})，强制生成文本响应")
@@ -477,10 +489,16 @@ class AIAgent:
             is_llm_error = llm_response.get('finish_reason') in ('error', 'timeout')
             if is_llm_error:
                 self.logger.warning(f"LLM 返回错误 finish_reason，response_content={response_content[:100]!r}")
-            # 空内容时：如果有 tool_results，生成工具结果摘要；否则标记为错误
+            # 空内容时：如果 LLM 在多轮工具调用后仍未返回文本，生成简短提示
+            # 工具结果已在思考面板中展示，气泡主体不需要重复工具原始输出
             if not response_content:
                 if tool_results:
-                    response_content = self._generate_final_response(tool_results)
+                    tool_names = [r['tool_name'] for r in tool_results if r.get('tool_name')]
+                    if tool_names:
+                        response_content = f"已执行工具：{', '.join(tool_names)}。工具结果已在上方展示。"
+                    else:
+                        response_content = "工具调用已完成。"
+                    self.logger.warning(f"LLM 工具调用后未返回文本，生成简短提示: {response_content[:80]!r}")
                 else:
                     self.logger.warning("LLM 响应内容为空")
                     is_llm_error = True
@@ -1319,15 +1337,18 @@ class AIAgent:
                     else:
                         # No more tool calls or max rounds reached
                         final_response = followup_content
-                        if not final_response:
-                            final_response = self._generate_final_response(tool_results)
+                        if not final_response and tool_results:
+                            # 工具结果已在思考面板展示，气泡主体不重复工具原始输出
+                            tool_names = [r['tool_name'] for r in tool_results if r.get('tool_name')]
+                            final_response = f"已执行工具：{', '.join(tool_names)}。" if tool_names else "工具调用已完成。"
                         break
 
             except Exception as e:
                 self.logger.error(f"LLM 后续调用失败：{e}")
-                final_response = self._generate_final_response(tool_results)
+                final_response = "工具调用过程中发生错误。" if tool_results else ""
         elif tool_results:
-            final_response = self._generate_final_response(tool_results)
+            tool_names = [r['tool_name'] for r in tool_results if r.get('tool_name')]
+            final_response = f"已执行工具：{', '.join(tool_names)}。" if tool_names else "工具调用已完成。"
 
         # Merge usage from follow-up call
         merged_usage = dict(usage or {})

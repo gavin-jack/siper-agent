@@ -8,6 +8,19 @@
   }
 }
 
+/* ===== Stream cursor blink ===== */
+@keyframes siper-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.siper-stream-cursor {
+  display: inline;
+  animation: siper-cursor-blink 1s step-end infinite;
+  color: var(--color-text);
+  font-weight: normal;
+  margin-left: 1px;
+}
+
 /* ===== Chat — Three Column Layout ===== */
 /* Left: collapsible nav sidebar | Middle: agent+session list | Right: chat area */
 

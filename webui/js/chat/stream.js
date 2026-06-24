@@ -10,13 +10,13 @@ import {
     getStreamState, syncStreamFromCurrent, syncStreamToCurrent,
     setChatStreamAcc, setChatStreamRow, setChatStreamBubble,
     setIsThinking, updateStreamingBadge,
-} from './state.js?v=1782239267972';
-import { chatEscapeHtml, chatRenderMarkdown, buildMetaHtml, updateCtxInfoDisplay, playNotifySound } from './message.js?v=1782239267972';
-import { updateCtxFromStreamEnd, resetSendState } from './session.js?v=1782239267972';
-import { chatThinkingHide, chatThinkingClear, chatThinkingAddTextRow, chatThinkingShow } from './thinking.js?v=1782239267972';
-import { _showNewMsgIndicator, _hideNewMsgIndicator } from './badge.js?v=1782239267972';
-import { renderFull, applyDelta } from '../renderer.js?v=1782239267972';
-import { markSessionUnread } from './sidebar.js?v=1782239267972';
+} from './state.js?v=1782281677851';
+import { chatEscapeHtml, chatRenderMarkdown, buildMetaHtml, updateCtxInfoDisplay, playNotifySound } from './message.js?v=1782281677851';
+import { updateCtxFromStreamEnd, resetSendState } from './session.js?v=1782281677851';
+import { chatThinkingHide, chatThinkingClear, chatThinkingAddTextRow, chatThinkingShow } from './thinking.js?v=1782281677851';
+import { _showNewMsgIndicator, _hideNewMsgIndicator } from './badge.js?v=1782281677851';
+import { renderFull, applyDelta } from '../renderer.js?v=1782281677851';
+import { markSessionUnread, renderMiddleList, refreshAgentsAndRender } from './sidebar.js?v=1782281677851';
 
 // 流式 DOM 元素（当前会话）
 let _streamTextEl = null;
@@ -235,6 +235,9 @@ export function finalizeStream(data, streamSessionId) {
     chatThinkingClear();
     chatThinkingHide();
 
+    // 刷新中栏会话排序（LLM 回复完成，updated_at 变化）
+    refreshAgentsAndRender();
+
     // 停止交流后：提示音 + 未选中红点
     playNotifySound();
     if (_chatSessionId && streamSessionId && _chatSessionId !== streamSessionId) {
@@ -274,6 +277,9 @@ export function handleStopped() {
     chatThinkingClear();
     chatThinkingHide();
     if (_chatSessionId && typeof updateStreamingBadge === 'function') updateStreamingBadge(_chatSessionId, false);
+
+    // 刷新中栏会话排序（停止交流，updated_at 变化）
+    refreshAgentsAndRender();
 
     // 停止交流后：提示音 + 未选中红点
     playNotifySound();

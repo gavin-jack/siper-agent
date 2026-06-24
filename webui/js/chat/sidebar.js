@@ -1,5 +1,5 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
-import { getWs } from '../core.js?v=1782276226306';
+import { getWs } from '../core.js?v=1782281677851';
 import {
   _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
@@ -9,12 +9,12 @@ import {
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, setThinkingSteps, setIsThinking, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
-} from './state.js?v=1782276226306';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1782276226306';
-import { chatThinkingHide } from './thinking.js?v=1782276226306';
-import { updateChatHeader } from './input.js?v=1782276226306';
-import { toast, showInput } from '../components/toast.js?v=1782276226306';
-import { chatConfirm } from './toast.js?v=1782276226306';
+} from './state.js?v=1782281677851';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1782281677851';
+import { chatThinkingHide } from './thinking.js?v=1782281677851';
+import { updateChatHeader } from './input.js?v=1782281677851';
+import { toast, showInput } from '../components/toast.js?v=1782281677851';
+import { chatConfirm } from './toast.js?v=1782281677851';
 
 // ===== 从 page_cache 读取 agents 列表 =====
 function getAgentsFromCache() {
@@ -100,6 +100,37 @@ export function renderMiddleList() {
   // 原因：debounce 导致 updateSessionPreview 和 chatLoadAllSessions 竞态，排序结果不稳定
   if (_renderMiddleTimer) { clearTimeout(_renderMiddleTimer); _renderMiddleTimer = null; }
   _doRenderMiddle();
+}
+
+/** 从后端拉取最新 agents+sessions 数据，更新 page_cache 并渲染中栏 */
+export async function refreshAgentsAndRender() {
+  try {
+    const [agentsResp, sessionsResp] = await Promise.all([
+      fetch('/api/agents'),
+      fetch('/api/sessions'),
+    ]);
+    const agentsData = await agentsResp.json();
+    const sessionsData = await sessionsResp.json();
+    if (agentsData && agentsData.agents) {
+      // 按 agent_name 分组 sessions
+      const sessionsByAgent = {};
+      const sessList = Array.isArray(sessionsData) ? sessionsData : (sessionsData.sessions || []);
+      for (const s of sessList) {
+        const name = s.agent_name || s.agent || 'default';
+        if (!sessionsByAgent[name]) sessionsByAgent[name] = [];
+        sessionsByAgent[name].push(s);
+      }
+      for (const agent of agentsData.agents) {
+        agent.sessions = sessionsByAgent[agent.name] || [];
+      }
+      if (typeof window.__setPageCache === 'function') {
+        window.__setPageCache('agents', agentsData.agents);
+      }
+      _doRenderMiddle();
+    }
+  } catch(e) {
+    console.error('[sidebar] refreshAgentsAndRender failed:', e);
+  }
 }
 
 function _doRenderMiddle() {
