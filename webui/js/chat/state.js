@@ -11,18 +11,20 @@
 
 // ===== Core Chat State =====
 export let _chatCurrentAgent = null;
-export let _isSending = false;
 export let _chatSidebarExpanded = true;
 
-// Streaming State
+// Per-Session Streaming State（每个会话独立的流式/思考/发送状态）
+export const _streamState = new Map();
+
+// 当前 session 的快捷访问（从 _streamState 同步，切换会话时由 syncStreamFromCurrent 更新）
 export let _chatStreamAcc = '';
 export let _chatStreamRow = null;
 export let _chatStreamBubble = null;
 export let _thinkingSteps = [];
 export let _isThinking = false;
 
-// Per-Session Streaming State
-export const _streamState = new Map();
+// _isSending 也改为 per-session，全局变量保留为当前 session 的快捷访问
+export let _isSending = false;
 
 // Unread session badge
 export const _unreadSessions = new Set();
@@ -66,22 +68,37 @@ export function setChatSessionId(sid) { _chatSessionId = sid; }
 export function getChatCurrentAgent() { return _chatCurrentAgent; }
 export function setChatCurrentAgent(agent) { _chatCurrentAgent = agent; }
 
+// ===== Getter/Setter: Per-Session Sending/Thinking =====
+// _isSending / _isThinking 是全局快捷访问，对应 _chatSessionId 的 per-session 状态
+// 切换会话时由 syncStreamFromCurrent() 从 _streamState 恢复
 export function getIsSending() { return _isSending; }
-export function setIsSending(val) { _isSending = val; }
-
-export function getChatSidebarExpanded() { return _chatSidebarExpanded; }
-export function setChatSidebarExpanded(v) { _chatSidebarExpanded = v; }
-
-// ===== Getter/Setter: Streaming State =====
-export function setChatStreamAcc(acc) { _chatStreamAcc = acc; }
-
-export function setChatStreamRow(row) { _chatStreamRow = row; }
-
-export function setChatStreamBubble(bubble) { _chatStreamBubble = bubble; }
+export function setIsSending(val) {
+    _isSending = val;
+    // 同步写入 per-session 状态
+    if (_chatSessionId) {
+        const s = getStreamState(_chatSessionId);
+        s.sending = val;
+    }
+}
 
 export function setThinkingSteps(v) { _thinkingSteps = v; }
 
-export function setIsThinking(val) { _isThinking = val; }
+export function setIsThinking(val) {
+    _isThinking = val;
+    // 同步写入 per-session 状态
+    if (_chatSessionId) {
+        const s = getStreamState(_chatSessionId);
+        s.thinking = val;
+    }
+}
+
+// ===== Getter/Setter: Streaming State =====
+export function setChatStreamAcc(acc) { _chatStreamAcc = acc; }
+export function setChatStreamRow(row) { _chatStreamRow = row; }
+export function setChatStreamBubble(bubble) { _chatStreamBubble = bubble; }
+
+export function getChatSidebarExpanded() { return _chatSidebarExpanded; }
+export function setChatSidebarExpanded(v) { _chatSidebarExpanded = v; }
 
 // ===== Getter/Setter: Model Selection =====
 export function setCurrentModel(model) { _chatCurrentModel = model; }
@@ -136,18 +153,19 @@ export function ensureSessionReady() {
 // ===== Per-Session Streaming Helpers =====
 export function getStreamState(sessionId) {
     if (!_streamState.has(sessionId)) {
-        _streamState.set(sessionId, { acc: '', row: null, bubble: null, thinkingSteps: [], thinking: false });
+        _streamState.set(sessionId, { acc: '', row: null, bubble: null, thinkingSteps: [], thinking: false, sending: false });
     }
     return _streamState.get(sessionId);
 }
 
 export function syncStreamFromCurrent() {
     const sid = _chatSessionId;
-    if (!sid) { _chatStreamAcc = ''; _chatStreamRow = null; _chatStreamBubble = null; return; }
+    if (!sid) { _chatStreamAcc = ''; _chatStreamRow = null; _chatStreamBubble = null; _isSending = false; _isThinking = false; return; }
     const s = getStreamState(sid);
     _chatStreamAcc = s.acc; _chatStreamRow = s.row; _chatStreamBubble = s.bubble;
     _thinkingSteps = s.thinkingSteps || [];
     _isThinking = s.thinking || false;
+    _isSending = s.sending || false;
 }
 
 export function syncStreamToCurrent() {
@@ -157,6 +175,7 @@ export function syncStreamToCurrent() {
     s.acc = _chatStreamAcc; s.row = _chatStreamRow; s.bubble = _chatStreamBubble;
     s.thinkingSteps = _thinkingSteps || [];
     s.thinking = _isThinking || false;
+    s.sending = _isSending || false;
 }
 
 // ===== Streaming Badge =====

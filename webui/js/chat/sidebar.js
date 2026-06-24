@@ -1,5 +1,5 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
-import { getWs } from '../core.js?v=1782271407683';
+import { getWs } from '../core.js?v=1782276226306';
 import {
   _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
@@ -9,11 +9,12 @@ import {
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, setThinkingSteps, setIsThinking, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
-} from './state.js?v=1782271407683';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1782271407683';
-import { updateChatHeader } from './input.js?v=1782271407683';
-import { toast, showInput } from '../components/toast.js?v=1782271407683';
-import { chatConfirm } from './toast.js?v=1782271407683';
+} from './state.js?v=1782276226306';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1782276226306';
+import { chatThinkingHide } from './thinking.js?v=1782276226306';
+import { updateChatHeader } from './input.js?v=1782276226306';
+import { toast, showInput } from '../components/toast.js?v=1782276226306';
+import { chatConfirm } from './toast.js?v=1782276226306';
 
 // ===== 从 page_cache 读取 agents 列表 =====
 function getAgentsFromCache() {
@@ -367,10 +368,13 @@ export function selectChatSession(session, agent) {
         if (typeof renderMarkdown === 'function') textEl.appendChild(renderMarkdown(_chatStreamAcc));
         else textEl.innerHTML = chatRenderMarkdown(_chatStreamAcc);
       }
-      const container = document.getElementById('chatMessages');
-      if (container) container.scrollTop = container.scrollHeight;
       if (typeof updateStreamingBadge === 'function' && _chatStreamAcc) updateStreamingBadge(_sid, true);
     }
+    // 无论是否有流式 DOM，都滚动到底部（缓存恢复后 DOM 可能未渲染完成，用 rAF 确保）
+    requestAnimationFrame(function() {
+      const container = document.getElementById('chatMessages');
+      if (container) container.scrollTop = container.scrollHeight;
+    });
   } else {
     // 无缓存：HTTP 加载历史消息
     if (_sid) {

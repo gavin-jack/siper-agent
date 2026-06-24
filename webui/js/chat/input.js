@@ -1,5 +1,5 @@
 // chat/input.js — 输入框、文件上传、模型选择
-import { getWs, setWs } from '../core.js?v=1782271407683';
+import { getWs, setWs } from '../core.js?v=1782276226306';
 import {
   _chatSessionId, _chatCurrentAgent, _chatCurrentPage,
   _chatCurrentModel, _chatModelContextWindow,
@@ -11,7 +11,7 @@ import {
   fmtTokens,
   markSessionReady,
   setChatSessionId,
-} from '../chat/state.js?v=1782271407683';
+} from '../chat/state.js?v=1782276226306';
 
 // 从 page_cache 读取 agents 列表（替代已删除的 chatAgents 变量）
 function _getAgents() {
@@ -21,12 +21,12 @@ function _getAgents() {
   }
   return [];
 }
-import { resetSendState } from '../chat/session.js?v=1782271407683';
+import { resetSendState } from '../chat/session.js?v=1782276226306';
 
 // 全局待发送文件列表，存放 base64 数据、mime、名称及分类
 window.chatPendingFiles = [];
 let chatPendingFiles = window.chatPendingFiles;
-import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js?v=1782271407683';
+import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js?v=1782276226306';
 
 // ------------------------------------------------
 // Ensure a chat input element exists (creates one if missing)
@@ -91,8 +91,8 @@ function _ensureChatInput() {
   if (typeof window !== 'undefined') window._adjustInputHeight = _adjustInputHeight;
 }
 
-import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js?v=1782271407683';
-import { toast } from '../components/toast.js?v=1782271407683';
+import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js?v=1782276226306';
+import { toast } from '../components/toast.js?v=1782276226306';
 
 // ===== File Upload & Preview =====
 
@@ -253,7 +253,7 @@ export async function chatUploadFiles(files) {
 }
 
 // ===== Model Capability Icons =====
-import { CAP_ICONS } from '../utils/capabilities.js?v=1782271407683';
+import { CAP_ICONS } from '../utils/capabilities.js?v=1782276226306';
 
 function _renderCapBadges(capabilities) {
   if (!capabilities || !capabilities.length) return '';
@@ -429,10 +429,6 @@ export async function chatSendMessage() {
   _adjustInputHeight(input);
   chatAppendUserMsg(text || '[文件]');
 
-  // Show thinking panel immediately — does not depend on WS
-  chatThinkingShow();
-  chatThinkingClear();
-  chatThinkingAddTextRow('正在思考...');
   setIsSending(true);
   const sendBtn = document.getElementById('chatSendBtn');
   if (sendBtn) sendBtn.disabled = true;
@@ -446,6 +442,10 @@ export async function chatSendMessage() {
   // Start streaming wave badge on session immediately (before LLM responds)
   updateStreamingBadge(_chatSessionId, true);
   setIsThinking(true);
+  // 显示思考面板（在 setIsThinking 之后，确保 per-session 状态已写入，切换会话不会误显示）
+  chatThinkingShow();
+  chatThinkingClear();
+  chatThinkingAddTextRow('正在思考...');
   const filesToUpload = [...chatPendingFiles];
   if (filesToUpload.length > 0) {
     // 同步构建 images 数组（从已读取的 base64 数据），不等 /api/upload 返回
