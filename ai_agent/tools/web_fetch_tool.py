@@ -65,10 +65,10 @@ class WebFetchTool(BaseTool):
         )
 
     def check_fn(self):
-        """检查网络连通性。"""
+        """检查网络连通性（2s 超时）。"""
         try:
             req = urllib.request.Request("https://www.baidu.com", method="HEAD")
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            with urllib.request.urlopen(req, timeout=2) as resp:
                 return resp.status < 500
         except Exception:
             return False

@@ -5,6 +5,7 @@ Priority: SearXNG (local) > Bing China (fallback) > DuckDuckGo (global fallback)
 
 import json
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import urllib.parse
 import re as _re
 from typing import Dict, Any
@@ -70,28 +71,32 @@ class WebSearchTool(BaseTool):
         )
 
     def check_fn(self):
-        """检查 SearXNG 或 Bing 是否可达。"""
+        """检查外部搜索引擎是否可达（并发 GET 探测，2s 超时）。
+        不检测本地 SearXNG（冷启动延迟 3s+，拖慢工具加载）。"""
+        _ENDPOINTS = [
+            ("https://cn.bing.com/search?q=test", {"User-Agent": "Mozilla/5.0"}),
+            ("https://html.duckduckgo.com/html/?q=test", None),
+        ]
+        def _probe(url, headers):
+            try:
+                req = urllib.request.Request(url, headers=headers or {})
+                with urllib.request.urlopen(req, timeout=2) as resp:
+                    return resp.status == 200
+            except Exception:
+                return False
+
+        pool = ThreadPoolExecutor(max_workers=2)
+        futures = [pool.submit(_probe, url, hdrs) for url, hdrs in _ENDPOINTS]
         try:
-            req = urllib.request.Request("http://127.0.0.1:8888/search?q=test&format=json", method="HEAD")
-            with urllib.request.urlopen(req, timeout=3) as resp:
-                return resp.status == 200
-        except Exception:
-            pass
-        # Bing China fallback check
-        try:
-            req = urllib.request.Request("https://cn.bing.com/search?q=test", method="HEAD",
-                                         headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                return resp.status == 200
-        except Exception:
-            pass
-        # DuckDuckGo fallback check
-        try:
-            req = urllib.request.Request("https://html.duckduckgo.com/html/?q=test", method="HEAD")
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                return resp.status == 200
-        except Exception:
-            return False
+            for fut in as_completed(futures, timeout=3):
+                try:
+                    if fut.result():
+                        return True
+                except Exception:
+                    pass
+        finally:
+            pool.shutdown(wait=False)
+        return False
 
     async def execute(self, parameters: Dict[str, Any]) -> ToolResult:
         query = parameters.get("query", "")

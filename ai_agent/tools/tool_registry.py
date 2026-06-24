@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
+from concurrent.futures import ThreadPoolExecutor
 from .toolsets import resolve_toolset
 
 
@@ -324,17 +325,47 @@ class ToolRegistry:
             return False
 
     def get_available_tools(self) -> List[Dict]:
-        """Get list of available tools with metadata, filtered by toolsets."""
-        tools_list = []
+        """Get list of available tools with metadata, filtered by toolsets.
+        Runs all check_fn calls concurrently to avoid serial blocking."""
         enabled = self._resolve_enabled_tools()
+        # Phase 1: collect tools that need check_fn (no TTL cache hit)
+        need_check = []  # (name, tool)
+        skip = set()  # names filtered out by toolset or unavailable
         for name, tool in self.tools.items():
-            # Toolset filtering
             if enabled is not None:
                 tool_toolsets = set(tool.metadata.toolsets)
                 if not tool_toolsets.intersection(enabled):
+                    skip.add(name)
                     continue
-            # Availability check (check_fn with TTL cache)
-            if not self._check_tool_available(name):
+            # TTL cache check (fast path)
+            avail = self._cached_availability(name)
+            if avail is False:
+                skip.add(name)
+            elif avail is True:
+                pass  # will include below
+            else:
+                need_check.append((name, tool))
+
+        # Phase 2: run all check_fn concurrently
+        if need_check:
+            with ThreadPoolExecutor(max_workers=min(len(need_check), 8)) as pool:
+                futures = {}
+                for name, tool in need_check:
+                    check_fn = getattr(tool, 'check_fn', None)
+                    if check_fn is None:
+                        continue
+                    futures[name] = pool.submit(self._run_check_fn, name, check_fn)
+                for name, fut in futures.items():
+                    try:
+                        if not fut.result(timeout=10):
+                            skip.add(name)
+                    except Exception:
+                        skip.add(name)
+
+        # Phase 3: build result list
+        tools_list = []
+        for name, tool in self.tools.items():
+            if name in skip:
                 continue
             tools_list.append({
                 'name': name,
@@ -344,6 +375,28 @@ class ToolRegistry:
                 'category': tool.metadata.category.value
             })
         return tools_list
+
+    def _cached_availability(self, tool_name: str):
+        """Return True/False if cached and fresh, None if needs recheck."""
+        now = time.time()
+        if tool_name in _tool_availability_cache:
+            avail, ts = _tool_availability_cache[tool_name]
+            if now - ts < _AVAILABILITY_TTL:
+                return avail
+            del _tool_availability_cache[tool_name]
+        return None
+
+    def _run_check_fn(self, tool_name: str, check_fn) -> bool:
+        """Run a single check_fn and cache the result."""
+        now = time.time()
+        try:
+            avail = check_fn()
+            if asyncio.iscoroutine(avail):
+                avail = asyncio.get_event_loop().run_until_complete(avail)
+        except Exception:
+            avail = False
+        _tool_availability_cache[tool_name] = (avail, now)
+        return avail
 
     def _resolve_enabled_tools(self) -> Optional[Set[str]]:
         """Resolve enabled toolsets to a set of tool names."""
@@ -360,29 +413,17 @@ class ToolRegistry:
         return result
 
     def _check_tool_available(self, tool_name: str) -> bool:
-        """Check tool availability via check_fn with TTL cache."""
-        now = time.time()
-        if tool_name in _tool_availability_cache:
-            avail, ts = _tool_availability_cache[tool_name]
-            if now - ts < _AVAILABILITY_TTL:
-                return avail
-            # Expired entry, remove it
-            del _tool_availability_cache[tool_name]
+        """Check tool availability via check_fn with TTL cache (backward compat)."""
+        cached = self._cached_availability(tool_name)
+        if cached is not None:
+            return cached
         tool = self.tools.get(tool_name)
         if tool is None:
             return False
-        # Check if tool has a check_fn
         check_fn = getattr(tool, 'check_fn', None)
         if check_fn is None:
             return True  # No check_fn = always available
-        try:
-            avail = check_fn()
-            if asyncio.iscoroutine(avail):
-                avail = asyncio.get_event_loop().run_until_complete(avail)
-        except Exception:
-            avail = False
-        _tool_availability_cache[tool_name] = (avail, now)
-        return avail
+        return self._run_check_fn(tool_name, check_fn)
 
     def get_tools_by_toolset(self, toolset: str) -> List[str]:
         """Get all tools in a specific toolset."""
