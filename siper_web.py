@@ -585,11 +585,14 @@ async def main():
         import traceback; traceback.print_exc()
         _config_db = None
 
-    # Inject config_db into handlers module (agent 已提前注入)
+    # Inject config_db / _models_db into handlers module (agent 已提前注入)
+    from ai_agent.api import handlers as _handlers
     if _config_db:
-        from ai_agent.api import handlers as _handlers
         _handlers._config_db = _config_db
         print(f"✔ config_db injected into handlers")
+    if _models_db:
+        _handlers._models_db = _models_db
+        print(f"✔ _models_db injected into handlers")
     # API key priority: env LONGCAT_API_KEY > default model key > .env file
     if _gm_models:
         _first = _gm_models[0]
@@ -3768,6 +3771,14 @@ async def main():
         api_get_system_stats, api_get_project_structure, api_get_tools,
         api_upgrade_check, api_upgrade_execute,
         api_get_status,
+        api_get_logs,
+        api_get_global_models, api_save_global_models,
+        api_discover_models, api_rename_provider, api_update_provider_name,
+        api_reset_models, api_delete_model,
+        api_get_token_stats,
+        api_get_config_global, api_save_config_global,
+        api_get_config_agent, api_save_config_agent,
+        api_get_agent_models_api, api_save_agent_models_api, api_set_agent_model,
     )
     _handlers_for_routes = {
         "api_get_sessions": api_get_sessions,
@@ -3786,25 +3797,65 @@ async def main():
         "api_get_tools": api_get_tools,
         "api_upgrade_check": api_upgrade_check,
         "api_upgrade_execute": api_upgrade_execute,
+        "api_get_status": api_get_status,
+        "api_get_logs": api_get_logs,
+        # 模型管理（handlers.py 中的）
+        "api_get_global_models": api_get_global_models,
+        "api_save_global_models": api_save_global_models,
+        "api_discover_models": api_discover_models,
+        "api_rename_provider": api_rename_provider,
+        "api_update_provider_name": api_update_provider_name,
+        "api_reset_models": api_reset_models,
+        "api_delete_model": api_delete_model,
+        # Token / Config DB
+        "api_get_token_stats": api_get_token_stats,
+        "api_get_config_global": api_get_config_global,
+        "api_save_config_global": api_save_config_global,
+        "api_get_config_agent": api_get_config_agent,
+        "api_save_config_agent": api_save_config_agent,
+        "api_get_agent_models_api": api_get_agent_models_api,
+        "api_save_agent_models_api": api_save_agent_models_api,
+        "api_set_agent_model": api_set_agent_model,
     }
+    # 添加 main() 内部定义的 handlers（不在 handlers.py 中）
+    if 'api_create_provider' in dir():
+        _handlers_for_routes["api_create_provider"] = api_create_provider
+    if 'api_test_model' in dir():
+        _handlers_for_routes["api_test_model"] = api_test_model
+    # Agent handlers
+    _handlers_for_routes.update({
+        "api_get_agents": api_get_agents,
+        "api_save_agent_meta": api_save_agent_meta,
+        "api_get_agent_soul": api_get_agent_soul,
+        "api_get_agent_config": api_get_agent_config,
+        "api_get_agent_memory": api_get_agent_memory,
+        "api_save_agent_file": api_save_agent_file,
+        "api_switch_agent": api_switch_agent,
+        "api_create_agent": api_create_agent,
+        "api_delete_agent": api_delete_agent,
+        "api_rename_agent": api_rename_agent,
+    })
+    # Theme handlers
+    _handlers_for_routes.update({
+        "api_theme_list_templates": api_theme_list_templates,
+        "api_theme_save": api_theme_save,
+        "api_theme_load": api_theme_load,
+        "api_theme_delete": api_theme_delete,
+        "api_theme_export": api_theme_export,
+        "api_theme_import": api_theme_import,
+    })
+    # Memory handlers
+    _handlers_for_routes.update({
+        "api_get_memory": api_get_memory,
+        "api_write_memory": api_write_memory,
+        "api_delete_memory": api_delete_memory,
+        "api_get_memory_config": api_get_memory_config,
+        "api_save_memory_config": api_save_memory_config,
+    })
     register_routes(api_router, agent, snapshot_mgr, carrier_mgr, _handlers_for_routes)
     logger.info(f"[起源] API 路由注册完成，共 {len(api_router.routes)} 条路由")
 
     logger.info("[起源] SnapshotManager / CarrierManager / Router / DatabaseManager 已初始化")
-    # 注册 API 路由（必须在 main() 初始化阶段完成，不依赖 api_get_logs 调用）
-    from ai_agent.api.handlers import (
-        api_get_sessions, api_get_session_messages, api_delete_session,
-        api_rename_session, api_save_response_dict,
-    )
-    _handlers_for_routes = {
-        "api_get_sessions": api_get_sessions,
-        "api_get_session_messages": api_get_session_messages,
-        "api_delete_session": api_delete_session,
-        "api_rename_session": api_rename_session,
-        "api_save_response_dict": api_save_response_dict,
-    }
-    register_routes(api_router, agent, snapshot_mgr, carrier_mgr, _handlers_for_routes)
-    logger.info(f"[起源] API 路由注册完成，共 {len(api_router.routes)} 条路由")
 
     logger.info("[起源] SnapshotManager / CarrierManager / Router / DatabaseManager 已初始化")
 

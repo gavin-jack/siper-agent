@@ -153,6 +153,10 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
         _h._log_buffer = _sw._log_buffer
     if hasattr(_sw, '_LOG_I18N_CACHE'):
         _h._LOG_I18N_CACHE = _sw._LOG_I18N_CACHE
+    if hasattr(_sw, '_models_db'):
+        _h._models_db = _sw._models_db
+    if hasattr(_sw, '_config_db'):
+        _h._config_db = _sw._config_db
 
     async def _sync_snapshot():
         """数据变更后同步 agents+sessions 到快照"""
