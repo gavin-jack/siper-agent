@@ -31,10 +31,26 @@ export function appendStream(delta, streamSessionId) {
     // 如果用户已经停止，忽略晚期 delta
     if (!_isSending) return;
 
-    // 跨会话流式：只更新状态，不渲染
+    // 跨会话流式：更新状态 + 缓存中的 DOM（如果存在）
     if (streamSessionId && _chatSessionId && streamSessionId !== _chatSessionId) {
         const s = getStreamState(streamSessionId);
         s.acc += delta || '';
+        // 更新缓存中的流式 DOM（如果该 session 的 DOM 在缓存中）
+        if (typeof window._sessionDomCache !== 'undefined') {
+            const cached = window._sessionDomCache.get(streamSessionId);
+            if (cached && cached.streamRow) {
+                const textEl = cached.streamRow.querySelector('.siper-stream-text');
+                if (textEl) {
+                    const accLen = s.acc.length;
+                    if (accLen < 200 || accLen % 3 === 0 || (delta && delta.length > 50)) {
+                        textEl.innerHTML = '';
+                        if (typeof renderMarkdown === 'function') textEl.appendChild(renderMarkdown(s.acc));
+                        else textEl.innerHTML = chatRenderMarkdown(s.acc);
+                    }
+                }
+                cached.streamRow.dataset.rawText = s.acc;
+            }
+        }
         return;
     }
 
@@ -102,12 +118,16 @@ export function appendStream(delta, streamSessionId) {
  * 对应 core.js 的 chatHandleStreamEnd()
  */
 export function finalizeStream(data, streamSessionId) {
-    // 跨会话：只清理 per-session 状态，不操作全局思考面板
+    // 跨会话：清理 per-session 状态 + 缓存中的流式 DOM
     if (streamSessionId && _chatSessionId && streamSessionId !== _chatSessionId) {
         const s = getStreamState(streamSessionId);
         s.thinking = false;
         s.thinkingSteps = [];
         s.row = null; s.bubble = null; s.acc = '';
+        // 从缓存中移除该 session 的流式 DOM（已 finalize，缓存内容过时）
+        if (typeof window._sessionDomCache !== 'undefined' && window._sessionDomCache.has(streamSessionId)) {
+            window._sessionDomCache.delete(streamSessionId);
+        }
         updateStreamingBadge(streamSessionId, false);
         return;
     }

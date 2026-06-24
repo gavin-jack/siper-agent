@@ -1,5 +1,5 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
-import { getWs } from '../core.js?v=1782239267972';
+import { getWs } from '../core.js?v=1782271407683';
 import {
   _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
@@ -9,11 +9,11 @@ import {
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, setThinkingSteps, setIsThinking, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
-} from './state.js?v=1782239267972';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay } from './message.js?v=1782239267972';
-import { updateChatHeader } from './input.js?v=1782239267972';
-import { toast, showInput } from '../components/toast.js?v=1782239267972';
-import { chatConfirm } from './toast.js?v=1782239267972';
+} from './state.js?v=1782271407683';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1782271407683';
+import { updateChatHeader } from './input.js?v=1782271407683';
+import { toast, showInput } from '../components/toast.js?v=1782271407683';
+import { chatConfirm } from './toast.js?v=1782271407683';
 
 // ===== 从 page_cache 读取 agents 列表 =====
 function getAgentsFromCache() {
@@ -22,6 +22,34 @@ function getAgentsFromCache() {
     if (agents) return agents;
   }
   return [];
+}
+
+// ===== Per-session DOM 缓存 =====
+// 保存每个会话的 chatMessages innerHTML + streamRow，切换会话时保留流式 DOM
+// key = sessionId, value = { html: string, streamRow: HTMLElement|null }
+const _sessionDomCache = new Map();
+// 暴露给 stream.js 用于跨会话 delta 更新缓存 DOM
+window._sessionDomCache = _sessionDomCache;
+
+/** 保存当前会话的 DOM 到缓存 */
+function _saveDomCache(sessionId) {
+  if (!sessionId) return;
+  const container = document.getElementById('chatMessages');
+  if (!container) return;
+  const streamRow = container.querySelector('.siper-stream-row');
+  if (streamRow) streamRow.remove();
+  _sessionDomCache.set(sessionId, { html: container.innerHTML, streamRow: streamRow || null });
+}
+
+/** 从缓存恢复 DOM，返回是否命中 */
+function _restoreDomCache(sessionId) {
+  const cached = _sessionDomCache.get(sessionId);
+  if (!cached) return false;
+  const container = document.getElementById('chatMessages');
+  if (!container) return false;
+  container.innerHTML = cached.html;
+  if (cached.streamRow) container.appendChild(cached.streamRow);
+  return true;
 }
 
 // ===== Unread Badge =====
@@ -274,6 +302,10 @@ export function selectChatSession(session, agent) {
   if (typeof _chatStreamRow !== 'undefined' && _chatStreamRow) _chatStreamRow.style.display = 'none';
   const prevSid = _chatSessionId;
   const _prevAgent = _chatCurrentAgent;
+
+  // ★ 切换前：保存当前会话 DOM 到缓存（含流式 DOM）
+  if (prevSid) _saveDomCache(prevSid);
+
   setChatSessionId(session.session_id);
   setChatCurrentAgent(agent);
   // 中栏只更新 active class，不触发全量 rebuild（debounce 的 renderMiddleList 已足够）
@@ -322,34 +354,35 @@ export function selectChatSession(session, agent) {
       panel.classList.add('open');
     }
   }
-  // If target session has active stream, show it immediately
-  if (_chatStreamRow) {
-    _chatStreamRow.style.display = '';
-    // Re-render text in case deltas arrived while hidden
-    const textEl = _chatStreamRow.querySelector('.siper-stream-text');
-    if (textEl && _chatStreamAcc) {
-      textEl.innerHTML = '';
-      if (typeof renderMarkdown === 'function') textEl.appendChild(renderMarkdown(_chatStreamAcc));
-      else textEl.innerHTML = chatRenderMarkdown(_chatStreamAcc);
-    }
-    const container = document.getElementById('chatMessages');
-    if (container) container.scrollTop = container.scrollHeight;
-    // Start wave badge for resumed stream — only if stream is still active (has accumulated text)
-    if (typeof updateStreamingBadge === 'function' && _chatStreamAcc) updateStreamingBadge(session.session_id, true);
-  }
-  // WS messages 推送到达后由 renderer.js 渲染，无需 HTTP 兜底
-  // 但首次点击会话时，需要主动请求消息（WS 推送可能在当前 agent 未连接时不会自动发送）
-  // 调用 POST /api/sessions/{sid} 获取消息
+  // ★ 切换后：优先从缓存恢复 DOM，无缓存则 HTTP 加载
   const _sid = session.session_id;
-  if (_sid) {
-    fetch('/api/sessions/' + encodeURIComponent(_sid))
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        if (d.success && Array.isArray(d.messages) && typeof window.renderChatMessages === 'function') {
-          window.renderChatMessages(d.messages);
-        }
-      })
-      .catch(function(e) { console.error('[sidebar] load session messages failed:', e); });
+  const _cacheHit = _sid && _restoreDomCache(_sid);
+  if (_cacheHit) {
+    // 缓存命中：DOM 已恢复，恢复流式状态
+    if (_chatStreamRow) {
+      _chatStreamRow.style.display = '';
+      const textEl = _chatStreamRow.querySelector('.siper-stream-text');
+      if (textEl && _chatStreamAcc) {
+        textEl.innerHTML = '';
+        if (typeof renderMarkdown === 'function') textEl.appendChild(renderMarkdown(_chatStreamAcc));
+        else textEl.innerHTML = chatRenderMarkdown(_chatStreamAcc);
+      }
+      const container = document.getElementById('chatMessages');
+      if (container) container.scrollTop = container.scrollHeight;
+      if (typeof updateStreamingBadge === 'function' && _chatStreamAcc) updateStreamingBadge(_sid, true);
+    }
+  } else {
+    // 无缓存：HTTP 加载历史消息
+    if (_sid) {
+      fetch('/api/sessions/' + encodeURIComponent(_sid))
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.success && Array.isArray(d.messages) && typeof window.renderChatMessages === 'function') {
+            window.renderChatMessages(d.messages);
+          }
+        })
+        .catch(function(e) { console.error('[sidebar] load session messages failed:', e); });
+    }
   }
 }
 
