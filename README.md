@@ -2,7 +2,7 @@
 
 > **一个独立的 AI Agent 框架 — 有状态 UI · 多模型 · 多 Agent · 27 个内置工具 · 三语言 · 前后端隔离**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org) [![Version](https://img.shields.io/badge/Version-v0.2.4-green.svg)](https://github.com/gavin-jack/siper-agent/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org) [![Version](https://img.shields.io/badge/Version-v0.2.5-green.svg)](https://github.com/gavin-jack/siper-agent/releases)
 
 **核心仅依赖 `openai` + `websockets` + `jinja2`，27 个工具中 25 个纯 stdlib。完全独立于任何 Agent 框架，不依赖 Hermes / LangChain / AutoGPT。**
 
@@ -337,116 +337,6 @@ siper/
 | `agents/{name}/soul.md` | Agent 人格定义 |
 | `agents/{name}/sessions.db` | 会话数据库（运行时生成） |
 | `agents/{name}/memory.db` | 记忆数据库（运行时生成） |
-
----
-
-## 更新记录
-
-### v0.2.4 (2026-06-23)
-
-#### 调整 (change)
-
-- **会话折叠改为 agent 级触发**：去掉独立的 `_sessions` 记忆 key，改为每次展开 agent 时检查会话数 >3 则自动折叠；折叠后再展开重新折叠，确保始终只显示 3 个 + "查看更多"按钮
-
-#### Bug 修复 (fix)
-
-- **stream.js finalizeStream if(parent) 块闭合缺失（补充修复）**：L150 处 `if (streamTextEl)` 块内 `if (parent)` 缺少闭合 `}` → 整个 ESM 加载链崩溃，页面空白
-
----
-
-### v0.2.3 (2026-06-23)
-
-#### 新功能 (feat)
-
-- **会话折叠**：agent 展开时如果会话列表超过 3 个，自动折叠只显示前 3 个 + "查看更多 (N)"按钮
-- **工具调用合并同类项**：消息气泡 meta 中相同工具名合并显示 `tool_name (count)`，不再逐条列出
-- **去掉思考详情气泡**：LLM 回复气泡中不再追加思考详情（思考面板仍保留在右栏）
-- **初始页面保护**：未点击会话时右栏不创建消息容器、不自动创建输入框、不加载模型列表，防止 WS 推送污染
-- **WS 连接守护**：`connectWS()` 入口检查 `ws.readyState`，避免重复创建 WebSocket
-
-#### Bug 修复 (fix)
-
-- **stream.js SyntaxError（根因级）**：`finalizeStream()` 中 `if (parent)` 块缺少闭合 `}` → ESM 加载失败 → 页面完全空白
-- **core.js 重复 export connectWS**：语法错误导致双 WebSocket 连接风暴，每 ~1 秒断连重连
-- **input.js loadChatModels 覆盖 page_cache sessions**：会话切换后中栏会话列表为空
-- **agent-config.js agentConfigTitle null**：多余 DOM 引用导致 agent 配置页面崩溃
-- **theme.js/input.js 6 个函数未挂载 window**：inline onclick 调用报 undefined
-
-#### 重构 (refactor)
-
-- **console.log 清理**：input.js、core.js 中 12 处调试日志全部移除
-- **renderer.js 未使用 export 清理**：删除 `appendMeta` 和 `debugHighlight`
-- **markSessionReady 移除 _ensureChatInput**：配合初始页面保护
-- **loadChatModels 条件调用**：只在 `showInput=true` 时调用，防止覆盖初始标题
-- **cache-buster 正则修复**：Python raw string 转义错误导致 JS 更新不生效
-
----
-
-### v0.2.2 (2026-06-17)
-
-#### 新功能 (feat)
-- **Toast 系统重构**：弹出位置从侧边栏左侧改为页面顶部居中，倒计时规则统一（success=1.5s / error=3s / warning=2s / info=2s），弹出框独立页面正中央
-- **启动/停止 CLI 输出优化**：`siper.sh start` 按实际启动顺序显示进度（内存写入 → 启动验证 → 前端地址），`siper.sh stop` 显示关闭过程
-- **跨平台 `siper` 命令**：WSL2 `~/.local/bin/siper` 软链接 + Windows `C:\Users\Gavin\bin\siper.bat` 转发 `wsl -e bash`
-- **GitHub 推送规则**：推送前必须告知当前版本号，给出 3 个选项（patch/minor/major）让用户选择
-
-#### Bug 修复 (fix)
-- **startup.log 内容缺失**：Agent 初始化 `open("w")` 覆盖模型写入内存和 LLM 配置内容 → 改为 `open("a")` 追加
-- **siper.sh 重启失败**：tee 管道过滤导致 Python stdout 丢失 → 去掉 tee，Python 直接 `>> "$LOG_FILE"`
-
-#### 重构 (refactor)
-- **CSS 架构迁移**：`style.css`（4,904 行死文件）彻底删除，内容完整迁移至 `base.css` / `chat.css` / `page.css`
-- **Toast/弹出框容器解耦**：Toast 挂 `#siperNotifRoot`（fixed 顶部居中），弹出框 overlay 直挂 `document.body`（fixed inset:0），两者独立定位
-- **69 个 `js-*` 工具类 CSS 补充**：工具页面 / 统计页面 / 目录页面 / 模型管理页面等独立页面样式完整迁移
-- **原生 confirm/prompt 替换**：`model-settings.js` 3 处原生对话框全部替换为 `showConfirm` / `showInput`
-
-### v0.2.1 (2026-06-17)
-
-#### 新功能 (feat)
-- **Hash 路由系统**：全面 SPA Hash 路由（`#/chat` / `#/model-settings` / `#/monitor?tab=token`），支持浏览器前进 / 后退
-- **CSS 按需加载**：`base.css` / `chat.css` / `page.css` 三文件拆分，按页面动态加载，整体 CSS 从 246KB → 265KB（更有序）
-- **SnapshotManager 内存容器**：启动预填充 + 增量同步 + 周期性 GC + 快照持久化（5s），断线自动补发 delta
-- **三模板 SPA 架构**：`#page-chat` / `#page-standalone` / `#page-dynamic` 三容器路由，侧边栏常驻
-- **模型卡片 UI 增强**：能力标签走马灯 / TTFT 速度颜色编码 / 入场动画 / 分组合并显示
-- **模型验证结果持久化**：验证后自动保存到 `models.db`
-- **模型删除 API 双端修复**：Router dispatch DELETE 参数化路由 body 覆盖路径参数问题修复，两种 path 格式兼容
-
-#### Bug 修复 (fix)
-- **消息页布局修复**：`.siper-content` CSS 缺失导致消息区无限增长 → 输入框被顶出页面（根因：`style.css` 含规则但 chat 页面不加载该文件）
-- **消息页无滑块**：`.siper-messages` 缺 `min-height:0` → `overflow-y:auto` 不创建滚动条
-- **「正在思考」面板始终可见**：`display:none` 规则仅存在于 `style.css`，chat 页面不加载 → 移除 `.open` 类后仍显示
-- **复制/嵌入按钮失效**：`copyChatMsg` / `insertChatMsg` 函数随 ESM 重构丢失，未挂载到 `window`
-- **模型验证按钮点击错位**：分组 / 筛选后 `data-idx` 索引错位 → 按 `data-name` 名称查找修复
-- **模型删除 "model 不能为空"**：Router dispatch 对参数化 DELETE 路由传递 `body={}` 覆盖路径参数
-- **会话切换后消息不显示**：`renderChatPage` 未挂载 `window`，切会话后无渲染
-- **侧边栏点击 agent 不展开会话**：`chatToggleAgent` 更新状态后未调 `renderMiddleList()`
-- **ESM 重构导入断裂**：`state.js` 批量加 `_` 前缀导致 3 个文件 295+ 行 import 断裂
-- **CSS 动态加载无缓存破坏**：`loadCss()` 添 `?v=Date.now()`，修改 CSS 后浏览器立即生效
-
-#### 重构 (refactor)
-- **index.html 精简**：删除硬编码页面 HTML，只保留空容器（44 行），所有页面由 JS 渲染
-- **CSS 拆分**：`style.css`（164KB，不被任何页面加载）→ `base.css`（82KB） + `chat.css`（16KB） + `page.css`（66KB）
-- **三模板 SPA**：navigateToPage() 统一路由，`PAGE_LAZY` / `PAGE_TEMPLATE / PAGE_RENDER_FN` 三模式
-- **页面代码清理**：删除废弃 `pages/settings.js` / `token.js` / `skills.js` / `logs.js`
-- **CSS `transition` 时长补全**：20+ 处缺省时长 → `0.2s`
-
-#### 架构改进
-- **全面独立于 Hermes Agent 框架**：SiPer 是完全独立的 Python 应用，仅依赖 3 个 pip 包
-- **per-Agent 数据库隔离**：sessions.db / memory.db 迁移到 `agents/{name}/` 目录
-- **内存泄漏修复**：`active_tasks` → `deque(maxlen=1000)`、`page_cache` TTL + 大小限制
-- **会话 FTS5 瘦身**：FTS5 表分离为独立虚拟表，主表瘦身 40%
-- **Router GET full_path 传参修复**：`api_get_logs` / `api_theme_load` 依赖 query string 的场景修复
-
-### v0.2.0 (2026-06-15)
-
-- 起源架构 Phase 1-4 实施完成，README 全面重写
-- sessions.db FTS 瘦身 + active_sessions LRU 淘汰（MAX=200）
-- 快照同步完善（agents/sessions/expanded_agents）+ Skills 刷新 API
-- 内存泄漏修复：active_tasks → deque(maxlen=1000)、page_cache TTL 限制
-
-### v0.1.x 系列
-
-- 131+ commits，详见 CHANGELOG.md
 
 ---
 
