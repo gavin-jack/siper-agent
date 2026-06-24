@@ -475,9 +475,7 @@ export async function chatSendMessage() {
   // clear pending files after sending
   chatPendingFiles.length = 0;
   renderChatFilePreviews();
-
-  // Reset UI state – UI will be updated by incoming stream messages
-  resetSendState();
+  // 注意：resetSendState() 不在此处调用，_isSending 保持 true 直到 finalizeStream/handleStopped
 }
 
 // Safe WS send: always re-fetch ws reference, check state, wrap in try/catch
