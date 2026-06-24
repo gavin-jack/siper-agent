@@ -2586,7 +2586,7 @@ def api_get_system_stats():
 
     # Models DB size & count
     try:
-        models_db = PROJECT_ROOT / "models.db"
+        models_db = PROJECT_ROOT / "data" / "models.db"
         if models_db.exists():
             result["db_sizes"]["models_db_kb"] = round(_os.path.getsize(str(models_db)) / 1024, 1)
             conn = sqlite3.connect(str(models_db), check_same_thread=False)

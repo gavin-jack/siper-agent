@@ -247,6 +247,9 @@ class MemoryLogHandler(logging.Handler):
             if rid in _log_seen_ids:
                 return
             _log_seen_ids.add(rid)
+            if len(_log_buffer) == 0:
+                with open('/tmp/debug_log.txt', 'w') as _df:
+                    _df.write(f"first entry: {record.name} {record.levelname} {record.getMessage()[:50]}\n")
             # Keep set size bounded
             if len(_log_seen_ids) > _LOG_BUFFER_MAX * 2:
                 _log_seen_ids.clear()
@@ -593,6 +596,7 @@ async def main():
     if _models_db:
         _handlers._models_db = _models_db
         print(f"✔ _models_db injected into handlers")
+    # _token_db_conn / _log_buffer 注入在 _init_token_db() 之后（L832 附近）
     # API key priority: env LONGCAT_API_KEY > default model key > .env file
     if _gm_models:
         _first = _gm_models[0]
@@ -824,6 +828,18 @@ async def main():
     _p = f"✔ Token 数据库：{len(_token_usage_history)} 条历史记录"
     print(_p)
     with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
+
+    # Inject _token_db_conn and _log_buffer into handlers (must be after _init_token_db)
+    global _token_db_conn, _log_buffer  # 声明模块级全局变量，避免 Python 编译器视为局部
+    if _token_db_conn:
+        _handlers._token_db_conn = _token_db_conn
+        print(f"✔ _token_db_conn injected into handlers")
+    _handlers._log_buffer = _log_buffer
+    print(f"✔ _log_buffer injected into handlers (len={len(_log_buffer)})")
+    # DEBUG: verify log capture
+    import sys as _sys
+    _sys.stderr.write(f"[DEBUG] _log_buffer len={len(_log_buffer)}, _mem_handler on logger={any(isinstance(h, MemoryLogHandler) for h in logger.handlers)}\n")
+    _sys.stderr.flush()
 
     # Clean up completely empty sessions (no messages at all) from previous runs
     # Note: sessions with only user messages are NOT deleted - they may be in-flight
@@ -3771,7 +3787,7 @@ async def main():
         api_get_system_stats, api_get_project_structure, api_get_tools,
         api_upgrade_check, api_upgrade_execute,
         api_get_status,
-        api_get_logs,
+        # api_get_logs 在 main() 内 L3704 自定义（使用闭包 _log_buffer），不从 handlers.py 导入
         api_get_global_models, api_save_global_models,
         api_discover_models, api_rename_provider, api_update_provider_name,
         api_reset_models, api_delete_model,
@@ -3799,6 +3815,7 @@ async def main():
         "api_upgrade_execute": api_upgrade_execute,
         "api_get_status": api_get_status,
         "api_get_logs": api_get_logs,
+        "api_get_logs": api_get_logs,
         # 模型管理（handlers.py 中的）
         "api_get_global_models": api_get_global_models,
         "api_save_global_models": api_save_global_models,
@@ -3816,8 +3833,11 @@ async def main():
         "api_get_agent_models_api": api_get_agent_models_api,
         "api_save_agent_models_api": api_save_agent_models_api,
         "api_set_agent_model": api_set_agent_model,
+        "api_get_tools": api_get_tools,
+        "api_upload_file": api_upload_file,
+        "api_upgrade_check": api_upgrade_check,
+        "api_upgrade_execute": api_upgrade_execute,
     }
-    # 添加 main() 内部定义的 handlers（不在 handlers.py 中）
     if 'api_create_provider' in dir():
         _handlers_for_routes["api_create_provider"] = api_create_provider
     if 'api_test_model' in dir():
@@ -3950,7 +3970,7 @@ async def main():
         "api_save_agent_models_api": api_save_agent_models_api,
         "api_set_agent_model": api_set_agent_model,
     }
-    _register_routes(api_router, agent, snapshot_mgr, carrier_mgr, _handlers)
+    # 第二次 register_routes 已删除：与第一次（L3874）重复注册，导致 /api/logs 等路由被 handlers.py 版本覆盖（log_buffer=None → 返回空）
     logger.info(f"[起源] API 路由注册完成，共 {len(api_router.routes)} 条路由")
     # 调试：打印所有注册的路由
     for m, p, fn in api_router.routes:

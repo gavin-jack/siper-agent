@@ -1,7 +1,7 @@
 // chat-pages/model-settings.js — 模型设置页面
 // 2026-08-25: 提取常量映射、CSS class 替代内联 style、简化 copyModelName
-import { fmtSpeed } from '../../utils/format.js?v=1782262241789';
-import { apiGetCached } from '../../utils/api.js?v=1782262241789';
+import { fmtSpeed } from '../../utils/format.js?v=1782307847443';
+import { apiGetCached } from '../../utils/api.js?v=1782307847443';
 
 // ===== 状态 =====
 export let settingsModelsCache = [];
@@ -145,7 +145,8 @@ export function loadSettingsModels() {
   var list = document.getElementById('settingsModelsList');
   if (list) list.innerHTML = '<div class="siper-loading siper-loading--sm">加载模型数据中...</div>';
   apiGetCached('/api/models/global', 'model-settings').then(function(data) {
-    settingsModelsCache = (data.models || []).map(function(m) {
+    var models = data && Array.isArray(data.models) ? data.models : [];
+    settingsModelsCache = models.map(function(m) {
       return Object.assign({}, m, {
         _ttft: m.ttft ?? m._ttft ?? null, _streaming: m.streaming ?? m._streaming ?? null,
         _context_window_tested: m.context_window_tested ?? m._context_window_tested ?? null,
