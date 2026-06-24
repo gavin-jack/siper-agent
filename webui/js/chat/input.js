@@ -1,5 +1,5 @@
 // chat/input.js — 输入框、文件上传、模型选择
-import { getWs, setWs } from '../core.js?v=1782239507443';
+import { getWs, setWs } from '../core.js?v=1782271407683';
 import {
   _chatSessionId, _chatCurrentAgent, _chatCurrentPage,
   _chatCurrentModel, _chatModelContextWindow,
@@ -11,7 +11,7 @@ import {
   fmtTokens,
   markSessionReady,
   setChatSessionId,
-} from '../chat/state.js?v=1782239507443';
+} from '../chat/state.js?v=1782271407683';
 
 // 从 page_cache 读取 agents 列表（替代已删除的 chatAgents 变量）
 function _getAgents() {
@@ -21,12 +21,12 @@ function _getAgents() {
   }
   return [];
 }
-import { resetSendState } from '../chat/session.js?v=1782239507443';
+import { resetSendState } from '../chat/session.js?v=1782271407683';
 
 // 全局待发送文件列表，存放 base64 数据、mime、名称及分类
 window.chatPendingFiles = [];
 let chatPendingFiles = window.chatPendingFiles;
-import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js?v=1782239507443';
+import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js?v=1782271407683';
 
 // ------------------------------------------------
 // Ensure a chat input element exists (creates one if missing)
@@ -91,8 +91,8 @@ function _ensureChatInput() {
   if (typeof window !== 'undefined') window._adjustInputHeight = _adjustInputHeight;
 }
 
-import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js?v=1782239507443';
-import { toast } from '../components/toast.js?v=1782239507443';
+import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js?v=1782271407683';
+import { toast } from '../components/toast.js?v=1782271407683';
 
 // ===== File Upload & Preview =====
 
@@ -253,7 +253,7 @@ export async function chatUploadFiles(files) {
 }
 
 // ===== Model Capability Icons =====
-import { CAP_ICONS } from '../utils/capabilities.js?v=1782239507443';
+import { CAP_ICONS } from '../utils/capabilities.js?v=1782271407683';
 
 function _renderCapBadges(capabilities) {
   if (!capabilities || !capabilities.length) return '';
@@ -461,15 +461,15 @@ export async function chatSendMessage() {
     // 异步上传文件到磁盘（不阻塞 WS 发送）
     chatUploadFiles(filesToUpload).catch(e => { console.error('[input] background upload failed:', e); });
     // 立即通过 WS 发送（不等上传完成）
-    const payload = { type: 'message', content, session_id: _chatSessionId };
+    const payload = { type: 'message', content, session_id: _chatSessionId, agent: _chatCurrentAgent?.name || 'default' };
     if (!_wsSend(payload)) { resetSendState(); return; }
     // also send images if any
     if (images.length) {
-      if (!_wsSend({ type: 'message', content, session_id: _chatSessionId, images })) { resetSendState(); return; }
+      if (!_wsSend({ type: 'message', content, session_id: _chatSessionId, images, agent: _chatCurrentAgent?.name || 'default' })) { resetSendState(); return; }
     }
   } else {
     // plain text message
-    if (!_wsSend({ type: 'message', content: text, session_id: _chatSessionId })) { resetSendState(); return; }
+    if (!_wsSend({ type: 'message', content: text, session_id: _chatSessionId, agent: _chatCurrentAgent?.name || 'default' })) { resetSendState(); return; }
   }
 
   // clear pending files after sending
