@@ -1,5 +1,5 @@
 // chat/message.js — 消息渲染与管理
-import { getWs } from '../core.js?v=1782262241789';
+import { getWs } from '../core.js?v=1782317767822';
 import {
   _chatSessionId, _chatCurrentAgent,
   _chatCurrentModel, _chatModelContextWindow,
@@ -12,10 +12,10 @@ import {
   setChatCurrentModel, setChatModelContextWindow,
   setChatSessionId, getIsSending, getStreamState,
   _isSending,
-} from '../chat/state.js?v=1782262241789';
-import { resetSendState } from '../chat/session.js?v=1782262241789';
-import { chatThinkingHide } from '../chat/thinking.js?v=1782262241789';
-import { toast } from '../components/toast.js?v=1782262241789';
+} from '../chat/state.js?v=1782317767822';
+import { resetSendState } from '../chat/session.js?v=1782317767822';
+import { chatThinkingHide } from '../chat/thinking.js?v=1782317767822';
+import { toast } from '../components/toast.js?v=1782317767822';
 
 // ===== Markdown & HTML Helpers =====
 
@@ -51,6 +51,26 @@ export function playNotifySound() {
 
 // ===== Message Rendering =====
 
+/**
+ * 消息时间格式化：当日 HH:MM:SS，昨日及以前 YYYY-MM-DD HH:MM:SS
+ * @param {number|string} [ts] — 时间戳或 ISO 字符串，不填用当前时间
+ * @returns {string}
+ */
+export function formatMessageTime(ts) {
+  const d = ts ? new Date(ts) : new Date();
+  if (isNaN(d.getTime())) return '--';
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const h = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  const s = String(d.getSeconds()).padStart(2, '0');
+  if (isToday) return h + ':' + mi + ':' + s;
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + mo + '-' + day + ' ' + h + ':' + mi + ':' + s;
+}
+
 export function chatAppendUserMsg(text) {
   const msgs = document.getElementById('chatMessages');
   if (!msgs) return;
@@ -58,7 +78,7 @@ export function chatAppendUserMsg(text) {
   if (empty) empty.style.display = 'none';
   const row = document.createElement('div');
   row.className = 'siper-msg-row user';
-  const timeStr = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const timeStr = formatMessageTime();
   row.innerHTML = `
     <div class="siper-bubble-col">
       <div class="siper-msg-time">${timeStr}</div>
@@ -85,7 +105,7 @@ export function chatAppendAgentMsg(text, meta) {
   if (empty) empty.style.display = 'none';
   const row = document.createElement('div');
   row.className = 'siper-msg-row agent';
-  const timeStr = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const timeStr = formatMessageTime();
   const avatarUrl = _chatCurrentAgent && _chatCurrentAgent.name
     ? '/api/avatar?agent=' + encodeURIComponent(_chatCurrentAgent.name)
     : '/static/default_avatar.webp';
@@ -204,9 +224,7 @@ export function chatAddMessage(text, isAgent, meta, timestamp, scroll, agentName
     if (!container) return null;
     const row = document.createElement('div');
     row.className = 'siper-msg-row' + (isAgent ? ' agent' : ' user');
-    const time = timestamp
-      ? new Date(timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})
-      : new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    const time = formatMessageTime(timestamp);
     const avatarSrc = isAgent
       ? (agentName ? '/api/avatar?agent=' + encodeURIComponent(agentName) : '/static/default_avatar.webp')
       : '/static/user_avatar.png';
