@@ -459,6 +459,11 @@ def api_rename_session(sid, body):
         return {"success": False, "error": str(e)}
 
 
+def api_clear_sessions(body):
+    """Clear all sessions (placeholder — not implemented, router requires it)."""
+    return {"success": False, "error": "Not implemented"}
+
+
 def api_save_response_dict(body):
     """Save the full response dict from dict modal to the message's meta column."""
     try:

@@ -54,17 +54,16 @@ class Router:
         return deco
 
     async def dispatch(self, method: str, path: str, body=None, full_path=None):
-        """Dispatch 请求到匹配的路由处理函数。
+        """Dispatch request to matching route handler.
 
-        支持路径参数：/api/sessions/{sid} 匹配 /api/sessions/abc123
-        路径参数通过关键字参数传递给处理函数。
+        Supports path parameters: /api/sessions/{sid} matches /api/sessions/abc123
+        Path parameters passed as keyword arguments to handler.
         """
-        # DELETE 通常没有 body，即使 body={} 也不应作为第一参数传给 handler
         _pass_body = method in ("POST", "PUT") and body is not None
         for m, p, fn in self._routes:
             if m != method:
                 continue
-            # 尝试精确匹配
+            # try exact match
             if p == path:
                 try:
                     if asyncio.iscoroutinefunction(fn):
@@ -82,22 +81,29 @@ class Router:
                     if asyncio.iscoroutinefunction(fn):
                         return await fn()
                     return fn()
-            # 尝试参数化匹配
+            # try parameterized match
             if '{' in p:
                 pattern, param_names = self._compile_path(p)
                 match = pattern.match(path)
                 if match:
                     kwargs = dict(zip(param_names, match.groups()))
+                    # Pass body via kwargs to avoid name conflicts with path params
+                    if _pass_body and body is not None:
+                        kwargs["body"] = body
                     try:
                         if asyncio.iscoroutinefunction(fn):
-                            return await fn(body, **kwargs) if _pass_body else await fn(**kwargs)
-                        return fn(body, **kwargs) if _pass_body else fn(**kwargs)
+                            return await fn(**kwargs)
+                        return fn(**kwargs)
                     except TypeError:
-                        # 函数不接受 kwargs，尝试只传 body
+                        # handler expects body as positional arg, try fallback
                         try:
+                            if _pass_body and body is not None:
+                                if asyncio.iscoroutinefunction(fn):
+                                    return await fn(body, **kwargs)
+                                return fn(body, **kwargs)
                             if asyncio.iscoroutinefunction(fn):
-                                return await fn(body) if _pass_body else await fn()
-                            return fn(body) if _pass_body else fn()
+                                return await fn()
+                            return fn()
                         except TypeError:
                             if asyncio.iscoroutinefunction(fn):
                                 return await fn()

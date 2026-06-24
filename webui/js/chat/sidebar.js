@@ -1,5 +1,5 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
-import { getWs } from '../core.js?v=1782281677851';
+import { getWs } from '../core.js?v=1782286483474';
 import {
   _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
@@ -9,12 +9,12 @@ import {
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, setThinkingSteps, setIsThinking, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
-} from './state.js?v=1782281677851';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1782281677851';
-import { chatThinkingHide } from './thinking.js?v=1782281677851';
-import { updateChatHeader } from './input.js?v=1782281677851';
-import { toast, showInput } from '../components/toast.js?v=1782281677851';
-import { chatConfirm } from './toast.js?v=1782281677851';
+} from './state.js?v=1782286483474';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1782286483474';
+import { chatThinkingHide } from './thinking.js?v=1782286483474';
+import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns } from './input.js?v=1782286483474';
+import { toast, showInput } from '../components/toast.js?v=1782286483474';
+import { chatConfirm } from './toast.js?v=1782286483474';
 
 // ===== 从 page_cache 读取 agents 列表 =====
 function getAgentsFromCache() {
@@ -335,8 +335,9 @@ export function selectChatSession(session, agent) {
   const prevSid = _chatSessionId;
   const _prevAgent = _chatCurrentAgent;
 
-  // ★ 切换前：保存当前会话 DOM 到缓存（含流式 DOM）
+  // ★ 切换前：保存当前会话 DOM 到缓存（含流式 DOM）+ 输入框内容
   if (prevSid) _saveDomCache(prevSid);
+  if (typeof saveInputCache === 'function') saveInputCache();
 
   setChatSessionId(session.session_id);
   setChatCurrentAgent(agent);
@@ -360,6 +361,9 @@ export function selectChatSession(session, agent) {
   if (_contentArea && typeof window.renderChatPage === 'function') {
     window.renderChatPage(_contentArea, true);
   }
+  // 恢复目标会话的输入框内容 + 按钮状态
+  if (typeof restoreInputCache === 'function') restoreInputCache(session.session_id);
+  if (typeof updateSendBtns === 'function') updateSendBtns();
   if (typeof updateChatHeader === 'function') updateChatHeader();
   window.chatCtxTokens = null;
   updateCtxInfoDisplay();

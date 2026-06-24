@@ -3758,7 +3758,64 @@ async def main():
     # 替换模块级 api_router，确保 HTTP handler 通过 from import 引用同一个对象
     import ai_agent.api.router as _router_mod
     _router_mod.api_router = api_router
+
+    # 注册 API 路由（在初始化阶段完成，不依赖前端 navigate 消息）
+    from ai_agent.api.handlers import (
+        api_get_sessions, api_get_session_messages, api_delete_session,
+        api_rename_session, api_save_response_dict, api_clear_sessions,
+        api_get_config, api_update_config,
+        api_get_skills, api_skill_preview, api_skill_stats,
+        api_get_system_stats, api_get_project_structure, api_get_tools,
+        api_upgrade_check, api_upgrade_execute,
+        api_get_status,
+    )
+    _handlers_for_routes = {
+        "api_get_sessions": api_get_sessions,
+        "api_get_session_messages": api_get_session_messages,
+        "api_delete_session": api_delete_session,
+        "api_rename_session": api_rename_session,
+        "api_save_response_dict": api_save_response_dict,
+        "api_clear_sessions": api_clear_sessions,
+        "api_get_config": api_get_config,
+        "api_update_config": api_update_config,
+        "api_get_skills": api_get_skills,
+        "api_skill_preview": api_skill_preview,
+        "api_skill_stats": api_skill_stats,
+        "api_get_system_stats": api_get_system_stats,
+        "api_get_project_structure": api_get_project_structure,
+        "api_get_tools": api_get_tools,
+        "api_upgrade_check": api_upgrade_check,
+        "api_upgrade_execute": api_upgrade_execute,
+    }
+    register_routes(api_router, agent, snapshot_mgr, carrier_mgr, _handlers_for_routes)
+    logger.info(f"[起源] API 路由注册完成，共 {len(api_router.routes)} 条路由")
+
     logger.info("[起源] SnapshotManager / CarrierManager / Router / DatabaseManager 已初始化")
+    # 注册 API 路由（必须在 main() 初始化阶段完成，不依赖 api_get_logs 调用）
+    from ai_agent.api.handlers import (
+        api_get_sessions, api_get_session_messages, api_delete_session,
+        api_rename_session, api_save_response_dict,
+    )
+    _handlers_for_routes = {
+        "api_get_sessions": api_get_sessions,
+        "api_get_session_messages": api_get_session_messages,
+        "api_delete_session": api_delete_session,
+        "api_rename_session": api_rename_session,
+        "api_save_response_dict": api_save_response_dict,
+    }
+    register_routes(api_router, agent, snapshot_mgr, carrier_mgr, _handlers_for_routes)
+    logger.info(f"[起源] API 路由注册完成，共 {len(api_router.routes)} 条路由")
+
+    logger.info("[起源] SnapshotManager / CarrierManager / Router / DatabaseManager 已初始化")
+
+    # 在初始化阶段触发路由注册（api_get_logs 内部调用 register_routes）
+    from ai_agent.api.handlers import api_get_logs as _api_get_logs
+    try:
+        _api_get_logs("/api/logs?limit=1")
+        print(f"[起源] API 路由注册完成，共 {len(api_router.routes)} 条路由")
+    except Exception as _e:
+        print(f"[起源] 路由注册异常: {_e}")
+        import traceback; traceback.print_exc()
 
     # 启动预填充：从 DB 加载 agents/sessions 到内存，不等 WS 连接
     import asyncio as _asyncio

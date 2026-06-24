@@ -8,20 +8,18 @@ import {
     setIsSending, setChatSessionId, setChatCurrentAgent,
     setChatCurrentModel, setChatModelContextWindow,
     setCurrentModel,
-} from './state.js?v=1782239267972';
-import { send } from '../core.js?v=1782239267972';
-import { chatThinkingHide } from './thinking.js?v=1782239267972';
-import { updateStreamingBadge } from './state.js?v=1782239267972';
-import { _hideNewMsgIndicator } from './badge.js?v=1782239267972';
+} from './state.js?v=1782286483474';
+import { send } from '../core.js?v=1782286483474';
+import { chatThinkingHide } from './thinking.js?v=1782286483474';
+import { updateStreamingBadge } from './state.js?v=1782286483474';
+import { _hideNewMsgIndicator } from './badge.js?v=1782286483474';
+import { updateSendBtns } from './input.js?v=1782286483474';
 
 // ===== Send State Reset =====
 
 export function resetSendState() {
     setIsSending(false);
-    const sb = document.getElementById('chatSendBtn');
-    if (sb) sb.disabled = false;
-    const stb = document.getElementById('chatStopBtn');
-    if (stb) stb.classList.add('hidden');
+    if (typeof updateSendBtns === 'function') updateSendBtns();
     chatThinkingHide();
 }
 

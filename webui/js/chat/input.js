@@ -1,8 +1,8 @@
 // chat/input.js — 输入框、文件上传、模型选择
-import { getWs, setWs } from '../core.js?v=1782281677851';
+import { getWs, setWs } from '../core.js?v=1782286483474';
 import {
   _chatSessionId, _chatCurrentAgent, _chatCurrentPage,
-  _chatCurrentModel, _chatModelContextWindow,
+  _chatCurrentModel, _chatModelContextWindow, _isSending,
   setCurrentModel, setModelContextWindow, setChatCurrentModel, setChatModelContextWindow, setIsSending,
   updateStreamingBadge,
   getIsSending,
@@ -11,7 +11,7 @@ import {
   fmtTokens,
   markSessionReady,
   setChatSessionId,
-} from '../chat/state.js?v=1782281677851';
+} from '../chat/state.js?v=1782286483474';
 
 // 从 page_cache 读取 agents 列表（替代已删除的 chatAgents 变量）
 function _getAgents() {
@@ -21,13 +21,13 @@ function _getAgents() {
   }
   return [];
 }
-import { resetSendState } from '../chat/session.js?v=1782281677851';
+import { resetSendState } from '../chat/session.js?v=1782286483474';
 
 // 全局待发送文件列表，存放 base64 数据、mime、名称及分类
 window.chatPendingFiles = [];
 let chatPendingFiles = window.chatPendingFiles;
-import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js?v=1782281677851';
-import { renderMiddleList, refreshAgentsAndRender } from './sidebar.js?v=1782281677851';
+import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js?v=1782286483474';
+import { renderMiddleList, refreshAgentsAndRender } from './sidebar.js?v=1782286483474';
 
 // ------------------------------------------------
 // Ensure a chat input element exists (creates one if missing)
@@ -92,8 +92,8 @@ function _ensureChatInput() {
   if (typeof window !== 'undefined') window._adjustInputHeight = _adjustInputHeight;
 }
 
-import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js?v=1782281677851';
-import { toast } from '../components/toast.js?v=1782281677851';
+import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js?v=1782286483474';
+import { toast } from '../components/toast.js?v=1782286483474';
 
 // ===== File Upload & Preview =====
 
@@ -254,7 +254,7 @@ export async function chatUploadFiles(files) {
 }
 
 // ===== Model Capability Icons =====
-import { CAP_ICONS } from '../utils/capabilities.js?v=1782281677851';
+import { CAP_ICONS } from '../utils/capabilities.js?v=1782286483474';
 
 function _renderCapBadges(capabilities) {
   if (!capabilities || !capabilities.length) return '';
@@ -494,10 +494,54 @@ function _wsSend(payload) {
   }
 }
 
+// ===== Per-Session Input Cache =====
+// 保存每个会话的输入框内容，切换会话时保留用户未发送的文本
+const _inputCache = new Map();
+
+/** 保存当前会话的输入框内容 */
+export function saveInputCache() {
+  const input = document.getElementById('chatInput');
+  if (!input || !_chatSessionId) return;
+  _inputCache.set(_chatSessionId, input.value || '');
+}
+
+/** 恢复目标会话的输入框内容，返回是否有缓存 */
+export function restoreInputCache(sessionId) {
+  const input = document.getElementById('chatInput');
+  if (!input) return false;
+  const cached = _inputCache.get(sessionId);
+  if (cached) {
+    input.value = cached;
+    _adjustInputHeight(input);
+    return true;
+  }
+  // 无缓存：清空输入框
+  input.value = '';
+  _adjustInputHeight(input);
+  return false;
+}
+
+/** 根据 per-session sending 状态更新按钮样式 */
+export function updateSendBtns() {
+  const sendBtn = document.getElementById('chatSendBtn');
+  const stopBtn = document.getElementById('chatStopBtn');
+  if (!sendBtn) return;
+  const sending = _isSending;
+  sendBtn.disabled = sending;
+  if (sending) {
+    stopBtn?.classList.remove('hidden');
+  } else {
+    stopBtn?.classList.add('hidden');
+  }
+}
+
 // expose for debugging / manual testing
 if (typeof window !== 'undefined') {
   window.chatSendMessage = chatSendMessage;
   window._ensureChatInput = _ensureChatInput;
+  window.saveInputCache = saveInputCache;
+  window.restoreInputCache = restoreInputCache;
+  window.updateSendBtns = updateSendBtns;
 }
 
 // ---- input event handling ----
