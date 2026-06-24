@@ -348,19 +348,20 @@ class ToolRegistry:
 
         # Phase 2: run all check_fn concurrently
         if need_check:
-            with ThreadPoolExecutor(max_workers=min(len(need_check), 8)) as pool:
-                futures = {}
-                for name, tool in need_check:
-                    check_fn = getattr(tool, 'check_fn', None)
-                    if check_fn is None:
-                        continue
-                    futures[name] = pool.submit(self._run_check_fn, name, check_fn)
-                for name, fut in futures.items():
-                    try:
-                        if not fut.result(timeout=10):
-                            skip.add(name)
-                    except Exception:
+            pool = ThreadPoolExecutor(max_workers=min(len(need_check), 8))
+            futures = {}
+            for name, tool in need_check:
+                check_fn = getattr(tool, 'check_fn', None)
+                if check_fn is None:
+                    continue
+                futures[name] = pool.submit(self._run_check_fn, name, check_fn)
+            for name, fut in futures.items():
+                try:
+                    if not fut.result(timeout=10):
                         skip.add(name)
+                except Exception:
+                    skip.add(name)
+            pool.shutdown(wait=False)
 
         # Phase 3: build result list
         tools_list = []

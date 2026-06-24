@@ -488,6 +488,18 @@ async def main():
         logger.error("Agent 初始化失败")
         sys.exit(1)
 
+    # Inject runtime objects into handlers module (必须在 precompute 之前)
+    from ai_agent.api import handlers as _handlers
+    _handlers.agent = agent
+
+    # 预计算 tools + skills 数据（填充内存缓存，API 直接返回）
+    try:
+        from ai_agent.api.handlers import precompute_tools_and_skills
+        precompute_tools_and_skills()
+        print(f"[计时] 预计算完成: {(time.time()-_t0)*1000:.0f}ms")
+    except Exception as _e:
+        print(f"预计算失败: {_e}")
+
     # Per-agent session managers: agent_name -> SessionManager
     _agent_session_managers = {"default": agent.session_manager}
     _agent_session_managers_lock = asyncio.Lock()
@@ -573,7 +585,7 @@ async def main():
         import traceback; traceback.print_exc()
         _config_db = None
 
-    # Inject config_db into handlers module
+    # Inject config_db into handlers module (agent 已提前注入)
     if _config_db:
         from ai_agent.api import handlers as _handlers
         _handlers._config_db = _config_db
@@ -3972,6 +3984,12 @@ async def main():
                         await snapshot_mgr.set_page_cache("agent_config", _config_data)
                         _stats_data = await sync_system_stats(snapshot_mgr, agent)
                         await snapshot_mgr.set_page_cache("monitor", _stats_data)
+                        # 预推送 tools + skills 到 page_cache（前端首次加载直接命中）
+                        from ai_agent.api.handlers import _precomputed_tools, _precomputed_skills
+                        if _precomputed_tools:
+                            await snapshot_mgr.set_page_cache("tools", _precomputed_tools)
+                        if _precomputed_skills:
+                            await snapshot_mgr.set_page_cache("skills", {"skills": _precomputed_skills})
                         logger.info(f"[起源] 页面缓存预加载完成")
                     except Exception as e:
                         logger.warning(f"[起源] 页面缓存预加载失败: {e}")

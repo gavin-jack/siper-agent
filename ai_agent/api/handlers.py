@@ -64,6 +64,66 @@ _CONTEXT_WINDOW_DEFAULT = 8192
 _WS_HEARTBEAT_TIMEOUT = 300
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
+# ===== 预计算缓存（启动时填充，API 直接返回）=====
+_precomputed_tools = None   # {tools, categories, total}
+_precomputed_skills = None  # [{name, description, ...}, ...]
+
+
+def precompute_tools_and_skills():
+    """启动时预计算 tools 和 skills 数据，存入内存缓存。"""
+    global _precomputed_tools, _precomputed_skills, agent
+    _t0 = time.time()
+    print("[预计算] 开始...")
+
+    # --- Tools ---
+    if agent and agent.tool_registry:
+        tools_list = agent.tool_registry.get_available_tools()
+        categories = {}
+        for t in tools_list:
+            cat = t.get("category", "utility")
+            if cat not in categories:
+                categories[cat] = []
+            categories[cat].append(t)
+        _precomputed_tools = {"tools": tools_list, "categories": categories, "total": len(tools_list)}
+        print(f"[预计算] tools: {len(tools_list)} 个 ({(time.time()-_t0)*1000:.0f}ms)")
+    else:
+        print("[预计算] tool_registry 不可用，跳过 tools 预计算")
+
+    # --- Skills ---
+    from pathlib import Path as _Path
+    _skills_dir = PROJECT_ROOT / "skills"
+    if not _skills_dir.exists():
+        _skills_dir.mkdir(parents=True, exist_ok=True)
+    skills = []
+    if agent and hasattr(agent, 'skill_registry') and agent.skill_registry:
+        for name, entry in agent.skill_registry.skills.items():
+            detailed_stats = agent.skill_feedback.get_detailed_stats(name) if hasattr(agent, 'skill_feedback') and agent.skill_feedback else {}
+            skills.append({
+                "name": name,
+                "description": entry.description,
+                "version": entry.version,
+                "capabilities": entry.capabilities,
+                "source": entry.source,
+                "enabled": entry.enabled,
+                "active": name in agent.active_skills if hasattr(agent, 'active_skills') else False,
+                "path": entry.path,
+                "stats": {
+                    "triggered": detailed_stats.get("total_triggers", 0),
+                    "selected": detailed_stats.get("total_calls", 0),
+                    "success": detailed_stats.get("total_success", 0),
+                    "success_rate": detailed_stats.get("total_success", 0) / max(detailed_stats.get("total_calls", 1), 1),
+                    "effectiveness": detailed_stats.get("effectiveness", 0.5),
+                    "avg_score": detailed_stats.get("avg_score", 0),
+                    "avg_call_time": detailed_stats.get("avg_call_time", 0),
+                },
+            })
+    if skills:
+        _precomputed_skills = skills
+        print(f"[预计算] skills: {len(skills)} 个 ({(time.time()-_t0)*1000:.0f}ms)")
+    else:
+        print("[预计算] 无 skills 数据")
+    print(f"[预计算] 总耗时: {(time.time()-_t0)*1000:.0f}ms")
+
 
 def set_globals(**kwargs):
     """由 siper_web.py 调用，注入运行时全局变量。"""
@@ -606,17 +666,19 @@ def api_update_config(body):
 # ===== Skills API =====
 
 def api_get_skills():
-    """Get all skills with registry info and usage stats"""
-    # 防御性确保 skills/ 目录存在（git 不跟踪此目录，首次部署时可能缺失）
+    """Get all skills with registry info and usage stats. 优先返回启动时预计算缓存。"""
+    global _precomputed_skills
+    if _precomputed_skills is not None:
+        return {"skills": _precomputed_skills}
+    # fallback: 未预计算时实时获取
+    logger.warning("[api_get_skills] 预计算缓存未命中，实时获取")
     _skills_dir = PROJECT_ROOT / "skills"
     if not _skills_dir.exists():
         _skills_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"自动创建 skills/ 目录: {_skills_dir}")
     skills = []
-    # New format: from skill_registry
-    if agent.skill_registry:
+    if agent and hasattr(agent, 'skill_registry') and agent.skill_registry:
         for name, entry in agent.skill_registry.skills.items():
-            detailed_stats = agent.skill_feedback.get_detailed_stats(name) if agent.skill_feedback else {}
+            detailed_stats = agent.skill_feedback.get_detailed_stats(name) if hasattr(agent, 'skill_feedback') and agent.skill_feedback else {}
             skills.append({
                 "name": name,
                 "description": entry.description,
@@ -624,22 +686,19 @@ def api_get_skills():
                 "capabilities": entry.capabilities,
                 "source": entry.source,
                 "enabled": entry.enabled,
-                "active": name in agent.active_skills,
+                "active": name in agent.active_skills if hasattr(agent, 'active_skills') else False,
                 "path": entry.path,
                 "stats": {
                     "triggered": detailed_stats.get("total_triggers", 0),
                     "selected": detailed_stats.get("total_calls", 0),
                     "success": detailed_stats.get("total_success", 0),
-                    "success_rate": (
-                        detailed_stats.get("total_success", 0) / max(detailed_stats.get("total_calls", 1), 1)
-                    ),
+                    "success_rate": detailed_stats.get("total_success", 0) / max(detailed_stats.get("total_calls", 1), 1),
                     "effectiveness": detailed_stats.get("effectiveness", 0.5),
                     "avg_score": detailed_stats.get("avg_score", 0),
                     "avg_call_time": detailed_stats.get("avg_call_time", 0),
                 },
             })
-    else:
-        # Fallback to old format
+    elif agent and hasattr(agent, 'active_skills'):
         for name, skill in agent.active_skills.items():
             skills.append({
                 "name": name,
@@ -2714,13 +2773,16 @@ def api_get_project_structure():
 # ===== Tools API =====
 
 def api_get_tools():
-    """Return all registered tools with metadata (name, description, schema, category, toolsets)."""
-    # 复用 agent 启动时初始化的 tool_registry，避免每次请求重新扫描+实例化（原耗时 3.4s）
+    """Return all registered tools with metadata. 优先返回启动时预计算缓存。"""
+    global _precomputed_tools
+    if _precomputed_tools is not None:
+        return _precomputed_tools
+    # fallback: 未预计算时实时获取
+    logger.warning("[api_get_tools] 预计算缓存未命中，实时获取")
     global agent
     if agent and agent.tool_registry:
         tools_list = agent.tool_registry.get_available_tools()
     else:
-        # fallback: agent 未初始化时（极少发生），走原逻辑
         from ai_agent.tools.tool_registry import ToolRegistry
         import asyncio
         registry = ToolRegistry()
@@ -2736,19 +2798,13 @@ def api_get_tools():
         else:
             asyncio.run(registry.initialize())
         tools_list = registry.get_available_tools()
-    # Group by category
     categories = {}
     for t in tools_list:
         cat = t.get("category", "utility")
         if cat not in categories:
             categories[cat] = []
         categories[cat].append(t)
-
-    return {
-        "tools": tools_list,
-        "categories": categories,
-        "total": len(tools_list),
-    }
+    return {"tools": tools_list, "categories": categories, "total": len(tools_list)}
 
 
 # ===== Config DB API =====
