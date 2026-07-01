@@ -2,11 +2,13 @@
 
 > **一个独立的 AI Agent 框架 — 有状态 UI · 多模型 · 多 Agent · 27 个内置工具 · 三语言 · 前后端隔离**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org) [![Version](https://img.shields.io/badge/Version-v0.2.5-green.svg)](https://github.com/gavin-jack/siper-agent/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org) [![Version](https://img.shields.io/badge/Version-v0.3.0-green.svg)](https://github.com/gavin-jack/siper-agent/releases)
 
-**核心仅依赖 `openai` + `websockets` + `jinja2`，27 个工具中 25 个纯 stdlib。完全独立于任何 Agent 框架，不依赖 Hermes / LangChain / AutoGPT。**
+**核心仅依赖 `openai` + `websockets` + `jinja2` + `psutil`，27 个工具中 25 个纯 stdlib。完全独立于任何 Agent 框架，不依赖 Hermes / LangChain / AutoGPT。**
 
-启动后访问 **http://localhost:9724**
+启动后访问 **http://localhost:7242**（HTTP）/ **ws://localhost:7243**（WebSocket，端口自动分配）
+
+> **v0.3.0 重大变更：** 端口改为动态分配（默认 7242/7244），支持 Windows 10 原生运行。
 
 ---
 
@@ -62,6 +64,13 @@
 | **WebSocket** | 推送实时状态变化 | 流式输出、新消息、配置变更 |
 | **HTTP** | 拉取按需数据 | 页面切换、历史查询、文件操作 |
 
+### 跨平台
+
+| 平台 | WebSocket 端口 | 说明 |
+|------|---------------|------|
+| **Windows 10+** | 动态分配 (默认 7242+1) | HTTP 与 WS 端口自动差 1 |
+| **Linux / macOS** | 动态分配 (默认 7242+1) | 可通过 `--port` 指定 |
+
 ### 载体适配器
 
 不同载体（Web UI / CLI / Desktop / Mobile）只需实现 5 个回调函数即可接入：
@@ -82,22 +91,23 @@ on_tool_progress()→ 接收工具进度
 
 | 层级 | 技术 | 说明 |
 |------|------|------|
-| 后端 | Python 3.8+ | 纯 stdlib + openai SDK |
-| 前端 | 原生 JS (ESM) | 无框架依赖，38 个模块，595KB |
+| 后端 | Python 3.8+ | 纯 stdlib + openai SDK + psutil（跨平台系统信息） |
+| 前端 | 原生 JS (ESM) | 无框架依赖，41 个模块，~620KB |
 | 样式 | CSS 变量 + 自定义主题 | 1 种预设 + 自定义导入/导出 |
 | 通信 | WebSocket + HTTP | 双通道，实时 + 按需 |
 | 持久化 | SQLite + WAL | 多数据库，per-Agent 隔离 |
 | 渲染 | DOM 快照 | 后端驱动，前端纯展示 |
+| 系统兼容 | psutil fallback | Windows 无 `resource`/`getloadavg` 自动回退 |
 
 ### 代码统计
 
 | 模块 | 文件数 | 行数 |
 |------|--------|------|
 | Python 后端 | 64 个 .py | ~21,000 行 |
-| JS 前端 | 38 个 .js | ~8,600 行 |
+| JS 前端 | 41 个 .js | ~9,200 行 |
 | CSS | 3 个（base/chat/page） | ~4,900 行 |
 | HTML | 1 个（index.html） | ~44 行 |
-| **总计** | **106 个源文件** | **~34,500 行** |
+| **总计** | **109 个源文件** | **~35,100 行** |
 
 ### 架构图
 
@@ -136,6 +146,13 @@ on_tool_progress()→ 接收工具进度
 ---
 
 ## 功能特性
+
+### 🖥️ 跨平台支持（v0.3.0 新增）
+
+- **Windows 10+ 原生运行**：完整支持 Windows 环境，无需 WSL2
+- **动态端口分配**：HTTP 端口可配置（默认 7242），WS 端口自动 +1
+- **PSUtil 系统信息**：`resource.getrusage` / `os.getloadavg` 在 Windows 上自动回退
+- **服务管理脚本**：`siper.ps1`（PowerShell）启动 / 停止 / 重启 / 状态
 
 ### 🧠 多模型 LLM 管理
 
@@ -203,7 +220,7 @@ on_tool_progress()→ 接收工具进度
 - **系统日志**：多级别过滤（DEBUG / INFO / WARN / ERROR）、分页、自动刷新
 - **全局设置**：运行参数（端口 / 心跳 / 日志 / 超时等）运行时调整
 - **API 文档**：内置 Swagger UI 页面
-- **进程管理**：`siper.sh` 启动 / 停止 / 重启 / 状态 / 日志
+- **进程管理**：`siper.ps1`（Windows）/ `siper.sh`（Linux/macOS）启动 / 停止 / 重启 / 状态 / 日志
 - **三语言 i18n**：简体中文 / English / 繁體中文，运行时即时切换（30+ 翻译键）
 - **14 项前端动效**：消息入场 / 流式光标 / 弹性按钮 / 代码块展开 / 工具调用折叠 / Toast 滑入 / 输入框聚焦光环 / 页面切换淡入 / 连接状态脉冲 / 打字指示器弹性圆点 / 会话列表错开入场 / 模型卡片动画 / 波浪动画 / `prefers-reduced-motion` 支持
 
@@ -236,28 +253,59 @@ on_tool_progress()→ 接收工具进度
 
 ## 快速开始
 
+### Windows 10+
+
+```powershell
+# 克隆仓库
+git clone https://github.com/gavin-jack/siper-agent.git
+cd siper-agent
+
+# 安装依赖（仅 4 个包）
+pip install -r requirements.txt
+
+# 启动（默认端口 7242）
+python siper_web.py
+```
+
+启动后访问 **http://localhost:7242**
+
+### Linux / macOS
+
 ```bash
 # 克隆仓库
 git clone https://github.com/gavin-jack/siper-agent.git
 cd siper-agent
 
-# 安装依赖（仅 3 个包）
+# 安装依赖
 pip3 install -r requirements.txt
 
-# 首次启动（自动生成配置文件）
+# 启动
 python3 siper_web.py
 ```
 
-启动后访问 **http://localhost:9724**
-
 ### 服务管理
 
+**Windows（PowerShell）：**
+```powershell
+.\siper.ps1 start       # 启动
+.\siper.ps1 stop        # 停止
+.\siper.ps1 restart     # 重启
+.\siper.ps1 status      # 查看状态
+```
+
+**Linux / macOS（Bash）：**
 ```bash
-./siper.sh start      # 启动
-./siper.sh stop       # 停止
-./siper.sh restart    # 重启
-./siper.sh status     # 查看状态
-./siper.sh log        # 查看日志
+./siper.sh start        # 启动
+./siper.sh stop         # 停止
+./siper.sh restart      # 重启
+./siper.sh status       # 查看状态
+./siper.sh log          # 查看日志
+```
+
+### 指定端口
+
+```bash
+python siper_web.py --port 8080    # HTTP=8080, WS=8081
 ```
 
 ---
@@ -267,7 +315,8 @@ python3 siper_web.py
 ```
 siper/
 ├── siper_web.py              # 主入口（WS 服务器 + HTTP + 路由）
-├── requirements.txt           # Python 依赖（3 个包）
+├── siper.ps1                 # Windows 服务管理脚本
+├── requirements.txt           # Python 依赖（4 个包）
 ├── siper.sh                   # 服务管理脚本
 ├── README.md                  # 本文件
 ├── CHANGELOG.md               # 详细变更记录
@@ -283,7 +332,15 @@ siper/
 │   │   └── carrier.py         #   载体适配器
 │   ├── api/                   #   HTTP API（40+ 端点）
 │   │   ├── router.py          #   路由注册器
-│   │   └── handlers.py        #   API 处理器
+│   │   ├── handlers/          #   API 处理器（8个模块）
+│   │   │   ├── sessions.py    #   会话历史/列表
+│   │   │   ├── agents.py      #   agent 增删改查
+│   │   │   ├── config.py      #   agent 配置
+│   │   │   ├── models.py      #   模型 CRUD + 发现 + 验证
+│   │   │   ├── stats.py       #   token 统计
+│   │   │   ├── theme.py       #   主题 + 能力参考
+│   │   │   ├── memory.py      #   记忆搜索/新增
+│   │   │   └── files.py       #   agent 文件管理
 │   ├── sessions/              #   会话管理（SQLite + WAL + LRU）
 │   ├── tools/                 #   27 个工具实现
 │   ├── skills/                #   技能系统（自动加载/预筛选/上下文注入）
@@ -302,21 +359,21 @@ siper/
 │   │   ├── chat.css           #   聊天页面样式
 │   │   ├── page.css           #   独立页面样式
 │   │   └── base.css           #   基础样式（变量/布局/动画）
-│   └── js/                    #   ESM 模块化 JS（38 个文件）
+│   └── js/                    #   ESM 模块化 JS（41 个文件）
 │       ├── app.js             #     唯一 ESM 入口 + 路由 + 页面管理
 │       ├── core.js            #     WebSocket 连接 + 消息收发
 │       ├── renderer.js        #     统一 DOM 渲染引擎
-│       ├── chat/              #     聊天模块（message/stream/input/state/sidebar/thinking）
+│       ├── chat/              #     聊天模块
 │       ├── pages/             #     页面模块（含 chat-pages/ 子目录）
-│       ├── components/        #     公共组件（toast/model-test/agent-models）
-│       └── utils/             #     工具函数（escape/i18n/api/dom）
+│       ├── components/        #     公共组件
+│       └── utils/             #     工具函数
 │
 ├── skills/                    # 内置技能目录
-│   ├── code-review/           #   代码审查
-│   ├── company-research/      #   企业研究
-│   ├── file-operations/       #   文件操作
-│   ├── web-search/            #   Web 搜索
-│   └── siper-autonomous-learning/  # 自主学习
+│   ├── code-review/
+│   ├── company-research/
+│   ├── file-operations/
+│   ├── web-search/
+│   └── siper-autonomous-learning/
 │
 ├── docs/                      # 架构文档
 │
@@ -337,6 +394,33 @@ siper/
 | `agents/{name}/soul.md` | Agent 人格定义 |
 | `agents/{name}/sessions.db` | 会话数据库（运行时生成） |
 | `agents/{name}/memory.db` | 记忆数据库（运行时生成） |
+
+### 端口配置
+
+端口优先级：CLI `--port` 参数 > `settings.json` > 默认 7242
+
+| 设置 | 默认值 | 说明 |
+|------|--------|------|
+| HTTP 端口 | 7242 | Web UI + REST API |
+| WS 端口 | HTTP+1 | WebSocket 连接 |
+| 动态分配 | ✅ | 端口冲突时自动 +1 |
+
+---
+
+## 更新记录
+
+**v0.3.0** — Windows 10 迁移版本（详见 CHANGELOG.md）
+
+- 端口从 9724 改为动态分配（默认 7242/7244）
+- 添加 Windows 10 原生支持（`siper.ps1` 服务管理脚本）
+- 修复 `resource.getrusage` / `os.getloadavg` Windows 兼容性（psutil fallback）
+- 前端 JS 模块 38→41（添加 `file-icon.js` 统一工具、`directory.js` 独立页面）
+- 新增页面生命周期 API（init/cleanup 模式）
+- 删除冗余的 `.mjs` 复制品
+- 修复模型管理工具栏 CSS（统一 28px 高度体系）
+- 修复空白页面问题（app.js 直接 import chat.js）
+
+> 历史版本见 [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
