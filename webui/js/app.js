@@ -1,41 +1,41 @@
 // app.js — ESM 入口
 // 三模板 SPA: chat(默认) | standalone(懒加载) | sidebar(常驻)
-import { connectWS, setConnected, getWs } from './core.js?v=1782931257956';
+import { connectWS, setConnected, getWs } from './core.js?v=1782262241789';
 // expose getWs globally for debugging
 window.getWs = getWs;
 // -------------------------------------------------
 // 初始化：立即建立 WebSocket 连接
 // -------------------------------------------------
 connectWS();
-import { registerAllHandlers } from './renderer.js?v=1782931257956';
+import { registerAllHandlers } from './renderer.js?v=1782262241789';
 
 // Utils
-import { escapeHtml } from './utils/escape.js?v=1782931257956';
-import { LANG, t, applyLang, selectLang } from './utils/i18n.js?v=1782931257956';
-import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js?v=1782931257956';
-import { apiGet, apiPost } from './utils/api.js?v=1782931257956';
-import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js?v=1782931257956';
+import { escapeHtml } from './utils/escape.js?v=1782262241789';
+import { LANG, t, applyLang, selectLang } from './utils/i18n.js?v=1782262241789';
+import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js?v=1782262241789';
+import { apiGet, apiPost } from './utils/api.js?v=1782262241789';
+import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js?v=1782262241789';
 
 // Components
-import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmDeleteModel, showInput, cancelInput, execInput, openImageLightbox } from './components/toast.js?v=1782931257956';
-import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js?v=1782931257956';
+import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmDeleteModel, showInput, cancelInput, execInput, openImageLightbox } from './components/toast.js?v=1782262241789';
+import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js?v=1782262241789';
+import * as AgentModels from './components/agent-models.js?v=1782262241789';
 
 // Chat core (must load before DOMContentLoaded)
+import * as Chat from './pages/chat-pages/chat.js?v=1782262241789';
 
 // Chat input
-import { toggleChatModelDropdown } from './chat/input.js?v=1782931257956';
+import { toggleChatModelDropdown } from './chat/input.js?v=1782262241789';
 
 // Sidebar / UI
-import { startNewChat, expandAllAgents } from './chat/sidebar.js?v=1782931257956';
-import { newSession } from './chat/session.js?v=1782931257956';
+import { startNewChat, expandAllAgents } from './chat/sidebar.js?v=1782262241789';
+import { newSession } from './chat/session.js?v=1782262241789';
 
 // Template-clone pages (保留全量 import，后续逐步迁移)
-
-import * as Sessions from './pages/sessions.js?v=1782931257956';
-import * as Memory from './pages/memory.js?v=1782931257956';
-import * as AgentConfig from './pages/agent-config.js?v=1782931257956';
-import * as Theme from './pages/theme.js?v=1782931257956';
-import { initSidebar, initChatPage } from './pages/chat-pages/chat.js?v=1782931257956';
+import * as Sessions from './pages/sessions.js?v=1782262241789';
+import * as Memory from './pages/memory.js?v=1782262241789';
+import * as AgentConfig from './pages/agent-config.js?v=1782262241789';
+import * as Theme from './pages/theme.js?v=1782262241789';
 
 // ===== Window Global Mounts =====
 // Utils
@@ -66,13 +66,12 @@ window.testModel = testModel;
 window.verifyGlobalModel = verifyGlobalModel;
 window.verifyChatModel = verifyChatModel;
 window.initModelTestDelegation = initModelTestDelegation;
+window.AgentModels = AgentModels;
 
 // Chat / Sidebar
 window.toggleChatModelDropdown = toggleChatModelDropdown;
 window.startNewChat = startNewChat;
 window.newSession = newSession;
-window.initSidebar = initSidebar;
-window.initChatPage = initChatPage;
 
 // ===== 全局事件监听（sidebar 初始化前注册，始终有效） =====
 // hash 丢失恢复守卫：所有独立页面 hash 被清空时自动恢复
@@ -98,7 +97,7 @@ document.addEventListener('click', (e) => {
 }, true);
 
 // Template-clone page functions
-// (removed) showAddAgentModal now mounted by agent-config.js module directly
+window.showAddAgentModal = AgentConfig.showAddAgentModal;
 // Theme
 window.renderTemplateList = Theme.renderTemplateList;
 window.saveThemeTemplate = Theme.saveThemeTemplate;
@@ -209,7 +208,6 @@ function loadCss(href) {
 }
 
 async function navigateToPage(page, tab) {
-  if (_pageCleanupHandlers[page]) { try { _pageCleanupHandlers[page](); } catch(e) {} _pageCleanupHandlers[page] = null; }
   // Ensure URL hash always reflects target page (including chat)
   const hash = '#/' + page + (tab ? '?tab=' + tab : '');
   if (location.hash !== hash) {
@@ -346,18 +344,6 @@ async function navigateToPage(page, tab) {
   }
 }
 window.navigateToPage = navigateToPage;
-
-// ===== Page Lifecycle (init/cleanup on route change) =====
-// 维护每个页面的 cleanup 函数引用，切出时调用
-const _pageCleanupHandlers = {};
-
-window.__registerPageLifecycle = function(page, initFn, cleanupFn) {
-  if (_pageCleanupHandlers[page]) {
-    try { _pageCleanupHandlers[page](); } catch(e) {}
-  }
-  _pageCleanupHandlers[page] = cleanupFn;
-  initFn && initFn();
-};
 
 // ===== 注册所有 renderer handlers =====
 registerAllHandlers();

@@ -1,5 +1,5 @@
 // chat/input.js — 输入框、文件上传、模型选择
-import { getWs, setWs } from '../core.js?v=1782931257956';
+import { getWs, setWs } from '../core.js?v=1782286483474';
 import {
   _chatSessionId, _chatCurrentAgent, _chatCurrentPage,
   _chatCurrentModel, _chatModelContextWindow, _isSending,
@@ -11,7 +11,7 @@ import {
   fmtTokens,
   markSessionReady,
   setChatSessionId,
-} from '../chat/state.js?v=1782931257956';
+} from '../chat/state.js?v=1782286483474';
 
 // 从 page_cache 读取 agents 列表（替代已删除的 chatAgents 变量）
 function _getAgents() {
@@ -21,13 +21,13 @@ function _getAgents() {
   }
   return [];
 }
-import { resetSendState } from '../chat/session.js?v=1782931257956';
+import { resetSendState } from '../chat/session.js?v=1782286483474';
 
 // 全局待发送文件列表，存放 base64 数据、mime、名称及分类
 window.chatPendingFiles = [];
 let chatPendingFiles = window.chatPendingFiles;
-import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js?v=1782931257956';
-import { renderMiddleList, refreshAgentsAndRender } from './sidebar.js?v=1782931257956';
+import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js?v=1782286483474';
+import { renderMiddleList, refreshAgentsAndRender } from './sidebar.js?v=1782286483474';
 
 // ------------------------------------------------
 // Ensure a chat input element exists (creates one if missing)
@@ -92,8 +92,8 @@ function _ensureChatInput() {
   if (typeof window !== 'undefined') window._adjustInputHeight = _adjustInputHeight;
 }
 
-import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js?v=1782931257956';
-import { toast } from '../components/toast.js?v=1782931257956';
+import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js?v=1782286483474';
+import { toast } from '../components/toast.js?v=1782286483474';
 
 // ===== File Upload & Preview =====
 
@@ -151,11 +151,59 @@ export function getChatFileCategory(name) {
 }
 
 // Extension → emoji mapping (matched from specific to generic)
+const _extIconMap = {
+  // Images
+  jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', webp: '🖼️', bmp: '🖼️', svg: '🖼️', ico: '🖼️',
+  tiff: '🖼️', tif: '🖼️', heic: '🖼️', heif: '🖼️', raw: '📷', cr2: '📷', nef: '📷', arw: '📷',
+  // Documents
+  pdf: '📕', doc: '📘', docx: '📘', xls: '📗', xlsx: '📗', ppt: '📙', pptx: '📙',
+  txt: '📝', md: '📝', csv: '📊', json: '📋', xml: '📋', toml: '⚙️', ini: '⚙️',
+  cfg: '⚙️', conf: '⚙️', log: '📃', yml: '⚙️', yaml: '⚙️', bib: '📚', tex: '📜',
+  rst: '📝', odt: '📄', ods: '📊', odp: '📙', rtf: '📄', wps: '📄',
+  // Code
+  py: '🐍', js: '📜', ts: '📜', html: '🌐', css: '🎨', java: '☕', c: '⚡',
+  h: '⚡', go: '🔵', php: '🐘', sh: '💻', bash: '💻', zsh: '💻',
+  bat: '💻', ps1: '💻', sql: '🗃️', rb: '💎', rs: '🦀', swift: '🕊️',
+  kt: '🟣', vue: '💚', jsx: '⚛️', tsx: '⚛️', lua: '🌙', zig: '⚡',
+  nim: '👑', v: '🔷', sv: '🔬', asm: '⚙️', pas: '🏛️',
+  // Archives
+  zip: '📦', rar: '📦', '7z': '📦', tar: '📦', gz: '📦', bz2: '📦',
+  xz: '📦', zst: '📦', lz: '📦', lzma: '📦', cab: '📦', iso: '💿',
+  img: '💿', dmg: '💿', pkg: '📦', deb: '📦', rpm: '📦', msi: '📦',
+  apk: '📱', ipa: '📱', jar: '☕',
+  // Audio
+  mp3: '🎵', wav: '🎵', aac: '🎵', wma: '🎵', m4a: '🎵', flac: '💎',
+  ogg: '🎵', opus: '🎵', aiff: '🎵', mid: '🎹', midi: '🎹',
+  // Video
+  mp4: '🎬', avi: '🎬', mkv: '🎬', mov: '🎬', wmv: '🎬', flv: '🎬',
+  mpg: '🎬', mpeg: '🎬', '3gp': '🎬', webm: '🎬', m4v: '🎬',
+  ts: '🎬', vob: '🎬', divx: '🎬',
+  // Executables & installers
+  exe: '⚡', msi: '⚡', app: '📱', deb: '📦', rpm: '📦',
+  // Fonts
+  ttf: '🔤', otf: '🔤', woff: '🔤', woff2: '🔤', eot: '🔤',
+  // Database
+  db: '🗃️', sqlite: '🗃️', mdb: '🗃️', accdb: '🗃️',
+  // Disk / ISO
+  iso: '💿', img: '💿', dmg: '💿', vmdk: '💾', vdi: '💾', vhd: '💾',
+  // Design
+  psd: '🎨', ai: '🎨', sketch: '🎨', fig: '🎨', xd: '🎨', blend: '🎨',
+  // Email
+  eml: '📧', msg: '📧', pst: '📧', ost: '📧',
+  // Misc
+  torrent: '🔗', url: '🔗', lnk: '🔗', desktop: '🖥️',
+};
+const _catFallback = { image: '🖼️', document: '📄', code: '💻', archive: '📦', audio: '🎵', video: '🎬', other: '📎' };
+const _otherExtBadge = { exe: '⚡', msi: '⚡', torrent: '🔗', url: '🔗', lnk: '🔗', ttf: '🔤', otf: '🔤', db: '🗃️', sqlite: '🗃️' };
+function _getFileIcon(name, category) {
+  const ext = (name.match(/\.(\w+)$/) || ['', ''])[1].toLowerCase();
+  return _extIconMap[ext] || _otherExtBadge[ext] || _catFallback[category] || _catFallback.other;
+}
 
 // Build a badge label for non-image files (emoji + uppercase ext)
 function _getFileBadge(name, category) {
   const ext = (name.match(/\.(\w+)$/) || ['', ''])[1].toUpperCase();
-  const icon = getFileIcon(ext);
+  const icon = _getFileIcon(name, category);
   return icon + ' ' + ext;
 }
 
@@ -206,8 +254,7 @@ export async function chatUploadFiles(files) {
 }
 
 // ===== Model Capability Icons =====
-import { CAP_ICONS } from '../utils/capabilities.js?v=1782931257956';
-import { getFileIcon } from '../utils/file-icon.js?v=1782931257956';
+import { CAP_ICONS } from '../utils/capabilities.js?v=1782286483474';
 
 function _renderCapBadges(capabilities) {
   if (!capabilities || !capabilities.length) return '';

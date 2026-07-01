@@ -1,12 +1,12 @@
 // pages/agent-config.js — Agent 配置管理
 // 优化：提取 _loadConfigWithCache / _buildAgentConfigBody 消除重复
 
-import { t } from '../utils/i18n.js?v=1782931257956';
-import { escapeHtml } from '../utils/escape.js?v=1782931257956';
-import { showConfirm, showForm } from '../components/toast.js?v=1782931257956';
-import { toast } from '../components/toast.js?v=1782931257956';
-import { _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile, setChatAgentFiles, setChatCurAgentFile } from '../chat/state.js?v=1782931257956';
-import { loadGlobalModelsForAgent, renderAgentModelSection, renderAgentModelsForAgent, globalModelsList, modelsLoaded, setPendingAgentModels } from '../components/agent-models.js?v=1782931257956';
+import { t } from '../utils/i18n.js?v=1782262241789';
+import { escapeHtml } from '../utils/escape.js?v=1782262241789';
+import { showConfirm, showForm } from '../components/toast.js?v=1782262241789';
+import { toast } from '../components/toast.js?v=1782262241789';
+import { _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile, setChatAgentFiles, setChatCurAgentFile } from '../chat/state.js?v=1782262241789';
+import { loadGlobalModelsForAgent, renderAgentModelSection, renderAgentModelsForAgent, globalModelsList, modelsLoaded, setPendingAgentModels } from '../components/agent-models.js?v=1782262241789';
 export { loadGlobalModelsForAgent };
 
 // ===== 页面模板 =====
@@ -710,23 +710,8 @@ export function showAddAgentModal() {
 }
 
 // ===== Window Mount =====
-// 关键函数桥接到 window，供中栏 click 和 HTML onclick 直接调用
 window.showAddAgentModal = showAddAgentModal;
 window.confirmDeleteAgent = confirmDeleteAgent;
 window.switchConfigAgentPageTab = switchConfigAgentPageTab;
 window.triggerAgentFileAutoSave = triggerAgentFileAutoSave;
 window.autoSaveAgentModels = autoSaveAgentModels;
-window.triggerAgentAutoSave = triggerAgentAutoSave;
-window.resetAgentLimits = resetAgentLimits;
-window.toggleIconPicker = toggleIconPicker;
-window.uploadAgentAvatar = uploadAgentAvatar;
-window.attachAgentAutoSaveListeners = attachAgentAutoSaveListeners;
-// 供 selectChatAgent / refreshConfigAgentPanel 内部调用
-window.refreshConfigAgentPanel = refreshConfigAgentPanel;
-window.selectConfigAgent = selectConfigAgent;
-window.loadAgentSettings = loadAgentSettings;
-window.saveAgentSettings = saveAgentSettings;
-window.refreshAgentFile = refreshAgentFile;
-window.loadAgentMemoryContent = loadAgentMemoryContent;
-window.saveAgentFile = saveAgentFile;
-window.selectAgentIcon = selectAgentIcon;

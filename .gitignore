@@ -71,6 +71,3 @@ webui/js/app-*.js
 *.db-wal
 backup/
 *.tar.gz
-
-# Log folder (runtime)
-log/

@@ -1,6 +1,6 @@
 // components/toast.js — 统一通知系统（toast / confirm / input / dictModal / imageLightbox）
 // 所有弹窗在 #siperNotifRoot 顶层渲染，统一样式 token，toast 带倒计时进度条
-import { escapeHtml } from '../utils/escape.js?v=1782931257956';
+import { escapeHtml } from '../utils/escape.js?v=1782239267972';
 
 // ===== 统一通知容器 =====
 const NOTIF_ROOT_ID = 'siperNotifRoot';

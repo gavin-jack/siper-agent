@@ -35,6 +35,13 @@ export async function apiPost(path, data, timeout = 30000) {
   }
 }
 
+export function apiFetch(path, options = {}) {
+  const { timeout = 30000, ...fetchOptions } = options;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeout);
+  return fetch(path, { ...fetchOptions, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
 /** 优先从 page_cache 读取，无缓存则 HTTP GET（消除各页面重复的 cache→fetch 回退模式） */
 export async function apiGetCached(url, pageName) {
   if (typeof window.__getPageCache === 'function') {

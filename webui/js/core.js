@@ -13,10 +13,10 @@
  *   页面导航 → chat/nav.js
  *   会话管理 → chat/session.js
  */
-import { renderFull, applyDelta } from './renderer.js?v=1782931257956';
-import { appendStream, finalizeStream, handleStopped } from './chat/stream.js?v=1782931257956';
-import { setConnected, getStreamState, markSessionReady, setChatSessionId, setIsSending, setIsThinking, setThinkingSteps } from './chat/state.js?v=1782931257956';
-import { chatThinkingShow, chatThinkingAddToolStep, chatThinkingAddTextRow } from './chat/thinking.js?v=1782931257956';
+import { renderFull, applyDelta } from './renderer.js?v=1782239267972';
+import { appendStream, finalizeStream, handleStopped } from './chat/stream.js?v=1782239267972';
+import { setConnected, getStreamState, markSessionReady, setChatSessionId, setIsSending, setIsThinking, setThinkingSteps } from './chat/state.js?v=1782239267972';
+import { chatThinkingShow, chatThinkingAddToolStep, chatThinkingAddTextRow } from './chat/thinking.js?v=1782239267972';
 
 let ws = null;
 let _ver = 0;
@@ -175,4 +175,4 @@ function dispatch(msg) {
 }
 
 // Re-export from state.js for app.js backward compat
-export { setConnected } from './chat/state.js?v=1782931257956';
+export { setConnected } from './chat/state.js?v=1782239267972';

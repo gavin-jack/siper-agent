@@ -1,8 +1,7 @@
 // chat-pages/directory.js — 项目目录独立页面
-import { escapeHtml } from '../../utils/escape.js?v=1782931257956';
-import { fmtSize } from '../../utils/format.js?v=1782931257956';
-import { apiGetCached } from '../../utils/api.js?v=1782931257956';
-import { getFileIcon } from '../../utils/file-icon.js?v=1782931257956';
+import { escapeHtml } from '../../utils/escape.js?v=1782239267972';
+import { fmtSize } from '../../utils/format.js?v=1782239267972';
+import { apiGetCached } from '../../utils/api.js?v=1782239267972';
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {
@@ -13,7 +12,15 @@ if (typeof window.__onPageCacheRegister === 'function') {
 
 // ── 常量映射 ──────────────────────────────────────────
 
+var FILE_ICONS = {
+  py: '🐍', md: '📝', json: '📋', sh: '⚡', js: '📜', css: '🎨',
+  html: '🌐', txt: '📃', yml: '⚙️', yaml: '⚙️', toml: '⚙️',
+};
 
+function _getFileIcon(name) {
+  var ext = name.split('.').pop().toLowerCase();
+  return FILE_ICONS[ext] || '📄';
+}
 
 // ── 模板函数 ──────────────────────────────────────────
 
@@ -45,7 +52,7 @@ function _renderTree(data) {
     html += '<div class="siper-dir-section"><div class="siper-dir-section-title">📄 根目录文件</div>';
     data.files.forEach(function(f) {
       html += '<div class="siper-dir-item">' +
-        '<span class="siper-dir-icon">' + getFileIcon((f.name.match(/\.(\w+)$/) || ['',''])[1]) + '</span>' +
+        '<span class="siper-dir-icon">' + _getFileIcon(f.name) + '</span>' +
         '<span class="siper-dir-name">' + escapeHtml(f.name) + '</span>' +
         '<span class="siper-dir-meta"></span>' +
         '<span class="siper-dir-size">' + fmtSize(f.size_kb) + '</span>' +

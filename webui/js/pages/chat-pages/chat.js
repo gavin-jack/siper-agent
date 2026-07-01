@@ -2,11 +2,11 @@
 // 从 pages/chat.js 拆分，包含 initSidebar + initChatPage
 // 包含消息列表、输入框、思考面板、模型选择
 
-import * as Message from '../../chat/message.js?v=1782931257956';
-import * as Input from '../../chat/input.js?v=1782931257956';
-import * as Sidebar from '../../chat/sidebar.js?v=1782931257956';
-import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1782931257956';
-import { escapeHtml } from '../../utils/escape.js?v=1782931257956';
+import * as Message from '../../chat/message.js?v=1782262241789';
+import * as Input from '../../chat/input.js?v=1782262241789';
+import * as Sidebar from '../../chat/sidebar.js?v=1782262241789';
+import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1782262241789';
+import { escapeHtml } from '../../utils/escape.js?v=1782262241789';
 
 // 从 page_cache 读取 agents（不再从 state.js import chatAgents）
 function _getAgents() {
@@ -297,17 +297,6 @@ window.chatSwitchPage = function(page) {
 // 输入框独立于消息内容区，固定在 chatRight 底部
 var _inputAreaCreated = false;
 
-/**
- * ⚠ renderChatPage 调用链约束
- * 
- * 此函数仅在用户主动操作时调用（如下拉选择 Agent、点击会话切换等），
- * 绝不在以下场景调用：
- *   - WebSocket onopen 回调时
- *   - initChatPage() 初始化时  
- *   - loadAndRenderAgents() 之后
- * 
- * 原因：renderChatPage 发现 showInput=true 会替换页面布局，导致初始页面被丢弃。
- */
 export function renderChatPage(container, skipSidebar) {
   container.className = 'siper-content siper-chat-mode';
   var hasSession = !!_chatSessionId;

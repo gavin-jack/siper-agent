@@ -2505,15 +2505,7 @@ def api_get_logs(full_path, log_buffer=None):
 
 def api_get_system_stats():
     """Return system statistics: DB sizes, row counts, agent count, uptime."""
-    import platform, os as _os, subprocess, json as _json
-    try:
-        import resource
-    except ImportError:
-        resource = None
-    try:
-        import psutil
-    except ImportError:
-        psutil = None
+    import resource, platform, os as _os, subprocess, json as _json
     result = {
         "memory_rss_mb": 0,
         "session_count": 0,
@@ -2549,16 +2541,10 @@ def api_get_system_stats():
         },
     }
 
-    # Memory RSS
+    # Memory RSS (Linux: ru_maxrss in KB)
     try:
-        if resource is not None:
-            mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-            result["memory_rss_mb"] = round(mem / 1024, 1)
-        elif psutil is not None:
-            proc = psutil.Process(os.getpid())
-            result["memory_rss_mb"] = round(proc.memory_info().rss / 1024 / 1024, 1)
-        else:
-            result["memory_rss_mb"] = 0
+        mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        result["memory_rss_mb"] = round(mem / 1024, 1)
     except Exception as e:
         logger.warning(f"stats memory: {e}")
 
@@ -2698,16 +2684,11 @@ def api_get_system_stats():
             sys["ram_percent"] = vm.percent
         except Exception:
             pass
-        # Load avg (Linux/macOS → Windows fallback: CPU%)
+        # Load avg (Linux/macOS)
         try:
             import os as _os
-            if hasattr(_os, 'getloadavg'):
-                la = _os.getloadavg()
-                sys["load_avg"] = [round(la[0], 2), round(la[1], 2), round(la[2], 2)]
-            elif psutil is not None:
-                sys["load_avg"] = [round(psutil.cpu_percent(interval=0.1), 1)]
-            else:
-                sys["load_avg"] = []
+            la = _os.getloadavg()
+            sys["load_avg"] = [round(la[0], 2), round(la[1], 2), round(la[2], 2)]
         except Exception:
             pass
         # Process count

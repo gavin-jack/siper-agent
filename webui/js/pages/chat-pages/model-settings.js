@@ -1,7 +1,7 @@
 // chat-pages/model-settings.js — 模型设置页面
 // 2026-08-25: 提取常量映射、CSS class 替代内联 style、简化 copyModelName
-import { fmtSpeed } from '../../utils/format.js?v=1782931257956';
-import { apiGetCached } from '../../utils/api.js?v=1782931257956';
+import { fmtSpeed } from '../../utils/format.js?v=1782307847443';
+import { apiGetCached } from '../../utils/api.js?v=1782307847443';
 
 // ===== 状态 =====
 export let settingsModelsCache = [];
@@ -102,7 +102,7 @@ export function renderModelSettingsPageChat(container) {
     '<div class="siper-form-card"><div class="siper-form-title">🔧 辅助模型</div>' +
     '<div class="text-dim" style="margin-bottom:12px">辅助模型配置功能开发中，敬请期待...</div>' +
     '<div id="auxiliaryModelsContainer"></div></div></div>';
-  loadSettingsModels();  // FIXED: 不再通过 window 调用
+  if (typeof window.loadSettingsModels === 'function') window.loadSettingsModels();
 }
 
 function _capFilterOptions() {
@@ -603,7 +603,7 @@ function _addDiscoveredModels(models) {
     results.forEach(function(r) { added += r; });
     if (added > 0) {
       window.toast.success('已添加 ' + added + ' 个模型');
-      loadSettingsModels();  // FIXED: 不再通过 window 调用
+      if (typeof window.loadSettingsModels === 'function') window.loadSettingsModels();
       var addedNames = models.map(function(m) { return m.name || m.id; });
       discoveredModelsCache.forEach(function(m) { if (addedNames.includes(m.name || m.id)) m._exists = true; });
       renderDiscoveredModels(discoveredModelsCache, 0, '', discoveredModelsCache.length);
@@ -767,122 +767,95 @@ export function verifyAllModels() {
   });
 }
 
-// ===== 事件委托（可清理）==============================
-// 将监听器函数保存到 _handlers，供 init/cleanup 使用
-const _msHandlers = {};
+// ===== 事件委托 ──────────────────────────────────────
 
-function _msInitEvents() {
-  if (_msHandlers.verifyClick) return; // already initialized
-  
-  _msHandlers.verifyClick = function(e) {
-    var btn = e.target && typeof e.target.closest === 'function' ? e.target.closest('.btn-verify') : null;
-    if (!btn || !btn.dataset.name) return;
-    e.preventDefault(); e.stopPropagation();
-    if (!btn.closest('.models-grid')) return;
-    verifySingleModel(btn.dataset.name);
-  };
-  
-  _msHandlers.copyClick = function(e) {
-    var btn = e.target && typeof e.target.closest === 'function' ? e.target.closest('.btn-copy-model') : null;
-    if (!btn) return;
-    e.preventDefault(); e.stopPropagation();
-    if (btn.dataset.name) copyModelName(e, btn.dataset.name);
-  };
-  
-  _msHandlers.dropdownClose = function(e) {
-    var dropdown = document.getElementById('capFilterDropdown');
-    var menu = document.getElementById('capFilterMenu');
-    if (menu && dropdown && (!e.target || typeof e.target.closest !== 'function' || !dropdown.contains(e.target))) {
-      menu.style.display = 'none';
-    }
-  };
-  
-  _msHandlers.marqueeEnter = function(e) {
-    var nameEl = e.target && typeof e.target.closest === 'function' ? e.target.closest('.model-name-scroll') : null;
-    if (nameEl && !nameEl._marqueeTimer && nameEl.scrollWidth > nameEl.clientWidth + 1) {
-      var overflow = nameEl.scrollWidth - nameEl.clientWidth;
-      var duration = Math.max(1500, overflow * 20);
-      var text = nameEl.querySelector('.model-name-text');
-      if (text) {
-        text.style.transition = 'transform ' + duration + 'ms linear';
-        text.style.transform = 'translateX(-' + overflow + 'px)';
-        nameEl._marqueeTimer = setTimeout(function() { text.style.transition = 'none'; nameEl._marqueeTimer = null; }, duration);
-      }
-    }
-    var scrollEl = e.target && typeof e.target.closest === 'function' ? e.target.closest('.model-caps-scroll') : null;
-    if (scrollEl && !scrollEl._marqueeTimer) {
-      var inner = scrollEl.querySelector('.model-caps-inner');
-      if (inner && inner.scrollWidth > scrollEl.clientWidth + 1) {
-        var overflow2 = inner.scrollWidth - scrollEl.clientWidth;
-        var duration2 = Math.max(1500, overflow2 * 20);
-        inner.style.transition = 'transform ' + duration2 + 'ms linear';
-        inner.style.transform = 'translateX(-' + overflow2 + 'px)';
-        scrollEl._marqueeTimer = setTimeout(function() { inner.style.transition = 'none'; scrollEl._marqueeTimer = null; }, duration2);
-      }
-    }
-  };
-  
-  _msHandlers.marqueeLeave = function(e) {
-    var nameEl = e.target && typeof e.target.closest === 'function' ? e.target.closest('.model-name-scroll') : null;
-    if (nameEl) {
-      if (nameEl._marqueeTimer) { clearTimeout(nameEl._marqueeTimer); nameEl._marqueeTimer = null; }
-      var text = nameEl.querySelector('.model-name-text');
-      if (text) { text.style.transition = 'transform 300ms ease-out'; text.style.transform = 'translateX(0)'; }
-    }
-    var scrollEl = e.target && typeof e.target.closest === 'function' ? e.target.closest('.model-caps-scroll') : null;
-    if (scrollEl) {
-      if (scrollEl._marqueeTimer) { clearTimeout(scrollEl._marqueeTimer); scrollEl._marqueeTimer = null; }
-      var inner = scrollEl.querySelector('.model-caps-inner');
-      if (inner) { inner.style.transition = 'transform 300ms ease-out'; inner.style.transform = 'translateX(0)'; }
-    }
-  };
-  
-  document.addEventListener('click', _msHandlers.verifyClick);
-  document.addEventListener('click', _msHandlers.copyClick);
-  document.addEventListener('click', _msHandlers.dropdownClose);
-  document.addEventListener('mouseenter', _msHandlers.marqueeEnter, true);
-  document.addEventListener('mouseleave', _msHandlers.marqueeLeave, true);
-}
+document.addEventListener('click', function(e) {
+  var btn = e.target && typeof e.target.closest === 'function' ? e.target.closest('.btn-verify') : null;
+  if (!btn || !btn.dataset.name) return;
+  e.preventDefault(); e.stopPropagation();
+  if (!btn.closest('.models-grid')) return;
+  verifySingleModel(btn.dataset.name);
+});
 
-function _msCleanupEvents() {
-  if (!_msHandlers.verifyClick) return;
-  document.removeEventListener('click', _msHandlers.verifyClick);
-  document.removeEventListener('click', _msHandlers.copyClick);
-  document.removeEventListener('click', _msHandlers.dropdownClose);
-  document.removeEventListener('mouseenter', _msHandlers.marqueeEnter, true);
-  document.removeEventListener('mouseleave', _msHandlers.marqueeLeave, true);
-  _msHandlers.verifyClick = null;
-  _msHandlers.copyClick = null;
-  _msHandlers.dropdownClose = null;
-  _msHandlers.marqueeEnter = null;
-  _msHandlers.marqueeLeave = null;
-}
+document.addEventListener('click', function(e) {
+  var btn = e.target && typeof e.target.closest === 'function' ? e.target.closest('.btn-copy-model') : null;
+  if (!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  if (btn.dataset.name) copyModelName(e, btn.dataset.name);
+});
 
-// 导出 init/cleanup API（生命周期由 app.js navigateToPage 管理）
-// 不立即执行，避免模块加载时副作用
-export { _msInitEvents as initModelSettingsEvents, _msCleanupEvents as cleanupModelSettingsEvents };
+document.addEventListener('click', function(e) {
+  var dropdown = document.getElementById('capFilterDropdown');
+  var menu = document.getElementById('capFilterMenu');
+  if (menu && dropdown && (!e.target || typeof e.target.closest !== 'function' || !dropdown.contains(e.target))) {
+    menu.style.display = 'none';
+  }
+});
 
+// 走马灯
+document.addEventListener('mouseenter', function(e) {
+  var nameEl = e.target && typeof e.target.closest === 'function' ? e.target.closest('.model-name-scroll') : null;
+  if (nameEl && !nameEl._marqueeTimer && nameEl.scrollWidth > nameEl.clientWidth + 1) {
+    var overflow = nameEl.scrollWidth - nameEl.clientWidth;
+    var duration = Math.max(1500, overflow * 20);
+    var text = nameEl.querySelector('.model-name-text');
+    if (text) {
+      text.style.transition = 'transform ' + duration + 'ms linear';
+      text.style.transform = 'translateX(-' + overflow + 'px)';
+      nameEl._marqueeTimer = setTimeout(function() { text.style.transition = 'none'; nameEl._marqueeTimer = null; }, duration);
+    }
+  }
+  var scrollEl = e.target && typeof e.target.closest === 'function' ? e.target.closest('.model-caps-scroll') : null;
+  if (scrollEl && !scrollEl._marqueeTimer) {
+    var inner = scrollEl.querySelector('.model-caps-inner');
+    if (inner && inner.scrollWidth > scrollEl.clientWidth + 1) {
+      var overflow2 = inner.scrollWidth - scrollEl.clientWidth;
+      var duration2 = Math.max(1500, overflow2 * 20);
+      inner.style.transition = 'transform ' + duration2 + 'ms linear';
+      inner.style.transform = 'translateX(-' + overflow2 + 'px)';
+      scrollEl._marqueeTimer = setTimeout(function() { inner.style.transition = 'none'; scrollEl._marqueeTimer = null; }, duration2);
+    }
+  }
+}, true);
 
+document.addEventListener('mouseleave', function(e) {
+  var nameEl = e.target && typeof e.target.closest === 'function' ? e.target.closest('.model-name-scroll') : null;
+  if (nameEl) {
+    if (nameEl._marqueeTimer) { clearTimeout(nameEl._marqueeTimer); nameEl._marqueeTimer = null; }
+    var text = nameEl.querySelector('.model-name-text');
+    if (text) { text.style.transition = 'transform 300ms ease-out'; text.style.transform = 'translateX(0)'; }
+  }
+  var scrollEl = e.target && typeof e.target.closest === 'function' ? e.target.closest('.model-caps-scroll') : null;
+  if (scrollEl) {
+    if (scrollEl._marqueeTimer) { clearTimeout(scrollEl._marqueeTimer); scrollEl._marqueeTimer = null; }
+    var inner = scrollEl.querySelector('.model-caps-inner');
+    if (inner) { inner.style.transition = 'transform 300ms ease-out'; inner.style.transform = 'translateX(0)'; }
+  }
+}, true);
+
+// ===== Window 挂载 ────────────────────────────────────
 
 window.switchModelTab = switchModelTab;
-
-// ===== page_cache 回调注册 =====
-// 监听后端 state_delta 推送，自动更新模型列表
-if (typeof window.__onPageCacheRegister === "function") {
-    window.__onPageCacheRegister("model-settings", function(data) {
-        if (!data || !Array.isArray(data.models)) return;
-        settingsModelsCache = data.models.map(function(m) {
-            return Object.assign({}, m, {
-                _ttft: m.ttft ?? m._ttft ?? null,
-                _streaming: m.streaming ?? m._streaming ?? null,
-                _context_window_tested: m.context_window_tested ?? m._context_window_tested ?? null,
-                _json_mode: m.json_mode ?? m._json_mode ?? null,
-            });
-        });
-        window.settingsModelsCache = settingsModelsCache;
-        var defaultModel = settingsModelsCache.find(function(m) { return m.is_default; });
-        var defName = defaultModel ? defaultModel.name : "";
-        settingsModelsCache.forEach(function(m) { m._isDefault = (m.name === defName); });
-        renderSettingsModelsList();
-    });
-}
+window.loadSettingsModels = loadSettingsModels;
+window.renderSettingsModelsList = renderSettingsModelsList;
+window.filterModelsList = filterModelsList;
+window.clearModelSearch = clearModelSearch;
+window.toggleCapFilterDropdown = toggleCapFilterDropdown;
+window.selectCapFilter = selectCapFilter;
+window.applyCapFilter = applyCapFilter;
+window.clearCapFilter = clearCapFilter;
+window.clearModelFilter = clearModelFilter;
+window.toggleSortDir = toggleSortDir;
+window.editProviderName = editProviderName;
+window.removeSettingsModel = removeSettingsModel;
+window.resetSettingsModels = resetSettingsModels;
+window.discoverModels = discoverModels;
+window.addSelectedDiscoveredModels = addSelectedDiscoveredModels;
+window.addAllDiscoveredModels = addAllDiscoveredModels;
+window.chatFilterDiscovered = chatFilterDiscovered;
+window.chatClearDiscoverFilter = chatClearDiscoverFilter;
+window.applyProviderPreset = applyProviderPreset;
+window.verifySingleModel = verifySingleModel;
+window.verifyAllModels = verifyAllModels;
+window.copyModelName = copyModelName;
+window.autoSaveModels = autoSaveModels;
