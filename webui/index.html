@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<style>.skip-link{position:absolute;left:-9999px;top:4px;z-index:99999;padding:8px 16px;background:var(--color-primary);color:var(--color-primary-fg);border-radius:4px;text-decoration:none;font-size:14px}.skip-link:focus{left:50%;transform:translateX(-50%);top:4px}</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Siper AI Agent</title>
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  <script src="/static/js/md-render.js"></script>
+  <script>/* ESM pre-define: 防止用户脚本在 ESM 加载前引用 window 函数报错 */window.navigateToPage=function(){};window.switchModelTab=function(){};</script>
+</head>
+<body>
+<a href="#mainContent" class="skip-link" data-i18n="a11y.skipToContent">跳转到主内容</a>
+
+
+  <!-- Main Content -->
+  <div class="main" id="mainContent" tabindex="-1">
+
+  <!-- Sidebar — 常驻，JS 渲染侧边栏直接渲染到这里 -->
+  <div id="chatSidebar" class="sidebar"></div>
+
+  <!-- Chat Page — JS 渲染中栏 + 右栏（无侧边栏） -->
+  <div id="page-chat" style="display:none"></div>
+
+  <!-- Standalone Page — JS 渲染独立页面 -->
+  <div id="page-standalone" style="display:none"></div>
+
+  </div>
+
+<!-- 通知系统由 toast.js 动态创建，不再需要静态 HTML 元素 -->
+<!-- ESM entry -->
+  <script type="module" src="/js/app.js"></script>
+
+
+<!-- CDN libs replaced with local fallbacks to avoid DNS timeout blocking page load -->
+<script>
+  // Fallback stubs when CDN is unreachable
+  window.Prism = window.Prism || { highlightElement: function(){} };
+  window.katex = window.katex || { renderToString: function(s){ return s; } };
+  window.renderMathInElement = window.renderMathInElement || function(){};
+  window.mermaid = window.mermaid || { initialize: function(){}, render: function(){ return Promise.resolve({svg:''}); } };
+</script>
+</body>
+</html>

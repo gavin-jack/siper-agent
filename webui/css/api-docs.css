@@ -1,0 +1,44 @@
+/* ===== API 文档页面（Swagger UI）独立样式 ===== */
+/* 覆盖 Swagger UI CDN 默认间距，实现紧凑 + 瀑布流布局 */
+
+/* --- 页面框架 --- */
+.page-header { padding: 8px 24px; margin-bottom: 0; }
+.page-body { padding: 4px 24px 12px; }
+
+/* --- Swagger UI 间距收紧 --- */
+.swagger-ui .info { margin-top: 8px !important; margin-bottom: 8px !important; }
+.swagger-ui .info .title { font-size: 18px !important; }
+.swagger-ui .info .title small { font-size: 12px !important; }
+.swagger-ui .scheme-container { margin-bottom: 4px !important; padding: 8px 0 !important; }
+.swagger-ui .opblock { margin-bottom: 4px !important; border-radius: 6px !important; }
+.swagger-ui .opblock-summary { padding: 3px 6px !important; }
+.swagger-ui .opblock-summary-method { font-size: 12px !important; min-width: 50px !important; padding: 2px 6px !important; }
+.swagger-ui .opblock-summary-path { font-size: 12px !important; }
+.swagger-ui .opblock-summary-description { font-size: 11px !important; }
+.swagger-ui .opblock-tag { margin: 6px 0 !important; font-size: 14px !important; }
+.swagger-ui .wrapper { padding: 0 !important; }
+.swagger-ui .renderedMarkdown p { margin: 4px 0 !important; font-size: 13px !important; }
+
+/* --- 瀑布流：CSS Columns 实现的 Masonry 布局 --- */
+/* 信息区域和服务器区域保持通栏，操作标签区两列瀑布流 */
+.swagger-ui .wrapper:not(.information-container.wrapper) {
+  column-count: 2 !important;
+  column-gap: 10px !important;
+  display: block !important;
+}
+/* 每个操作块不跨列断 */
+.swagger-ui .wrapper:not(.information-container.wrapper) .block.col-12 {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+  -webkit-column-break-inside: avoid !important;
+  float: none !important;
+  width: 100% !important;
+  display: inline-block !important;
+}
+
+/* --- 缩小屏幕时自动变单列 --- */
+@media (max-width: 800px) {
+  .swagger-ui .wrapper:not(.information-container.wrapper) {
+    column-count: 1 !important;
+  }
+}

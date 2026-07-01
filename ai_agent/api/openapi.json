@@ -1,0 +1,1169 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SiPer AI Agent API",
+    "version": "1.0.0",
+    "description": "SiPer AI Agent RESTful API — 由 router.py 装饰器自动生成"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:9724",
+      "description": "开发服务器"
+    }
+  ],
+  "paths": {
+    "/api/agents": {
+      "get": {
+        "summary": "Agents Get",
+        "operationId": "api_agents_get",
+        "tags": [
+          "agents"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Agents Post",
+        "operationId": "api_agents_post",
+        "tags": [
+          "agents"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agents/{name}": {
+      "delete": {
+        "summary": "Agents Delete",
+        "operationId": "api_agents_delete",
+        "tags": [
+          "agents"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/agents/{name}/config": {
+      "get": {
+        "summary": "Agents Config Get",
+        "operationId": "api_agents_config_get",
+        "tags": [
+          "agents"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Agents Config Post",
+        "operationId": "api_agents_config_post",
+        "tags": [
+          "agents"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agents/{name}/memory": {
+      "get": {
+        "summary": "Agents Memory Get",
+        "operationId": "api_agents_memory_get",
+        "tags": [
+          "agents"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Agents Memory Post",
+        "operationId": "api_agents_memory_post",
+        "tags": [
+          "agents"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agents/{name}/meta": {
+      "post": {
+        "summary": "Agents Meta Post",
+        "operationId": "api_agents_meta_post",
+        "tags": [
+          "agents"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agents/{name}/rename": {
+      "post": {
+        "summary": "Agents Rename Post",
+        "operationId": "api_agents_rename_post",
+        "tags": [
+          "agents"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agents/{name}/soul": {
+      "get": {
+        "summary": "Agents Soul Get",
+        "operationId": "api_agents_soul_get",
+        "tags": [
+          "agents"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Agents Soul Post",
+        "operationId": "api_agents_soul_post",
+        "tags": [
+          "agents"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/avatar": {
+      "get": {
+        "summary": "Avatar Get",
+        "operationId": "api_avatar_get",
+        "tags": [
+          "avatar"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/avatar/upload": {
+      "post": {
+        "summary": "Avatar Upload",
+        "operationId": "api_avatar_upload",
+        "tags": [
+          "avatar"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/config": {
+      "get": {
+        "summary": "Config Get",
+        "operationId": "api_config_get",
+        "tags": [
+          "config"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Config Post",
+        "operationId": "api_config_post",
+        "tags": [
+          "config"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/logs": {
+      "get": {
+        "summary": "Logs Get",
+        "operationId": "api_logs_get",
+        "tags": [
+          "logs"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/memory": {
+      "get": {
+        "summary": "Memory Get",
+        "operationId": "api_memory_get",
+        "tags": [
+          "memory"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Memory Post",
+        "operationId": "api_memory_post",
+        "tags": [
+          "memory"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Memory Delete",
+        "operationId": "api_memory_delete",
+        "tags": [
+          "memory"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/memory/config": {
+      "get": {
+        "summary": "Memory Config Get",
+        "operationId": "api_memory_config_get",
+        "tags": [
+          "memory"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Memory Config Post",
+        "operationId": "api_memory_config_post",
+        "tags": [
+          "memory"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/discover": {
+      "post": {
+        "summary": "Models Discover",
+        "operationId": "api_models_discover",
+        "tags": [
+          "models"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/global": {
+      "get": {
+        "summary": "Models Global Get",
+        "operationId": "api_models_global_get",
+        "tags": [
+          "models"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Models Global Post",
+        "operationId": "api_models_global_post",
+        "tags": [
+          "models"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/provider": {
+      "post": {
+        "summary": "Models Provider Create",
+        "operationId": "api_models_provider_create",
+        "tags": [
+          "models"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/reset": {
+      "post": {
+        "summary": "Models Reset",
+        "operationId": "api_models_reset",
+        "tags": [
+          "models"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/test": {
+      "post": {
+        "summary": "Models Delete",
+        "operationId": "api_models_delete",
+        "tags": [
+          "models"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/openapi.json": {
+      "get": {
+        "summary": "Openspec",
+        "operationId": "api_openapi_spec",
+        "tags": [
+          "openapi.json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/project-structure": {
+      "get": {
+        "summary": "Project Structure Get",
+        "operationId": "api_project_structure_get",
+        "tags": [
+          "project-structure"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/providers/rename": {
+      "post": {
+        "summary": "Providers Rename",
+        "operationId": "api_providers_rename",
+        "tags": [
+          "providers"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/providers/update_name": {
+      "post": {
+        "summary": "Providers Update Name",
+        "operationId": "api_providers_update_name",
+        "tags": [
+          "providers"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/save-response-dict": {
+      "post": {
+        "summary": "Save Response Dict",
+        "operationId": "api_save_response_dict",
+        "tags": [
+          "save-response-dict"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions": {
+      "get": {
+        "summary": "Sessions",
+        "operationId": "api_sessions",
+        "tags": [
+          "sessions"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Sessions Clear",
+        "operationId": "api_sessions_clear",
+        "tags": [
+          "sessions"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/sessions/{sid}": {
+      "get": {
+        "summary": "Sessions Get",
+        "operationId": "api_sessions_get",
+        "tags": [
+          "sessions"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Sessions Delete",
+        "operationId": "api_sessions_delete",
+        "tags": [
+          "sessions"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Sessions Put",
+        "operationId": "api_sessions_put",
+        "tags": [
+          "sessions"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills": {
+      "get": {
+        "summary": "Skills Get",
+        "operationId": "api_skills_get",
+        "tags": [
+          "skills"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/skills/preview": {
+      "post": {
+        "summary": "Skills Preview",
+        "operationId": "api_skills_preview",
+        "tags": [
+          "skills"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills/refresh": {
+      "post": {
+        "summary": "Skills Refresh",
+        "operationId": "api_skills_refresh",
+        "tags": [
+          "skills"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills/stats": {
+      "get": {
+        "summary": "Skills Stats",
+        "operationId": "api_skills_stats",
+        "tags": [
+          "skills"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/stats": {
+      "get": {
+        "summary": "Stats Get",
+        "operationId": "api_stats_get",
+        "tags": [
+          "stats"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/status": {
+      "get": {
+        "summary": "Status",
+        "operationId": "api_status",
+        "tags": [
+          "status"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/theme/delete": {
+      "delete": {
+        "summary": "Theme Delete",
+        "operationId": "api_theme_delete",
+        "tags": [
+          "theme"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/theme/export": {
+      "get": {
+        "summary": "Theme Export",
+        "operationId": "api_theme_export",
+        "tags": [
+          "theme"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/theme/import": {
+      "post": {
+        "summary": "Theme Import",
+        "operationId": "api_theme_import",
+        "tags": [
+          "theme"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/theme/load": {
+      "get": {
+        "summary": "Theme Load",
+        "operationId": "api_theme_load",
+        "tags": [
+          "theme"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/theme/save": {
+      "post": {
+        "summary": "Theme Save",
+        "operationId": "api_theme_save",
+        "tags": [
+          "theme"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/theme/templates": {
+      "get": {
+        "summary": "Theme Templates",
+        "operationId": "api_theme_templates",
+        "tags": [
+          "theme"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/token": {
+      "get": {
+        "summary": "Token Get",
+        "operationId": "api_token_get",
+        "tags": [
+          "token"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/tools": {
+      "get": {
+        "summary": "Tools Get",
+        "operationId": "api_tools_get",
+        "tags": [
+          "tools"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/upgrade": {
+      "post": {
+        "summary": "Upgrade",
+        "operationId": "api_upgrade",
+        "tags": [
+          "upgrade"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/upgrade/check": {
+      "get": {
+        "summary": "Upgrade Check",
+        "operationId": "api_upgrade_check",
+        "tags": [
+          "upgrade"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/upload": {
+      "post": {
+        "summary": "Upload Post",
+        "operationId": "api_upload_post",
+        "tags": [
+          "upload"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/state/snapshot": {
+      "get": {
+        "summary": "State Snapshot",
+        "operationId": "api_state_snapshot",
+        "tags": [
+          "v1"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/version": {
+      "get": {
+        "summary": "Version",
+        "operationId": "api_version",
+        "tags": [
+          "version"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    }
+  }
+}
