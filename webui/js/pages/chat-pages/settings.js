@@ -23,7 +23,7 @@ function _tplSettingsPage() {
     _settingRow('sysLogBufferSize', t('settings.logBuffer'), 100, 10000, 2000) +
     _settingRow('sysTokenUsageMax', t('settings.tokenMax'), 100, 5000, 500) +
     _settingRow('sysCtxWindowDefault', t('settings.ctxWindow'), 1024, 1000000, 8192) +
-    _settingRow('sysPort', t('settings.port'), 1024, 65535, 9724) +
+    _settingRow('sysPort', t('settings.port'), 1024, 65535, 7240) +
     '<div class="siper-settings-row"><label data-i18n="settings.logLevel">日志级别</label>' +
     '<select id="sysLogLevel" class="siper-input"><option value="DEBUG">DEBUG</option><option value="INFO" selected>INFO</option><option value="WARN">WARN</option><option value="ERROR">ERROR</option></select></div>' +
     '</div></div></div>' +
@@ -85,7 +85,7 @@ function _attachSettingsAutoSave() {
         log_buffer_size: parseInt(document.getElementById('sysLogBufferSize').value) || 2000,
         token_usage_max: parseInt(document.getElementById('sysTokenUsageMax').value) || 500,
         context_window_default: parseInt(document.getElementById('sysCtxWindowDefault').value) || 8192,
-        port: parseInt(document.getElementById('sysPort')?.value) || 9724,
+        port: parseInt(document.getElementById('sysPort')?.value) || 7240,
         log_level: document.getElementById('sysLogLevel')?.value || 'INFO',
       };
       try {
@@ -105,7 +105,7 @@ function _attachSettingsAutoSave() {
 // ── 重置 & 刷新 ──────────────────────────────────────
 
 export function resetSystemParams() {
-  var defaults = { sysWsHeartbeatTimeout: 300, sysSessionListLimit: 50, sysLogBufferSize: 2000, sysTokenUsageMax: 500, sysCtxWindowDefault: 8192, sysPort: 9724 };
+  var defaults = { sysWsHeartbeatTimeout: 300, sysSessionListLimit: 50, sysLogBufferSize: 2000, sysTokenUsageMax: 500, sysCtxWindowDefault: 8192, sysPort: 7240 };
   for (var id in defaults) { var el = document.getElementById(id); if (el) el.value = defaults[id]; }
   toast.success(t('settings.resetDone'));
 }

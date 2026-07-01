@@ -6,9 +6,9 @@
 
 **核心仅依赖 `openai` + `websockets` + `jinja2` + `psutil`，27 个工具中 25 个纯 stdlib。完全独立于任何 Agent 框架，不依赖 Hermes / LangChain / AutoGPT。**
 
-启动后访问 **http://localhost:7242**（HTTP）/ **ws://localhost:7243**（WebSocket，端口自动分配）
+启动后访问 **http://localhost:7240**（HTTP）/ **ws://localhost:7241**（WebSocket，端口自动分配）
 
-> **v0.3.0 重大变更：** 端口改为动态分配（默认 7242/7244），支持 Windows 10 原生运行。
+> **v0.3.0 重大变更：** 端口改为动态分配（默认 7240/7241），支持 Windows 10 原生运行。
 
 ---
 
@@ -68,8 +68,8 @@
 
 | 平台 | WebSocket 端口 | 说明 |
 |------|---------------|------|
-| **Windows 10+** | 动态分配 (默认 7242+1) | HTTP 与 WS 端口自动差 1 |
-| **Linux / macOS** | 动态分配 (默认 7242+1) | 可通过 `--port` 指定 |
+| **Windows 10+** | 动态分配 (默认 7240+1) | HTTP 与 WS 端口自动差 1 |
+| **Linux / macOS** | 动态分配 (默认 7240+1) | 可通过 `--port` 指定 |
 
 ### 载体适配器
 
@@ -150,7 +150,7 @@ on_tool_progress()→ 接收工具进度
 ### 🖥️ 跨平台支持（v0.3.0 新增）
 
 - **Windows 10+ 原生运行**：完整支持 Windows 环境，无需 WSL2
-- **动态端口分配**：HTTP 端口可配置（默认 7242），WS 端口自动 +1
+- **动态端口分配**：HTTP 端口可配置（默认 7240），WS 端口自动 +1
 - **PSUtil 系统信息**：`resource.getrusage` / `os.getloadavg` 在 Windows 上自动回退
 - **服务管理脚本**：`siper.ps1`（PowerShell）启动 / 停止 / 重启 / 状态
 
@@ -263,11 +263,11 @@ cd siper-agent
 # 安装依赖（仅 4 个包）
 pip install -r requirements.txt
 
-# 启动（默认端口 7242）
+# 启动（默认端口 7240）
 python siper_web.py
 ```
 
-启动后访问 **http://localhost:7242**
+启动后访问 **http://localhost:7240**
 
 ### Linux / macOS
 
@@ -397,11 +397,11 @@ siper/
 
 ### 端口配置
 
-端口优先级：CLI `--port` 参数 > `settings.json` > 默认 7242
+端口优先级：CLI `--port` 参数 > `settings.json` > 默认 7240
 
 | 设置 | 默认值 | 说明 |
 |------|--------|------|
-| HTTP 端口 | 7242 | Web UI + REST API |
+| HTTP 端口 | 7240 | Web UI + REST API |
 | WS 端口 | HTTP+1 | WebSocket 连接 |
 | 动态分配 | ✅ | 端口冲突时自动 +1 |
 
@@ -411,7 +411,7 @@ siper/
 
 **v0.3.0** — Windows 10 迁移版本（详见 CHANGELOG.md）
 
-- 端口从 9724 改为动态分配（默认 7242/7244）
+- 端口从 9724/9725 改为动态分配（默认 7240/7241）
 - 添加 Windows 10 原生支持（`siper.ps1` 服务管理脚本）
 - 修复 `resource.getrusage` / `os.getloadavg` Windows 兼容性（psutil fallback）
 - 前端 JS 模块 38→41（添加 `file-icon.js` 统一工具、`directory.js` 独立页面）

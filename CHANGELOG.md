@@ -6,7 +6,7 @@
 
 ### 重大变更 (breaking)
 
-- **端口变更**：默认端口从 `9724` 改为动态分配（HTTP=7242, WS=HTTP+1，可通过 `--port` 指定）
+- **端口变更**：默认端口从 `9724/9725` 改为动态分配（HTTP=7240, WS=HTTP+1，可通过 `--port` 指定）
 - **Windows 10 原生支持**：从 WSL2 迁移到 Windows 原生路径 `E:\SiPer`
 - **PSUtil 依赖**：新增 `psutil` 包用于 Windows 系统信息（内存 RSS / CPU 负载）
 

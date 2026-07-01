@@ -2,7 +2,7 @@
 siper Web UI - Start the AI Agent with a web interface.
 
 Usage:
-    python siper_web.py           # Start on default port 9724
+    python siper_web.py           # Start on default port 7240
     python siper_web.py 7240      # Start on custom port
 """
 
@@ -451,15 +451,15 @@ import re as _re  # used for _render_index, safe_name
 async def main():
     global agent, _LOG_BUFFER_MAX, _TOKEN_USAGE_MAX
     _t0 = time.time()
-    # Port priority: CLI arg > settings.json > default 9724
-    _cfg_port = 9724
+    # Port priority: CLI arg > settings.json > default 7240
+    _cfg_port = 7240
     _system_cfg = {}
     try:
         _sf = PROJECT_ROOT / "settings.json"
         if _sf.exists():
             with open(_sf, "r", encoding="utf-8") as _f:
                 _cfg = json.load(_f)
-            _cfg_port = int(_cfg.get("gateway", {}).get("webui", {}).get("port", 9724))
+            _cfg_port = int(_cfg.get("gateway", {}).get("webui", {}).get("port", 7240))
             _system_cfg = _cfg.get("system", {})
     except Exception:
         pass
@@ -4714,7 +4714,7 @@ if __name__ == "__main__":
 
     _is_win = _platform.system() == "Windows"
 
-    for _port in (9724, 9725):
+    for _port in (7240, 7241):
         if _is_port_in_use(_port):
             print(f"\n⚠ 端口 {_port} 已被占用，尝试终止旧进程...")
             if not _kill_port_user(_port):
