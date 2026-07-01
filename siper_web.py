@@ -19,6 +19,10 @@ from collections import deque
 _is_win = _platform.system() == "Windows"
 if not _is_win:
     import signal
+# Project-local log directory (created automatically)
+_ProjDir = os.path.dirname(os.path.abspath(__file__))
+_LogDir = os.path.join(_ProjDir, 'log')
+os.makedirs(_LogDir, exist_ok=True)
 import socket
 import sys
 import time
@@ -248,7 +252,7 @@ class MemoryLogHandler(logging.Handler):
                 return
             _log_seen_ids.add(rid)
             if len(_log_buffer) == 0:
-                with open('/tmp/debug_log.txt', 'w') as _df:
+                with open(os.path.join(_LogDir, 'debug_log.txt'), 'w') as _df:
                     _df.write(f"first entry: {record.name} {record.levelname} {record.getMessage()[:50]}\n")
             # Keep set size bounded
             if len(_log_seen_ids) > _LOG_BUFFER_MAX * 2:
@@ -330,7 +334,9 @@ for h in list(root_logger.handlers):
     if isinstance(h, logging.StreamHandler):
         root_logger.removeHandler(h)
 # 添加文件日志（必须在 removeHandler 之后，因为 FileHandler 是 StreamHandler 子类）
-_file_handler = logging.FileHandler('/tmp/siper_file.log', mode='a', encoding='utf-8')
+import tempfile
+_dir = tempfile.gettempdir()
+_file_handler = logging.FileHandler(os.path.join(_dir, 'siper_file.log'), mode='a', encoding='utf-8')
 _file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
 root_logger.addHandler(_file_handler)
 # Keep memory handler attached; optional: raise level to WARNING to hide INFO logs
@@ -545,7 +551,7 @@ async def main():
         logger.info(f"配置：从 models.db 加载了 {len(_gm_models)} 个模型，默认={_gm_default}")
     _p = f"✔ 模型写入内存：{len(_gm_models)} 个模型已加载"
     try:
-        with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
+        with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg: _dbg.write(_p + "\n")
     except Exception: pass
 
     # Load config from SQLite (config.db) — migrate from JSON on first run
@@ -722,12 +728,12 @@ async def main():
             logger.info(f"配置：LLM 来自 models.db — 模型={llm_cfg.get('name')}, 地址={llm_cfg.get('base_url')}")
             _p = f"✔ LLM 已配置：{llm_cfg.get('name', '默认模型')}"
             print(_p)
-            with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
+            with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg: _dbg.write(_p + "\n")
         else:
             logger.info("配置：无可用模型/密钥，LLM 暂未配置 — 可在 Web UI 模型设置页面添加")
             _p = "⚠ LLM 未配置：可在 Web UI 模型设置页面添加"
             print(_p)
-            with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
+            with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg: _dbg.write(_p + "\n")
     else:
         if _lc_key:
             _def_model = _gm_default or ""
@@ -742,22 +748,22 @@ async def main():
             logger.info(f"配置：未找到 config.json，使用环境变量 LLM 配置，模型={_def_model}")
             _p = f"✔ LLM 已配置（环境变量）：{_def_model}"
             print(_p)
-            with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
+            with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg: _dbg.write(_p + "\n")
         else:
             logger.info("配置：无可用模型/密钥，LLM 暂未配置 — 可在 Web UI 模型设置页面添加")
             _p = "⚠ LLM 未配置：可在 Web UI 模型设置页面添加"
             print(_p)
-            with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
+            with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg: _dbg.write(_p + "\n")
 
     # NOTE: coordinator is lazily initialized
     # on first use to reduce memory footprint when not needed.
     # Call _ensure_coordinator() before use.
 
-    with open("/tmp/siper_startup.log", "a") as _dbg:
+    with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg:
         _dbg.write(f"[{(time.time()-_t0):.1f}s] agent initialized: {initialized}\n")
     _p = f"✔ Agent 初始化：{agent.config.name}"
     print(_p)
-    with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
+    with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg: _dbg.write(_p + "\n")
     logger.info(f"Agent 已初始化：{agent.config.name}")
     logger.info(f"[计时] 配置加载完成: {(time.time()-_t0)*1000:.0f}ms")
     logger.info(f"Agent 配置：{agent.config.agent_name}")
@@ -822,12 +828,12 @@ async def main():
 
     # Initialize token usage DB (shared agents/token.db)
     _init_token_db()
-    with open("/tmp/siper_startup.log", "a") as _dbg:
+    with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg:
         _dbg.write(f"[{(time.time()-_t0):.1f}s] token DB done\n")
     logger.info(f"Token 历史：已加载 {len(_token_usage_history)} 条记录")
     _p = f"✔ Token 数据库：{len(_token_usage_history)} 条历史记录"
     print(_p)
-    with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
+    with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg: _dbg.write(_p + "\n")
 
     # Inject _token_db_conn and _log_buffer into handlers (must be after _init_token_db)
     global _token_db_conn, _log_buffer  # 声明模块级全局变量，避免 Python 编译器视为局部
@@ -979,8 +985,8 @@ async def main():
         logger.info(_summary)
         _p = f"✔ 启动验证：{_ok}/{_total} 通过"
         print(_p)
-        with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
-        with open("/tmp/siper_startup.log", "a") as _dbg:
+        with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg: _dbg.write(_p + "\n")
+        with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg:
             _dbg.write(f"[{(time.time()-t0):.1f}s] {_summary}\n")
 
     async def handle_request(reader, writer):
@@ -3757,10 +3763,10 @@ async def main():
         finally:
             _s.close()
     # ===== Start servers =====
-    with open("/tmp/siper_startup.log", "a") as _dbg:
+    with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg:
         _dbg.write(f"[{(time.time()-_t0):.1f}s] starting servers\n")
     http_server = await asyncio.start_server(handle_request, "0.0.0.0", port)
-    with open("/tmp/siper_startup.log", "a") as _dbg:
+    with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg:
         _dbg.write(f"[{(time.time()-_t0):.1f}s] HTTP server started on port {port}\n")
     logger.info(f"[计时] HTTP 服务启动完成: {(time.time()-_t0)*1000:.0f}ms")
     logger.info(f"Web UI 地址：http://localhost:{port}")
@@ -3895,7 +3901,7 @@ async def main():
     logger.info("[起源] 启动预填充已调度")
     _p = "✔ 内存加载：agents/sessions 加载已调度"
     print(_p)
-    with open("/tmp/siper_startup.log", "a") as _dbg: _dbg.write(_p + "\n")
+    with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg: _dbg.write(_p + "\n")
 
     # 起源：注册 API 路由（一次性，在 main() 中完成）
     from ai_agent.api.router import register_routes as _register_routes
