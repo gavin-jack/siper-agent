@@ -1,6 +1,30 @@
 # Changelog
 
-> 所有版本变更记录。格式遵循 [Keep a Changelog](https://keepachangelog.com/)。
+> 所有版本变更记录
+
+## v0.3.0 (2026-07-02)
+
+### 重大变更 (breaking)
+
+- **端口变更**：默认端口从 `9724` 改为动态分配（HTTP=7242, WS=HTTP+1，可通过 `--port` 指定）
+- **Windows 10 原生支持**：从 WSL2 迁移到 Windows 原生路径 `E:\SiPer`
+- **PSUtil 依赖**：新增 `psutil` 包用于 Windows 系统信息（内存 RSS / CPU 负载）
+
+### 新功能 (feat)
+
+- **跨平台服务管理**：`siper.ps1` PowerShell 脚本（启动/停止/重启/状态）
+- **前端优化**：JS 加载顺序修复、页面生命周期 API、`file-icon.js` 统一工具
+- **模型管理工具栏**：统一 28px 高度体系、响应式 grid 布局
+
+### Bug 修复 (fix)
+
+- **Windows 兼容性**：`resource.getrusage` / `os.getloadavg` 在 Windows 上自动回退到 psutil
+- **空白页面**：app.js 直接 import chat.js（修复动态 import 未触发导致白屏）
+- **star import 清理**：删除未使用的命名空间导入，同步删除 window 挂载
+
+---
+
+。格式遵循 [Keep a Changelog](https://keepachangelog.com/)。
 
 ---
 
