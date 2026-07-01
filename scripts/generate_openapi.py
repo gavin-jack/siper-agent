@@ -97,7 +97,7 @@ def generate_openapi(routes, title='SiPer AI Agent API', version='1.0.0'):
             'description': 'SiPer AI Agent RESTful API — 由 router.py 装饰器自动生成',
         },
         'servers': [
-            {'url': 'http://127.0.0.1:9724', 'description': '开发服务器'}
+            {'url': 'http://127.0.0.1:7240', 'description': '开发服务器'}
         ],
         'paths': dict(sorted(paths.items())),
     }

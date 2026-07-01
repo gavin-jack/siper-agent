@@ -142,7 +142,7 @@ TEMPLATE_SETTINGS = """\
   },
   "gateway": {
     "cli": { "enabled": true },
-    "webui": { "enabled": true, "host": "localhost", "port": 9724 }
+    "webui": { "enabled": true, "host": "localhost", "port": 7240 }
   },
   "orchestration": {
     "default_workers": 2,
@@ -253,7 +253,7 @@ INSTALL_MD = """\
    nohup python3 siper_web.py > /dev/null 2>&1 &
    ```
 
-5. Open http://localhost:9724
+5. Open http://localhost:7240
 
 ## Config Files
 
