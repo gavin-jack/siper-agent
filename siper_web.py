@@ -4680,3 +4680,44 @@ if __name__ == "__main__":
             print(f"\n服务异常退出：{e}，5 秒后重启...")
             import time
             time.sleep(5)
+    # Reset module-level globals so re-entry works
+    def _reset_globals():
+        global _models_db, _config_db, _agent_session_managers, _log_buffer
+        global _token_usage_history, _token_db_conn, _upgrade_cache, _upgrade_cache_lock
+        _models_db = None
+        _config_db = None
+        _agent_session_managers = {}
+        _log_buffer = []
+        _token_usage_history = []
+        _token_db_conn = None
+        _upgrade_cache = {}
+        _upgrade_cache_lock = threading.Lock()
+
+        # Reset module-level globals so re-entry works
+    def _reset_globals():
+        global _models_db, _config_db, _agent_session_managers, _log_buffer
+        global _token_usage_history, _token_db_conn, _upgrade_cache, _upgrade_cache_lock
+        _models_db = None
+        _config_db = None
+        _agent_session_managers = {}
+        _log_buffer = []
+        _token_usage_history = []
+        _token_db_conn = None
+        _upgrade_cache = {}
+        _upgrade_cache_lock = threading.Lock()
+
+    while True:
+        try:
+            asyncio.run(main())
+        except KeyboardInterrupt:
+            print("\nShutdown complete")
+            break
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"\n服务异常退出：{e}，5 秒后重启...")
+            import time
+            time.sleep(5)
+            _reset_globals()
+
+# === END OF siper_web.py ===

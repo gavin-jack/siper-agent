@@ -1,6 +1,6 @@
 // chat-pages/settings.js — 全局设置页面（系统参数 + Agent 管理）
-import { t } from '../../utils/i18n.js?v=1783575508437';
-import { apiGetCached } from '../../utils/api.js?v=1783575508437';
+import { t } from '../../utils/i18n.js?v=1783625456886';
+import { apiGetCached } from '../../utils/api.js?v=1783625456886';
 
 // ── 模板函数 ──────────────────────────────────────────
 

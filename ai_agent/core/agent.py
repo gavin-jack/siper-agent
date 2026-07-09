@@ -29,7 +29,12 @@ import sqlite3 as _sqlite3
 def _save_summary_token(entry):
     """Save token usage from summary generation to the shared token DB."""
     try:
-        from siper_web import _token_db_conn
+        import sys
+        sw = sys.modules.get('siper_web')
+        if sw is None:
+            import siper_web
+            sw = siper_web
+        _token_db_conn = getattr(sw, '_token_db_conn', None)
         if not _token_db_conn:
             return
         cur = _token_db_conn.cursor()
@@ -440,6 +445,17 @@ class AIAgent:
                 _stop_event=_stop_event,
             )
             usage = llm_response.get('usage', {})
+            
+            # Save token usage for LLM calls (main conversation)
+            if usage and usage.get("total_tokens", 0) > 0:
+                _save_summary_token({
+                    "agent": self.config.agent_name,
+                    "model": self.llm_client.model or "",
+                    "prompt_tokens": usage.get("prompt_tokens", 0),
+                    "completion_tokens": usage.get("completion_tokens", 0),
+                    "total_tokens": usage.get("total_tokens", 0),
+                    "source": "chat",
+                })
 
             # Handle tool calls if present
             if llm_response.get('tool_calls') and _tool_round < _MAX_TOOL_ROUNDS:
