@@ -17,7 +17,7 @@ import { renderFull, applyDelta } from './renderer.js?v=1783611558619';
 import { appendStream, finalizeStream, handleStopped } from './chat/stream.js?v=1783611558619';
 import { setConnected, getStreamState, markSessionReady, setChatSessionId, setIsSending, setIsThinking, setThinkingSteps } from './chat/state.js?v=1783611558619';
 import { chatThinkingShow, chatThinkingAddToolStep, chatThinkingAddTextRow } from './chat/thinking.js?v=1783611558619';
-import { showToastCompat, showDialogCompat } from '../utils/ws-compat.js?v=1783611558619';
+import { showToastCompat, showDialogCompat } from './utils/ws-compat.js?v=1783611558619';
 
 let ws = null;
 let _ver = 0;
