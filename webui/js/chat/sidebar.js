@@ -5,7 +5,7 @@ import {
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
   _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile,
   _ctxMenu,
-  setChatSessionId, setChatCurrentAgent, setSelectedAgent, setAgentConfigName,
+  setChatSessionId, setChatCurrentModel, setChatCurrentAgent, setSelectedAgent, setAgentConfigName,
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, setThinkingSteps, setIsThinking, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent

@@ -982,7 +982,7 @@ async def main():
                 agent_name = _qs.get("agent", ["default"])[0]
                 # 安全校验：只允许合法 agent 目录名（字母/数字/下划线/连字符）
                 import re as _re
-                if not _re.match(r'^[a-zA-Z0-9_-]+$', agent_name):
+                if not _re.match(r'^[a-zA-Z][a-zA-Z0-9_-]{0,63}$', agent_name):
                     agent_name = "default"
                 # 查找 avatar 文件（支持 .webp 和 .png）
                 avatar_path = None
