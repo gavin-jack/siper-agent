@@ -1,41 +1,41 @@
 // app.js — ESM 入口
 // 三模板 SPA: chat(默认) | standalone(懒加载) | sidebar(常驻)
-import { connectWS, setConnected, getWs } from './core.js?v=1783611558619';
+import { connectWS, setConnected, getWs } from './core.js?v=1783612457431';
 // expose getWs globally for debugging
 window.getWs = getWs;
 // -------------------------------------------------
 // 初始化：立即建立 WebSocket 连接
 // -------------------------------------------------
 connectWS();
-import { registerAllHandlers } from './renderer.js?v=1783611558619';
+import { registerAllHandlers } from './renderer.js?v=1783612457431';
 
 // Utils
-import { escapeHtml } from './utils/escape.js?v=1783611558619';
-import { LANG, t, applyLang, selectLang } from './utils/i18n.js?v=1783611558619';
-import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js?v=1783611558619';
-import { apiGet, apiPost } from './utils/api.js?v=1783611558619';
-import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js?v=1783611558619';
+import { escapeHtml } from './utils/escape.js?v=1783612457431';
+import { LANG, t, applyLang, selectLang } from './utils/i18n.js?v=1783612457431';
+import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js?v=1783612457431';
+import { apiGet, apiPost } from './utils/api.js?v=1783612457431';
+import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js?v=1783612457431';
 
 // Components
-import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmDeleteModel, showInput, cancelInput, execInput, openImageLightbox } from './components/toast.js?v=1783611558619';
-import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js?v=1783611558619';
-import * as AgentModels from './components/agent-models.js?v=1783611558619';
+import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmDeleteModel, showInput, cancelInput, execInput, openImageLightbox } from './components/toast.js?v=1783612457431';
+import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js?v=1783612457431';
+import * as AgentModels from './components/agent-models.js?v=1783612457431';
 
 // Chat core (must load before DOMContentLoaded)
-import * as Chat from './pages/chat-pages/chat.js?v=1783611558619';
+import * as Chat from './pages/chat-pages/chat.js?v=1783612457431';
 
 // Chat input
-import { toggleChatModelDropdown } from './chat/input.js?v=1783611558619';
+import { toggleChatModelDropdown } from './chat/input.js?v=1783612457431';
 
 // Sidebar / UI
-import { startNewChat, expandAllAgents } from './chat/sidebar.js?v=1783611558619';
-import { newSession } from './chat/session.js?v=1783611558619';
+import { startNewChat, expandAllAgents } from './chat/sidebar.js?v=1783612457431';
+import { newSession } from './chat/session.js?v=1783612457431';
 
 // Template-clone pages (保留全量 import，后续逐步迁移)
-import * as Sessions from './pages/sessions.js?v=1783611558619';
-import * as Memory from './pages/memory.js?v=1783611558619';
-import * as AgentConfig from './pages/agent-config.js?v=1783611558619';
-import * as Theme from './pages/theme.js?v=1783611558619';
+import * as Sessions from './pages/sessions.js?v=1783612457431';
+import * as Memory from './pages/memory.js?v=1783612457431';
+import * as AgentConfig from './pages/agent-config.js?v=1783612457431';
+import * as Theme from './pages/theme.js?v=1783612457431';
 
 // ===== Window Global Mounts =====
 // Utils
@@ -99,7 +99,7 @@ window.refreshSessions = () => {};
 window.refreshMemoryPage = () => {};
 
 // page_cache 基础设施
-import { initPageCache } from './page-cache.js?v=1783611558619';
+import { initPageCache } from './page-cache.js?v=1783612457431';
 initPageCache();
 
 // Template-clone pages 已全量加载，直接映射
@@ -132,7 +132,7 @@ const PAGE_RENDER_FN = {
 
 // ===== 动态页面模块加载器 =====
 // 2026-06-18: 增加 MutationObserver 防抖 + data-localized 标记避免重复翻译
-const _PAGE_CACHE_VER = 1783611558619;
+const _PAGE_CACHE_VER = 1783612457431;
 const _pageModCache = {};
 async function _loadPageModule(page) {
   if (_pageModCache[page]) return _pageModCache[page];

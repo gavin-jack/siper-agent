@@ -1,5 +1,5 @@
 // chat-pages/tasks.js — 任务页面渲染
-import { t } from '../../utils/i18n.js?v=1783611558619';
+import { t } from '../../utils/i18n.js?v=1783612457431';
 
 export function renderTasksPageChat(container) {
   container.className = 'siper-content siper-full-content page-tasks';

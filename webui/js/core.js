@@ -13,11 +13,11 @@
  *   页面导航 → chat/nav.js
  *   会话管理 → chat/session.js
  */
-import { renderFull, applyDelta } from './renderer.js?v=1783611558619';
-import { appendStream, finalizeStream, handleStopped } from './chat/stream.js?v=1783611558619';
-import { setConnected, getStreamState, markSessionReady, setChatSessionId, setIsSending, setIsThinking, setThinkingSteps } from './chat/state.js?v=1783611558619';
-import { chatThinkingShow, chatThinkingAddToolStep, chatThinkingAddTextRow } from './chat/thinking.js?v=1783611558619';
-import { showToastCompat, showDialogCompat } from './utils/ws-compat.js?v=1783611558619';
+import { renderFull, applyDelta } from './renderer.js?v=1783612457431';
+import { appendStream, finalizeStream, handleStopped } from './chat/stream.js?v=1783612457431';
+import { setConnected, getStreamState, markSessionReady, setChatSessionId, setIsSending, setIsThinking, setThinkingSteps } from './chat/state.js?v=1783612457431';
+import { chatThinkingShow, chatThinkingAddToolStep, chatThinkingAddTextRow } from './chat/thinking.js?v=1783612457431';
+import { showToastCompat, showDialogCompat } from './utils/ws-compat.js?v=1783612457431';
 
 let ws = null;
 let _ver = 0;
@@ -139,4 +139,4 @@ function dispatch(msg) {
 }
 
 // Re-export from state.js for app.js backward compat
-export { setConnected } from './chat/state.js?v=1783611558619';
+export { setConnected } from './chat/state.js?v=1783612457431';
