@@ -2,13 +2,13 @@
 
 > **一个独立的 AI Agent 框架 — 有状态 UI · 多模型 · 多 Agent · 27 个内置工具 · 三语言 · 前后端隔离**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org) [![Version](https://img.shields.io/badge/Version-v0.3.0-green.svg)](https://github.com/gavin-jack/siper-agent/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org) [![Version](https://img.shields.io/badge/Version-v0.3.1-green.svg)](https://github.com/gavin-jack/siper-agent/releases)
 
 **核心仅依赖 `openai` + `websockets` + `jinja2` + `psutil`，27 个工具中 25 个纯 stdlib。完全独立于任何 Agent 框架，不依赖 Hermes / LangChain / AutoGPT。**
 
 启动后访问 **http://localhost:7240**（HTTP）/ **ws://localhost:7241**（WebSocket，端口自动分配）
 
-> **v0.3.0 重大变更：** 端口改为动态分配（默认 7240/7241），支持 Windows 10 原生运行。
+> **v0.3.1 更新：** 数据层统一为 config.db，新增 Agent 设置自动保存，模型选择器实时同步。
 
 ---
 

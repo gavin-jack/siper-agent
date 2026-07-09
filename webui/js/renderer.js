@@ -81,7 +81,7 @@ export { _handlers };
 
 // ===== Message rendering (migrated from dom.js) =====
 
-import { escapeHtml } from './utils/escape.js?v=1783583146303';
+import { escapeHtml } from './utils/escape.js?v=1783575508437';
 
 /**
  * Add a message bubble to the chat.

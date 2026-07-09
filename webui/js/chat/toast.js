@@ -1,5 +1,5 @@
 // chat/toast.js — Toast/Confirm 封装
-import { toast, showConfirm } from '../components/toast.js?v=1783583146303';
+import { toast, showConfirm } from '../components/toast.js?v=1783575508437';
 
 export function showChatToast(message, type, duration) {
   const fn = type === 'error' ? toast.error.bind(toast) : type === 'warning' ? toast.warning.bind(toast) : type === 'success' ? toast.success.bind(toast) : toast.info.bind(toast);
@@ -14,4 +14,4 @@ export function chatConfirm(opts) {
 }
 
 // Re-export showDictModal for convenience
-export { showDictModal } from '../components/toast.js?v=1783583146303';
+export { showDictModal } from '../components/toast.js?v=1783575508437';

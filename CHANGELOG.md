@@ -2,6 +2,24 @@
 
 > 所有版本变更记录
 
+## v0.3.1 (2026-07-09)
+
+### 重构 (refactor)
+- **数据层统一为 config.db**：新增 `apply_to_agent()` 方法，启动时从 config.db 加载配置到 agent.config
+- **删除运行时 config.json 读取**：config.db 作为 Single Source of Truth，保存时只写 config.db
+- **config.json 降级为 bootstrap fallback**：仅在 config.db 无记录时一次性导入
+
+### 新功能 (feat)
+- **Agent 设置自动保存**：文本/数字字段 500ms 防抖，textarea 800ms 防抖
+- **模型选择器同步**：保存后通过 `siper-models-changed` CustomEvent 实时更新聊天页模型下拉
+- **会话时间戳更新**：新增 `updated_at` 字段，发送消息时调用 `/api/sessions/{sid}/touch` 更新时间戳
+
+### Bug 修复 (fix)
+- **空白页面**：chat.js `initChatPage` 缺少闭合 `}` 导致 ESM 加载失败
+- **ESM 语法错误**：stream.js 多处 `if` 块缺少闭合 brace
+
+---
+
 ## v0.3.0 (2026-07-02)
 
 ### 重大变更 (breaking)
