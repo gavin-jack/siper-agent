@@ -2,6 +2,26 @@
 
 > 所有版本变更记录
 
+## v0.3.2 (2026-07-09)
+
+### Bug 修复 (fix)
+- **Critical**: `agent.py` models.db 路径修复（指向不存在的 `E:/siper/models.db` → 正确路径 `E:/siper/data/models.db`）
+- `siper_web.py`: 删除 `_handlers_for_routes` 重复键（`api_get_logs`/`api_get_tools`/`api_upgrade_check`）
+- `model-test.js`: 修复语法错误（`?.innerHTML` 非法赋值左侧）
+
+### 重构 (refactor)
+- 前端嵌套深度优化 — 提取 `_renderMd` 辅助函数（stream.js，消除 4 处 typeof 判断）
+- 提取 `utils/ws-compat.js` 统一 toast/dialog 兼容逻辑
+- 清理 `sidebar.js` 13 处无意义 typeof 检查（ESM 导入保证存在）
+- `selectChatSession` 拆分（140行 → 5 子函数 + 7行主函数）
+- `model-settings.js` renderSettingsModelsList 拆分（102行 → 8 辅助函数）
+- `app.js` navigateToPage 映射表化（137行 → 56行，消除 if-else 链）
+- `model-test.js` verify 函数去重（160行重复 → 提取 `_syncCaps`/`_syncMeta`/`_infoParts`）
+- 提取 `utils/escape.js` escapeHtml 为纯字符串替换（性能优化）
+- 提取 `utils/page-cache.js` 基础设施模块
+
+---
+
 ## v0.3.1 (2026-07-09)
 
 ### 重构 (refactor)

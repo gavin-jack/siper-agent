@@ -2,13 +2,13 @@
 
 > **一个独立的 AI Agent 框架 — 有状态 UI · 多模型 · 多 Agent · 27 个内置工具 · 三语言 · 前后端隔离**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org) [![Version](https://img.shields.io/badge/Version-v0.3.1-green.svg)](https://github.com/gavin-jack/siper-agent/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org) [![Version](https://img.shields.io/badge/Version-v0.3.2-green.svg)](https://github.com/gavin-jack/siper-agent/releases)
 
 **核心仅依赖 `openai` + `websockets` + `jinja2` + `psutil`，27 个工具中 25 个纯 stdlib。完全独立于任何 Agent 框架，不依赖 Hermes / LangChain / AutoGPT。**
 
 启动后访问 **http://localhost:7240**（HTTP）/ **ws://localhost:7241**（WebSocket，端口自动分配）
 
-> **v0.3.1 更新：** 数据层统一为 config.db，新增 Agent 设置自动保存，模型选择器实时同步。
+> **v0.3.2 更新：** 前端重构优化、Bug 修复（路径/重复键/语法）、嵌套深度优化、函数拆分。
 
 ---
 
@@ -422,6 +422,13 @@ siper/
 ---
 
 ## 更新记录
+
+**v0.3.2** (2026-07-09) — 前端重构 + Bug 修复
+
+- 修复 models.db 路径不一致 [Critical]
+- 删除 _handlers_for_routes 重复键
+- 前端嵌套深度优化 + 函数拆分
+- model-test.js verify 函数去重
 
 **v0.3.1** (2026-07-09) — 数据层统一 + 自动保存
 
