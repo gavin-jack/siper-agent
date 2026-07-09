@@ -476,15 +476,15 @@ export async function chatSendMessage() {
     // 异步上传文件到磁盘（不阻塞 WS 发送）
     chatUploadFiles(filesToUpload).catch(e => { console.error('[input] background upload failed:', e); });
     // 立即通过 WS 发送（不等上传完成）
-    const payload = { type: 'message', content, session_id: _chatSessionId, agent: _chatCurrentAgent?.name || 'default' };
+    const payload = { type: 'message', content, session_id: _chatSessionId, agent: _chatCurrentAgent?.name || 'default', model: _chatCurrentModel || '' };
     if (!_wsSend(payload)) { resetSendState(); return; }
     // also send images if any
     if (images.length) {
-      if (!_wsSend({ type: 'message', content, session_id: _chatSessionId, images, agent: _chatCurrentAgent?.name || 'default' })) { resetSendState(); return; }
+      if (!_wsSend({ type: 'message', content, session_id: _chatSessionId, images, agent: _chatCurrentAgent?.name || 'default', model: _chatCurrentModel || '' })) { resetSendState(); return; }
     }
   } else {
     // plain text message
-    if (!_wsSend({ type: 'message', content: text, session_id: _chatSessionId, agent: _chatCurrentAgent?.name || 'default' })) { resetSendState(); return; }
+    if (!_wsSend({ type: 'message', content: text, session_id: _chatSessionId, agent: _chatCurrentAgent?.name || 'default', model: _chatCurrentModel || '' })) { resetSendState(); return; }
   }
 
   // Touch session timestamp so it appears at top of list
