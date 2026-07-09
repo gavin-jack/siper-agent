@@ -57,6 +57,7 @@ class ConversationSession:
     messages: List[Dict] = field(default_factory=list)
     context: Dict[str, Any] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    model: str = ""
 
     def add_message(
         self,
@@ -113,7 +114,8 @@ class ConversationSession:
             'ended_at': self.ended_at,
             'messages': self.messages,
             'context': self.context,
-            'metadata': self.metadata
+            'metadata': self.metadata,
+            'model': self.model
         }
 
     @classmethod
@@ -126,7 +128,8 @@ class ConversationSession:
             ended_at=data.get('ended_at'),
             messages=data.get('messages', []),
             context=data.get('context', {}),
-            metadata=data.get('metadata', {})
+            metadata=data.get('metadata', {}),
+            model=data.get('model', '')
         )
 
 
@@ -184,7 +187,8 @@ class SessionManager:
                 updated_at TEXT,
                 context TEXT,
                 metadata TEXT,
-                title TEXT DEFAULT ''
+                title TEXT DEFAULT '',
+                model TEXT DEFAULT ''
             )
         ''')
         # Migration: add title column if missing (older databases)
@@ -195,6 +199,11 @@ class SessionManager:
         # Migration: add updated_at column if missing (older databases)
         try:
             cursor.execute("ALTER TABLE sessions ADD COLUMN updated_at TEXT")
+        except Exception:
+            pass
+        # Migration: add model column if missing (older databases)
+        try:
+            cursor.execute("ALTER TABLE sessions ADD COLUMN model TEXT DEFAULT ''")
         except Exception:
             pass
 
@@ -367,6 +376,14 @@ class SessionManager:
 
         return Message.from_dict(message)
 
+    async def set_model(self, session_id: str, model: str):
+        """Set the model for a session."""
+        session = await self.get_session(session_id)
+        if not session:
+            return
+        session.model = model
+        await self._save_session(session)
+
     async def end_session(self, session_id: str) -> bool:
         """
         End and cleanup a session.
@@ -461,8 +478,8 @@ class SessionManager:
         session.updated_at = now
         cursor.execute('''
             INSERT OR REPLACE INTO sessions
-            (session_id, user_id, created_at, ended_at, updated_at, context, metadata, title)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (session_id, user_id, created_at, ended_at, updated_at, context, metadata, title, model)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             session.session_id,
             session.user_id,
@@ -471,7 +488,8 @@ class SessionManager:
             session.updated_at,
             json.dumps(session.context),
             json.dumps(session.metadata),
-            getattr(session, 'title', '')
+            getattr(session, 'title', ''),
+            session.model
         ))
         self._db_connection.commit()
 
@@ -494,7 +512,8 @@ class SessionManager:
             created_at=row['created_at'],
             ended_at=row['ended_at'],
             context=json.loads(row['context']) if row['context'] else {},
-            metadata=json.loads(row['metadata']) if row['metadata'] else {}
+            metadata=json.loads(row['metadata']) if row['metadata'] else {},
+            model=row['model'] or ''
         )
 
         # Load messages

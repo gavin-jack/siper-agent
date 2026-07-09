@@ -285,7 +285,7 @@ def api_get_sessions():
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT s.session_id, s.user_id, s.created_at, s.ended_at, s.title,
+                SELECT s.session_id, s.user_id, s.created_at, s.ended_at, s.title, s.model,
                        COUNT(m.message_id) as msg_count,
                        m_last.content as last_content,
                        m_last.timestamp as last_ts
@@ -312,6 +312,7 @@ def api_get_sessions():
                     "active": row["ended_at"] is None,
                     "last_message": (row["last_content"][:80] if row["last_content"] else ""),
                     "title": row["title"] or "",
+                    "model": row["model"] or "",
                 })
             conn.close()
         except Exception as e:

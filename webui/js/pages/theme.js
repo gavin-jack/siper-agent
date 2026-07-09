@@ -1,11 +1,11 @@
 // pages/theme.js — 主题设置
 // 从 pages/page-theme.js 迁移
 
-import { t } from '../utils/i18n.js?v=1783575508437';
-import { showConfirm, showInput } from '../components/toast.js?v=1783575508437';
-import { toast } from '../components/toast.js?v=1783575508437';
-import { updateThemePaletteTrigger } from '../utils/dom.js?v=1783575508437';
-import { escapeHtml } from '../utils/escape.js?v=1783575508437';
+import { t } from '../utils/i18n.js?v=1783607957441';
+import { showConfirm, showInput } from '../components/toast.js?v=1783607957441';
+import { toast } from '../components/toast.js?v=1783607957441';
+import { updateThemePaletteTrigger } from '../utils/dom.js?v=1783607957441';
+import { escapeHtml } from '../utils/escape.js?v=1783607957441';
 
 // ===== 页面模板 =====
 export function _tplThemePage() {

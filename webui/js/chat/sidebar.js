@@ -1,5 +1,5 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
-import { getWs } from '../core.js?v=1783575508437';
+import { getWs } from '../core.js?v=1783607957441';
 import {
   _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
@@ -9,12 +9,12 @@ import {
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, setThinkingSteps, setIsThinking, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
-} from './state.js?v=1783575508437';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1783575508437';
-import { chatThinkingHide } from './thinking.js?v=1783575508437';
-import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns } from './input.js?v=1783575508437';
-import { toast, showInput } from '../components/toast.js?v=1783575508437';
-import { chatConfirm } from './toast.js?v=1783575508437';
+} from './state.js?v=1783607957441';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1783607957441';
+import { chatThinkingHide } from './thinking.js?v=1783607957441';
+import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns } from './input.js?v=1783607957441';
+import { toast, showInput } from '../components/toast.js?v=1783607957441';
+import { chatConfirm } from './toast.js?v=1783607957441';
 
 // ===== 从 page_cache 读取 agents 列表 =====
 function getAgentsFromCache() {
@@ -348,6 +348,13 @@ export function selectChatSession(session, agent) {
 
   setChatSessionId(session.session_id);
   setChatCurrentAgent(agent);
+  // Restore target session's model preference
+  if (session.model) {
+    setChatCurrentModel(session.model);
+    const _ag = _getAgents && _getAgents().find(function(a){return a.name===agent;});
+    const _m = _ag && _ag.available_models && _ag.available_models.find(function(m){return m.name===session.model;});
+    if (_m) setChatModelContextWindow(_m.context_window || 8192);
+  }
   // 中栏只更新 active class，不触发全量 rebuild（debounce 的 renderMiddleList 已足够）
   if (prevSid !== session.session_id) {
     const items = document.querySelectorAll('.siper-session-item');
