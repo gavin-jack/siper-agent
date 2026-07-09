@@ -51,17 +51,7 @@ window.apiPost = apiPost;
 window.toggleChatLangDropdown = toggleChatLangDropdown;
 window.selectChatLang = selectChatLang;
 
-// Components
-window.toast = toast;
-window.showConfirm = showConfirm;
-window.cancelConfirm = cancelConfirm;
-window.execConfirm = execConfirm;
-window.showDictModal = showDictModal;
-window.confirmDeleteModel = confirmDeleteModel;
-window.showInput = showInput;
-window.cancelInput = cancelInput;
-window.execInput = execInput;
-window.openImageLightbox = openImageLightbox;
+// Components (mounted by toast.js at import time; app.js does NOT need to redundantly re-mount)
 window.testModel = testModel;
 window.verifyGlobalModel = verifyGlobalModel;
 window.verifyChatModel = verifyChatModel;
@@ -108,37 +98,9 @@ window.resetTheme = Theme.resetTheme;
 window.refreshSessions = () => {};
 window.refreshMemoryPage = () => {};
 
-// ===== page_cache 基础设施 =====
-// page_cache 数据存储（由 renderer.js 的 page_cache handler 填充）
-window.__pageCacheData = {};
-// 页面回调注册表：pageName → function(data) 新数据到达时自动调用
-window.__pageCacheCallbacks = {};
-// 获取指定页面的缓存数据
-window.__getPageCache = function(page) {
-    return window.__pageCacheData && window.__pageCacheData[page];
-};
-// 设置指定页面的缓存数据
-window.__setPageCache = function(page, data) {
-    if (!window.__pageCacheData) window.__pageCacheData = {};
-    window.__pageCacheData[page] = data;
-};
-// 注册页面缓存更新回调（页面模块调用，新数据到达时自动刷新）
-window.__onPageCacheRegister = function(page, callback) {
-    if (window.__pageCacheCallbacks) {
-        window.__pageCacheCallbacks[page] = callback;
-    }
-};
-// 页面缓存更新入口（renderer.js 调用，分发到各页面回调）
-window.__onPageCacheUpdate = function(page, data) {
-    if (window.__pageCacheData) {
-        window.__pageCacheData[page] = data;
-    }
-    // 如果页面注册了回调，自动触发刷新
-    if (window.__pageCacheCallbacks && window.__pageCacheCallbacks[page]) {
-        try { window.__pageCacheCallbacks[page](data); }
-        catch(e) { console.error('[app] page_cache callback failed for ' + page + ':', e); }
-    }
-};
+// page_cache 基础设施
+import { initPageCache } from './page-cache.js?v=1783575508437';
+initPageCache();
 
 // Template-clone pages 已全量加载，直接映射
 const PAGE_TEMPLATE = {

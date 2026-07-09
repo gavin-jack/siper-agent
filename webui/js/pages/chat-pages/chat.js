@@ -365,7 +365,7 @@ window.triggerAgentFileAutoSave = function() {
 };
 
 /** Immediate save for model checkboxes/selects */
-window.autoSaveAgentModels = function() { _saveAgentModels(true); };
+window.autoSaveAgentModels = function() { _saveAgentModels(true); }; // keep for inline onchange compat
 
 /** Collect current form state and POST to /api/agents/{name}/meta */
 async function _saveAgentConfig(showToast) {

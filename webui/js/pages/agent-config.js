@@ -164,34 +164,7 @@ export async function saveAgentSettings() {
 
 let _agentModelAutoSaveTimer = null;
 
-export function autoSaveAgentModels() {
-  if (_agentModelAutoSaveTimer) clearTimeout(_agentModelAutoSaveTimer);
-  _agentModelAutoSaveTimer = setTimeout(async () => {
-    if (!currentConfigAgent) return;
-    const availModels = [];
-    document.querySelectorAll('.agent-avail-mcb:checked').forEach(cb => availModels.push(cb.value));
-    const body = {
-      model_names: availModels,
-      default_name: document.getElementById('agentDefaultChatModel') ? document.getElementById('agentDefaultChatModel').value : '',
-    };
-    try {
-      const r = await fetch('/api/config/agent/' + currentConfigAgent + '/models', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(body),
-      });
-      const d = await r.json();
-      if (d.success) {
-        toast.success(t('agent.modelSaved'), 1500);
-        if (typeof refreshConfigAgentPanel === 'function') refreshConfigAgentPanel();
-        if (typeof loadChatModels === 'function') loadChatModels();
-      }
-      else toast.error(t('settings.saveFailed') + ': ' + (d.error || 'unknown'));
-    } catch(e) { toast.error(t('settings.saveFailed') + ': ' + e.message); }
-  }, 300);
-}
 
-// ===== Agent Config =====
 export let agentConfigData = { agents: [], active: 'default' };
 export let currentConfigAgent = '';
 let cachedConfigSoulContent = '';
@@ -720,4 +693,3 @@ window.showAddAgentModal = showAddAgentModal;
 window.confirmDeleteAgent = confirmDeleteAgent;
 window.switchConfigAgentPageTab = switchConfigAgentPageTab;
 window.triggerAgentFileAutoSave = triggerAgentFileAutoSave;
-window.autoSaveAgentModels = autoSaveAgentModels;
