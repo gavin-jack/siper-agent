@@ -2,9 +2,9 @@
 # SiPer 快速重启脚本
 # 用法: ./siper_restart.sh [端口，默认9724]
 
-PORT=${1:-9724}
-SIper_DIR="/home/gavin/.siper"
-PYTHON="/home/gavin/.hermes/hermes-agent/venv/bin/python3"
+PORT=${1:-7240}
+PROJECT_DIR="/home/gavin/.siper"
+PYTHON="${PROJECT_DIR}/.venv/bin/python"
 
 echo "=== SiPer 重启 (端口 $PORT) ==="
 

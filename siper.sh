@@ -5,7 +5,7 @@
 set -e
 
 PROJECT_DIR="/home/gavin/.siper"
-PYTHON="/home/gavin/.hermes/hermes-agent/venv/bin/python3"
+PYTHON="${PROJECT_DIR}/.venv/bin/python"
 MAIN_FILE="siper_web.py"
 PID_FILE="$PROJECT_DIR/.siper.pid"
 LOG_FILE="/tmp/siper_file.log"

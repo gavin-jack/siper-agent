@@ -10,13 +10,13 @@ import {
     getStreamState, syncStreamFromCurrent, syncStreamToCurrent,
     setChatStreamAcc, setChatStreamRow, setChatStreamBubble,
     setIsThinking, updateStreamingBadge,
-} from './state.js?v=1782281677851';
-import { chatEscapeHtml, chatRenderMarkdown, buildMetaHtml, updateCtxInfoDisplay, playNotifySound } from './message.js?v=1782281677851';
-import { updateCtxFromStreamEnd, resetSendState } from './session.js?v=1782281677851';
-import { chatThinkingHide, chatThinkingClear, chatThinkingAddTextRow, chatThinkingShow } from './thinking.js?v=1782281677851';
-import { _showNewMsgIndicator, _hideNewMsgIndicator } from './badge.js?v=1782281677851';
-import { renderFull, applyDelta } from '../renderer.js?v=1782281677851';
-import { markSessionUnread, renderMiddleList, refreshAgentsAndRender } from './sidebar.js?v=1782281677851';
+} from './state.js?v=1783583146303';
+import { chatEscapeHtml, chatRenderMarkdown, buildMetaHtml, updateCtxInfoDisplay, playNotifySound } from './message.js?v=1783583146303';
+import { updateCtxFromStreamEnd, resetSendState } from './session.js?v=1783583146303';
+import { chatThinkingHide, chatThinkingClear, chatThinkingAddTextRow, chatThinkingShow } from './thinking.js?v=1783583146303';
+import { _showNewMsgIndicator, _hideNewMsgIndicator } from './badge.js?v=1783583146303';
+import { renderFull, applyDelta } from '../renderer.js?v=1783583146303';
+import { markSessionUnread, renderMiddleList, refreshAgentsAndRender } from './sidebar.js?v=1783583146303';
 
 // 流式 DOM 元素（当前会话）
 let _streamTextEl = null;
@@ -314,5 +314,3 @@ function buildThinkingDetails(steps) {
     }
     return container;
 }
-
-

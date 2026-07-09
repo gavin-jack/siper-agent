@@ -387,11 +387,68 @@ class ConfigDB:
             ).rowcount > 0
             # 同步 agent_configs.default_chat_model
             if ok:
-                conn.execute("""
-                    UPDATE agent_configs SET default_chat_model=?, updated_at=?
-                    WHERE agent_name=?
-                """, (model_name, time.time(), agent_name))
+                conn.execute(
+                    "UPDATE agent_configs SET default_chat_model=?, updated_at=? WHERE agent_name=?",
+                    (model_name, time.time(), agent_name)
+                )
             return ok
+
+    # ===== 运行时加载 =====
+
+    def apply_to_agent(self, agent) -> bool:
+        """将 config.db 的配置加载到 agent.config 内存对象（Single Source of Truth）
+
+        Args:
+            agent: AIAgent 实例，其 config 属性将被更新
+
+        Returns:
+            bool: 是否成功加载（config.db 无该 agent 记录时返回 False）
+        """
+        cfg = self.get_agent_config(agent.config.agent_name)
+        if not cfg:
+            return False
+        # 按字段映射到 agent.config（只更新非空/非默认值字段）
+        _MAP = {
+            "default_chat_model": str,
+            "default_vision_model": str,
+            "default_tts_model": str,
+            "llm_timeout": int,
+            "llm_max_tokens": int,
+            "llm_max_retries": int,
+            "session_timeout": int,
+            "max_history_messages": int,
+            "max_tools": int,
+            "max_tool_rounds": int,
+            "skill_pre_filter_top_k": int,
+        }
+        for key, typ in _MAP.items():
+            val = cfg.get(key)
+            if val is not None and val != "":
+                try:
+                    setattr(agent.config, key, typ(val))
+                except (ValueError, TypeError):
+                    pass
+        # available_models: list[str]
+        avm = cfg.get("available_models")
+        if avm and isinstance(avm, list):
+            agent.config.available_models = avm
+        # Display properties
+        if cfg.get("display_name"):
+            agent.config.name = cfg["display_name"]
+        if cfg.get("icon"):
+            agent.config.icon = cfg["icon"]
+        if cfg.get("avatar"):
+            agent.config.avatar = cfg["avatar"]
+        # memory_integration: dict → 合并到 agent.config
+        mem = cfg.get("memory_integration")
+        if isinstance(mem, dict):
+            existing_mem = getattr(agent.config, "memory_integration", None)
+            if isinstance(existing_mem, dict):
+                existing_mem.update(mem)
+            else:
+                agent.config.memory_integration = mem
+        logger.info(f"配置：从 config.db 加载 agent={agent.config.agent_name} 成功（models={len(agent.config.available_models)}）")
+        return True
 
     # ===== 迁移 =====
 

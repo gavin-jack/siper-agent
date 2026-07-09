@@ -270,6 +270,9 @@ function Start-SiperCommand {
         return
     }
 
+    # 强制隔离：清除 PYTHONPATH，避免跨项目 venv 污染
+    $env:PYTHONPATH = $null
+
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = "python"
     $psi.Arguments = "-u `"$MainFile`" $Port"
@@ -277,6 +280,8 @@ function Start-SiperCommand {
     $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
     $psi.CreateNoWindow = $true
     $psi.UseShellExecute = $false
+    # 子进程也清除 PYTHONPATH
+    $psi.EnvironmentVariables.Remove("PYTHONPATH")
 
     try {
         $process = [System.Diagnostics.Process]::Start($psi)

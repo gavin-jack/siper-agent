@@ -46,7 +46,11 @@ export function apiFetch(path, options = {}) {
 export async function apiGetCached(url, pageName) {
   if (typeof window.__getPageCache === 'function') {
     const cache = window.__getPageCache(pageName);
-    if (cache) return cache;
+    // 只有当缓存确实包含有效数据时才使用（拒绝空对象/空数组）
+    if (cache) {
+      if (Array.isArray(cache?.models) && cache.models.length > 0) return cache;
+      if (typeof cache === 'object' && !Array.isArray(cache) && Object.keys(cache).length > 0 && !('models' in cache)) return cache;
+    }
   }
   return await apiGet(url);
 }

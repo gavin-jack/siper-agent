@@ -209,6 +209,11 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
         asyncio.ensure_future(_sync_snapshot())
         return result
 
+    @router.post("/api/sessions/{sid}/touch")
+    def api_sessions_touch(sid, body=None):
+        result = local_handlers["api_touch_session"](sid)
+        return result
+
     @router.post("/api/save-response-dict")
     def api_save_response_dict(body):
         return local_handlers["api_save_response_dict"](body)

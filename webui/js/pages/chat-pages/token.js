@@ -1,8 +1,8 @@
 // chat-pages/token.js — Token 统计页面
 // 从 pages/chat.js 拆分
-import { fmtNum } from '../../utils/format.js?v=1782239267972';
-import { apiGetCached } from '../../utils/api.js?v=1782239267972';
-import { renderMonitorCharts } from './monitor.js?v=1782239267972';
+import { fmtNum } from '../../utils/format.js?v=1783583146303';
+import { apiGetCached } from '../../utils/api.js?v=1783583146303';
+import { renderMonitorCharts } from './monitor.js?v=1783583146303';
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {
@@ -54,10 +54,10 @@ export function renderTokenPageChat(container) {
     '<div id="monitorTokenStats"></div>' +
     _buildChartsHtml() +
     '</div>';
-  // 延迟渲染图表，等容器可见后 ECharts 才能正确获取尺寸
-  setTimeout(function() {
+  // 容器此时可见，直接用 RAF 确保 DOM 完成渲染后再初始化图表
+  requestAnimationFrame(function() {
     if (typeof window.refreshTokenStats === 'function') window.refreshTokenStats();
-  }, 60);
+  });
 }
 
 // ── Token 数据加载 ────────────────────────────────────

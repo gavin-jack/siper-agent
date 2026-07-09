@@ -1,5 +1,5 @@
 // chat-pages/plugins.js — 插件页面渲染
-import { t } from '../../utils/i18n.js?v=1782239267972';
+import { t } from '../../utils/i18n.js?v=1783583146303';
 
 export function renderPluginsPageChat(container) {
   container.className = 'siper-content siper-full-content page-plugins';

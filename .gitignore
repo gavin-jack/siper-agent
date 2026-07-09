@@ -71,3 +71,7 @@ webui/js/app-*.js
 *.db-wal
 backup/
 *.tar.gz
+
+# Runtime logs
+server.log
+log/

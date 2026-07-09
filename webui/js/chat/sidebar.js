@@ -1,5 +1,5 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
-import { getWs } from '../core.js?v=1782286483474';
+import { getWs } from '../core.js?v=1783583146303';
 import {
   _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
@@ -9,12 +9,12 @@ import {
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, setThinkingSteps, setIsThinking, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
-} from './state.js?v=1782286483474';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1782286483474';
-import { chatThinkingHide } from './thinking.js?v=1782286483474';
-import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns } from './input.js?v=1782286483474';
-import { toast, showInput } from '../components/toast.js?v=1782286483474';
-import { chatConfirm } from './toast.js?v=1782286483474';
+} from './state.js?v=1783583146303';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1783583146303';
+import { chatThinkingHide } from './thinking.js?v=1783583146303';
+import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns } from './input.js?v=1783583146303';
+import { toast, showInput } from '../components/toast.js?v=1783583146303';
+import { chatConfirm } from './toast.js?v=1783583146303';
 
 // ===== 从 page_cache 读取 agents 列表 =====
 function getAgentsFromCache() {
@@ -99,6 +99,10 @@ export function renderMiddleList() {
   // 直接执行排序渲染，不走 debounce
   // 原因：debounce 导致 updateSessionPreview 和 chatLoadAllSessions 竞态，排序结果不稳定
   if (_renderMiddleTimer) { clearTimeout(_renderMiddleTimer); _renderMiddleTimer = null; }
+  if (window.__midRenderCount === undefined) window.__midRenderCount = 0;
+  window.__midRenderCount++;
+  var _stack = new Error().stack.split('\n').slice(1, 4).map(function(l) { return l.trim(); }).join(' → ');
+  console.log('[MID-RENDER] #' + window.__midRenderCount + ' @ ' + new Date().toISOString().substr(11, 12) + '\n  ' + _stack);
   _doRenderMiddle();
 }
 
@@ -274,7 +278,7 @@ export async function chatToggleAgent(agentName) {
     renderMiddleList();
     // 展开态点击 → 折叠后显示 agent 设置页面（右栏）
     if (current && typeof window.selectChatAgent === 'function') {
-      window.selectChatAgent(agentName);
+      await window.selectChatAgent(agentName);
     }
   } finally {
     _switchingAgents.delete(agentName);
@@ -286,12 +290,15 @@ export async function chatToggleAgent(agentName) {
  */
 async function switchToAgent(agentName) {
   try {
+    const body = { action: 'switch', agent: agentName };
+    console.log('[DEBUG] switchToAgent POST:', JSON.stringify(body));
     const r = await fetch('/api/agents', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ action: 'switch', agent: agentName })
+      body: JSON.stringify(body)
     });
     const d = await r.json();
+    console.log('[DEBUG] switchToAgent response:', JSON.stringify(d));
     if (!d.success) {
       toast.error(t('agent.switchFailed') + ': ' + (d.error || ''));
       return;

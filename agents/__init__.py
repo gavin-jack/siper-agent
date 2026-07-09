@@ -10,6 +10,7 @@ Skill data is shared globally in agents/ root (skill_stats.json, skill_call_log.
 
 import json
 import os
+import re
 import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -104,7 +105,11 @@ def init_agent_db(name: str):
 
 
 def get_agent_dir(name: str) -> Path:
-    """Return the agent's data directory, creating it if needed."""
+    """Return the agent's data directory, creating it if needed.
+    Rejects invalid names that would cause filesystem issues."""
+    # 防止路径穿越和非法字符
+    if not name or not re.match(r'^[a-zA-Z0-9_\-]+$', name):
+        raise ValueError(f"Invalid agent name: {name!r}")
     agent_dir = AGENTS_DIR / name
     agent_dir.mkdir(parents=True, exist_ok=True)
     return agent_dir

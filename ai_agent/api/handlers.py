@@ -268,7 +268,7 @@ def _sync_models_to_agent_configs(models_data):
 
 def api_get_sessions():
     sessions = []
-    agents_dir = Path(os.path.dirname(str(PROJECT_ROOT))) / "agents"
+    agents_dir = PROJECT_ROOT / "agents"
     # Collect from all agent session databases (sessions/sessions.db)
     agent_dirs = [agents_dir / "default"]
     if agents_dir.exists():
@@ -429,6 +429,38 @@ def api_delete_session(sid):
                 del _sm.active_sessions[sid]
                 logger.info(f"api_delete_session: removed session {sid} from {_name} active_sessions")
         return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def api_touch_session(sid, body=None):
+    """Update session updated_at to current time."""
+    try:
+        from datetime import datetime
+        now = datetime.now().isoformat()
+        # Find session across all agent session managers
+        for _name, _sm in _agent_session_managers.items():
+            try:
+                cursor = _sm._db_connection.cursor()
+                cursor.execute("SELECT session_id FROM sessions WHERE session_id = ?", (sid,))
+                if cursor.fetchone():
+                    cursor.execute("UPDATE sessions SET updated_at = ? WHERE session_id = ?", (now, sid))
+                    _sm._db_connection.commit()
+                    return {"success": True}
+            except Exception as e:
+                logger.warning(f"api_touch_session: agent {_name} failed: {e}")
+                continue
+        # Also try default agent's session manager
+        try:
+            sm = agent.session_manager
+            cursor = sm._db_connection.cursor()
+            cursor.execute("UPDATE sessions SET updated_at = ? WHERE session_id = ?", (now, sid))
+            sm._db_connection.commit()
+            if cursor.rowcount > 0:
+                return {"success": True}
+        except Exception as e:
+            logger.error(f"api_touch_session: default agent failed: {e}")
+        return {"success": False, "error": "session not found"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -1001,6 +1033,7 @@ def api_save_agent_file(name, file_type, body):
 def api_switch_agent(body):
     global agent
     try:
+        logger.info(f"[DEBUG] api_switch_agent body={body}, type={type(body)}, keys={list(body.keys()) if isinstance(body, dict) else 'N/A'}")
         action = body.get("action", "")
         if action != "switch":
             return {"success": False, "error": "unknown action: " + action}
@@ -2505,7 +2538,11 @@ def api_get_logs(full_path, log_buffer=None):
 
 def api_get_system_stats():
     """Return system statistics: DB sizes, row counts, agent count, uptime."""
-    import resource, platform, os as _os, subprocess, json as _json
+    import platform, os as _os, subprocess, json as _json
+    try:
+        import resource
+    except ImportError:
+        resource = None  # Windows: not available
     result = {
         "memory_rss_mb": 0,
         "session_count": 0,
@@ -2541,10 +2578,20 @@ def api_get_system_stats():
         },
     }
 
-    # Memory RSS (Linux: ru_maxrss in KB)
+    # Memory RSS (Linux/macOS: resource; Windows: psutil)
     try:
-        mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        result["memory_rss_mb"] = round(mem / 1024, 1)
+        mem = 0
+        if resource:
+            mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            # On Linux ru_maxrss is in KB, on macOS it's in bytes
+            if platform.system() != "Darwin":
+                mem = mem / 1024  # KB → MB
+        else:
+            # Windows: fallback to psutil
+            import psutil
+            process = psutil.Process()
+            mem = process.memory_info().rss / 1024 / 1024
+        result["memory_rss_mb"] = round(mem, 1)
     except Exception as e:
         logger.warning(f"stats memory: {e}")
 
@@ -2684,11 +2731,16 @@ def api_get_system_stats():
             sys["ram_percent"] = vm.percent
         except Exception:
             pass
-        # Load avg (Linux/macOS)
+        # Load avg (Linux/macOS only — not available on Windows)
         try:
             import os as _os
-            la = _os.getloadavg()
-            sys["load_avg"] = [round(la[0], 2), round(la[1], 2), round(la[2], 2)]
+            if sys["os"] != "Windows":
+                la = _os.getloadavg()
+                sys["load_avg"] = [round(la[0], 2), round(la[1], 2), round(la[2], 2)]
+            else:
+                # Windows: use CPU usage as pseudo-load
+                import psutil
+                sys["load_avg"] = [round(psutil.cpu_percent(interval=0.1), 1)]
         except Exception:
             pass
         # Process count
@@ -2719,6 +2771,16 @@ def api_get_system_stats():
                         if "Chipset Model" in line:
                             sys["gpu_info"] = line.split(":", 1)[1].strip()
                             break
+                except Exception:
+                    pass
+            elif sys["os"] == "Windows":
+                # Windows: use wmic
+                try:
+                    r = sp.run(["wmic", "path", "win32_VideoController", "get", "name"], capture_output=True, text=True, timeout=5)
+                    if r.returncode == 0 and r.stdout.strip():
+                        lines = [l.strip() for l in r.stdout.strip().split("\n") if l.strip() and l.strip() != "Name"]
+                        if lines:
+                            sys["gpu_info"] = lines[0]
                 except Exception:
                     pass
         except Exception as e:

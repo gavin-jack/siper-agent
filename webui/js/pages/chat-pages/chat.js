@@ -2,11 +2,12 @@
 // 从 pages/chat.js 拆分，包含 initSidebar + initChatPage
 // 包含消息列表、输入框、思考面板、模型选择
 
-import * as Message from '../../chat/message.js?v=1782262241789';
-import * as Input from '../../chat/input.js?v=1782262241789';
-import * as Sidebar from '../../chat/sidebar.js?v=1782262241789';
-import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1782262241789';
-import { escapeHtml } from '../../utils/escape.js?v=1782262241789';
+import * as Message from '../../chat/message.js?v=1783583146303';
+import * as Input from '../../chat/input.js?v=1783583146303';
+import * as Sidebar from '../../chat/sidebar.js?v=1783583146303';
+import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1783583146303';
+import { escapeHtml } from '../../utils/escape.js?v=1783583146303';
+import { toast } from '../../components/toast.js?v=1783583146303';
 
 // 从 page_cache 读取 agents（不再从 state.js import chatAgents）
 function _getAgents() {
@@ -105,8 +106,7 @@ export function initChatPage() {
   if (typeof window.renderChatPage === 'function') {
     window.renderChatPage(content);
   }
-  // 加载 agent 列表并渲染中栏
-  loadAndRenderAgents();
+  // renderChatPage 内部已加载 agents，无需重复
 }
 
 /** 从后端获取 agent + sessions 数据，填充 page_cache 并渲染中栏 */
@@ -153,20 +153,34 @@ async function loadAndRenderAgents() {
 window.initChatPage = initChatPage;
 
 // selectChatAgent — 选中 agent 时在右栏显示 agent 配置（不替换中栏）
+// 自包含：直接填充表单，不依赖 AgentConfig 模块
 window.selectChatAgent = async function(agentName) {
   var chatRight = document.getElementById('chatRight');
   var chatContent = document.getElementById('chatContentArea');
   if (!chatContent) return;
-  // 确保右栏可见
   if (chatRight) chatRight.style.display = '';
-  // 更新右栏标题
   var headerName = document.getElementById('chatRightHeaderName');
   if (headerName) headerName.textContent = agentName + ' - 设置';
-  // 渲染 agent 配置到右栏内容区（完整 6 Tab 表单）
-  // 渲染 agent 配置到右栏内容区（4 Tab，CSS 控制样式）
+
+  // 并行获取所有数据（确保 DOM 插入后立即可填充）
+  var agentData = null, modelsData = null, soulData = null, configData = null, memoryData = null;
+  try {
+    var results = await Promise.allSettled([
+      fetch('/api/agents'),
+      fetch('/api/models/global'),
+      fetch('/api/agents/' + encodeURIComponent(agentName) + '/soul'),
+      fetch('/api/agents/' + encodeURIComponent(agentName) + '/config'),
+      fetch('/api/agents/' + encodeURIComponent(agentName) + '/memory'),
+    ]);
+    if (results[0].status === 'fulfilled') agentData = (await results[0].value.json()).agents?.find(a => a.name === agentName);
+    if (results[1].status === 'fulfilled') modelsData = await results[1].value.json();
+    if (results[2].status === 'fulfilled') soulData = await results[2].value.json();
+    if (results[3].status === 'fulfilled') configData = await results[3].value.json();
+    if (results[4].status === 'fulfilled') memoryData = await results[4].value.json();
+  } catch(e) { console.error('[chat] fetch failed:', e); }
+
   chatContent.innerHTML =
-    '<div id="agentConfigContent">' +
-      '<div class="agent-tabs">' +
+
         '<button class="agent-tab active" data-tab="about" id="agentTabAbout" onclick="window.switchConfigAgentPageTab(\'about\')">关于</button>' +
         '<button class="agent-tab" data-tab="files" id="agentTabFiles" onclick="window.switchConfigAgentPageTab(\'files\')">属性文件</button>' +
         '<button class="agent-tab" data-tab="memory" id="agentTabMemory" onclick="window.switchConfigAgentPageTab(\'memory\')">记忆</button>' +
@@ -263,20 +277,211 @@ window.selectChatAgent = async function(agentName) {
         '</div>' +
       '</div>' +
     '</div>';
-  // 加载 agent 数据 + 填充表单
-  // 先确保 agentConfigData 已加载（selectConfigAgent 依赖它）
-  if (typeof window.refreshConfigAgentPanel === 'function') {
-    await window.refreshConfigAgentPanel();
-  }
-  if (typeof window.selectConfigAgent === 'function') {
-    window.selectConfigAgent(agentName);
-  }
-  if (typeof window.loadAgentSettings === 'function') {
-    window.loadAgentSettings();
+
+  // 自填充表单
+  if (agentData) {
+    var _d = agentData;
+    var _nameEl = document.getElementById('cfgAgentName');
+    var _iconSpan = document.getElementById('cfgAgentIcon');
+    var _avatarEl = document.getElementById('cfgAgentAvatar');
+    var _av = document.getElementById('cfgAvatarPreview');
+    var _setVal = function(id, v) {
+      var e = document.getElementById(id);
+      if (e) e.value = v;
+    };
+    if (_nameEl) _nameEl.value = _d.display_name || _d.name || 'default';
+    if (_iconSpan) _iconSpan.textContent = _d.icon || '🎭';
+    if (_avatarEl) _avatarEl.value = _d.avatar || '';
+    if (_av) { _av.src = '/api/avatar?agent=' + encodeURIComponent(_d.name); _av.style.display = 'inline'; }
+    _setVal('agentCfgMaxTools', _d.max_tools !== undefined ? _d.max_tools : 10);
+    _setVal('agentCfgSessionTimeout', _d.session_timeout !== undefined ? _d.session_timeout : 3600);
+    _setVal('agentCfgMaxToolRounds', _d.max_tool_rounds !== undefined ? _d.max_tool_rounds : 100);
+    _setVal('agentCfgLlmTimeout', _d.llm_timeout !== undefined ? _d.llm_timeout : 120);
+    _setVal('agentCfgLlmMaxTokens', _d.llm_max_tokens !== undefined ? _d.llm_max_tokens : 8192);
+    _setVal('agentCfgLlmMaxRetries', _d.llm_max_retries !== undefined ? _d.llm_max_retries : 2);
+    _setVal('agentCfgMaxHistoryMessages', _d.max_history_messages !== undefined ? _d.max_history_messages : 50);
+    _setVal('agentCfgMemoryMaxTokens', (_d.memory_integration && _d.memory_integration.max_tokens !== undefined) ? _d.memory_integration.max_tokens : 20000);
+    _setVal('agentCfgSkillPreFilterTopK', _d.skill_pre_filter_top_k !== undefined ? _d.skill_pre_filter_top_k : 5);
+
+    // 模型下拉框 + 可用模型
+    var _availModels = (_d.available_models || []).map(function(m) { return typeof m === 'string' ? m : m.name; });
+    var _globalModels = (modelsData && modelsData.models) ? modelsData.models : [];
+    var _modelOptions = '<option value="">— 使用全局默认 —</option>';
+    var _modelCheckboxes = '';
+    for (var mi = 0; mi < _globalModels.length; mi++) {
+      var _m = _globalModels[mi];
+      var _alias = _m.alias ? ' (' + _m.alias + ')' : '';
+      var _sel = _availModels.indexOf(_m.name) >= 0 ? 'selected ' : '';
+      _modelOptions += '<option ' + _sel + 'value="' + _m.name + '">' + _m.name + _alias + '</option>';
+      var _checked = _availModels.indexOf(_m.name) >= 0 ? 'checked ' : '';
+      _modelCheckboxes += '<label class="model-checkbox-row">' +
+        '<input type="checkbox" value="' + _m.name + '" class="agent-avail-mcb" data-name="' + _m.name + '" onchange="window.autoSaveAgentModels&&window.autoSaveAgentModels()" ' + _checked + '>' +
+        '<span class="model-name">' + _m.name + '</span>' +
+        (_alias ? '<span class="model-alias">' + _alias + '</span>' : '') +
+        '</label>';
+    }
+    var _chatSel = document.getElementById('agentDefaultChatModel');
+    var _visionSel = document.getElementById('agentDefaultVisionModel');
+    var _modelList = document.getElementById('agentModelListSection');
+    if (_chatSel) _chatSel.innerHTML = _modelOptions;
+    if (_visionSel) _visionSel.innerHTML = _modelOptions;
+    if (_modelList) _modelList.innerHTML = '<div class="model-list">' + _modelCheckboxes + '</div>';
+
+    // Set default model selection
+    if (_d.default_chat_model) { if (_chatSel) _chatSel.value = _d.default_chat_model; }
+    else if (_globalModels.length > 0) {
+      var _gd = _globalModels.find(function(m) { return m.is_default; }) || _globalModels[0];
+      if (_chatSel) _chatSel.value = _gd.name;
+    }
+    if (_d.default_vision_model) { if (_visionSel) _visionSel.value = _d.default_vision_model; }
+
+    // Agent.md & Soul.md
+    var _mdTa = document.getElementById('agentMdContent');
+    var _soulTa = document.getElementById('agentSoulContentFiles');
+    var _memTa = document.getElementById('agentMemoryContent');
+    if (_mdTa) _mdTa.value = (configData && configData.config) ? configData.config : '';
+    if (_soulTa) _soulTa.value = (soulData && soulData.soul) ? soulData.soul : '';
+    if (_memTa) _memTa.value = (memoryData && memoryData.memory) ? memoryData.memory : '';
+
+    var _ttl = document.getElementById('agentConfigTitle');
+    if (_ttl) _ttl.value = _d.display_name || _d.name || 'default';
   }
 };
 
-// chatSwitchPage — 右栏页面展示控制
+// ========== Auto-save utilities (module scope) ==========
+var _agentSaveTimer = null;
+var _agentFileSaveTimer = null;
+
+/** Debounced auto-save for text/number fields (2s quiet) */
+window.triggerAgentAutoSave = function() {
+  if (_agentSaveTimer) clearTimeout(_agentSaveTimer);
+  _agentSaveTimer = setTimeout(function() { _saveAgentConfig(true); }, 500);
+};
+
+/** Debounced auto-save for file content (800ms quiet) */
+window.triggerAgentFileAutoSave = function() {
+  if (_agentFileSaveTimer) clearTimeout(_agentFileSaveTimer);
+  _agentFileSaveTimer = setTimeout(function() { _saveAgentFiles(true); }, 800);
+};
+
+/** Immediate save for model checkboxes/selects */
+window.autoSaveAgentModels = function() { _saveAgentModels(true); };
+
+/** Collect current form state and POST to /api/agents/{name}/meta */
+async function _saveAgentConfig(showToast) {
+  var name = _chatCurrentAgent && _chatCurrentAgent.name;
+  if (!name) return;
+  var _gv = function(id) { var e = document.getElementById(id); return e ? e.value : ''; };
+  var body = {
+    display_name: _gv('cfgAgentName'),
+    max_tools: parseInt(_gv('agentCfgMaxTools'), 10) || 10,
+    max_tool_rounds: parseInt(_gv('agentCfgMaxToolRounds'), 10) || 100,
+    session_timeout: parseInt(_gv('agentCfgSessionTimeout'), 10) || 3600,
+    llm_timeout: parseInt(_gv('agentCfgLlmTimeout'), 10) || 120,
+    llm_max_tokens: parseInt(_gv('agentCfgLlmMaxTokens'), 10) || 8192,
+    llm_max_retries: parseInt(_gv('agentCfgLlmMaxRetries'), 10) || 2,
+    max_history_messages: parseInt(_gv('agentCfgMaxHistoryMessages'), 10) || 50,
+    memory_integration: { max_tokens: parseInt(_gv('agentCfgMemoryMaxTokens'), 10) || 20000 },
+    skill_pre_filter_top_k: parseInt(_gv('agentCfgSkillPreFilterTopK'), 10) || 5,
+  };
+  try {
+    var resp = await fetch('/api/agents/' + encodeURIComponent(name) + '/meta', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    var result = await resp.json();
+    if (showToast !== false) {
+      if (result && result.success) toast && toast.success && toast.success('配置已保存');
+      else toast && toast.error && toast.error('保存失败');
+    }
+  } catch(e) {
+    if (showToast !== false) toast && toast.error && toast.error('保存失败');
+  }
+}
+
+/** Save Agent.md + Soul.md content */
+async function _saveAgentFiles(showToast) {
+  var name = _chatCurrentAgent && _chatCurrentAgent.name;
+  if (!name) return;
+  var _gv = function(id) { var e = document.getElementById(id); return e ? e.value : ''; };
+  var agentMd = _gv('agentMdContent');
+  var soulMd = _gv('agentSoulContentFiles');
+  var ok = true;
+  try {
+    if (agentMd.trim()) {
+      var r1 = await fetch('/api/agents/' + encodeURIComponent(name) + '/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: agentMd })
+      });
+      var d1 = await r1.json();
+      if (!d1 || !d1.success) ok = false;
+    }
+    if (soulMd.trim()) {
+      var r2 = await fetch('/api/agents/' + encodeURIComponent(name) + '/soul', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: soulMd })
+      });
+      var d2 = await r2.json();
+      if (!d2 || !d2.success) ok = false;
+    }
+    if (showToast !== false) {
+      if (ok) toast && toast.success && toast.success('文件已保存');
+      else toast && toast.error && toast.error('部分文件保存失败');
+    }
+  } catch(e) {
+    if (showToast !== false) toast && toast.error && toast.error('保存失败');
+  }
+}
+
+/** Save model selections: chat model, vision model, available models */
+async function _saveAgentModels(showToast) {
+  var name = _chatCurrentAgent && _chatCurrentAgent.name;
+  if (!name) return;
+  var chatSel = document.getElementById('agentDefaultChatModel');
+  var visionSel = document.getElementById('agentDefaultVisionModel');
+  var mcbList = document.querySelectorAll('#agentModelListSection .agent-avail-mcb:checked');
+  var availableModels = Array.prototype.map.call(mcbList, function(cb) { return cb.value; });
+  var body = {
+    default_chat_model: chatSel ? chatSel.value : '',
+    default_vision_model: visionSel ? visionSel.value : '',
+    available_models: availableModels,
+  };
+  try {
+    var resp = await fetch('/api/agents/' + encodeURIComponent(name) + '/meta', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    var result = await resp.json();
+    if (showToast !== false) {
+      if (result && result.success) toast && toast.success && toast.success('模型设置已保存');
+      else toast && toast.error && toast.error('模型保存失败');
+    }
+    // 保存成功后，从 /api/agents 拉取最新完整数据，更新 page_cache 并广播事件
+    if (result && result.success) {
+      try {
+        var _freshResp = await fetch('/api/agents');
+        var _freshData = await _freshResp.json();
+        var _freshAgent = _freshData.agents && _freshData.agents.find(function(a) { return a.name === name; });
+        if (_freshAgent && typeof window.__getPageCache === 'function' && typeof window.__setPageCache === 'function') {
+          var _pcAgents = window.__getPageCache('agents') || [];
+          var _pcIdx = _pcAgents.findIndex(function(a) { return a.name === name; });
+          if (_pcIdx >= 0) {
+            _pcAgents[_pcIdx].available_models = _freshAgent.available_models;
+            window.__setPageCache('agents', _pcAgents);
+          } else {
+            _pcAgents.push({name: name, available_models: _freshAgent.available_models});
+            window.__setPageCache('agents', _pcAgents);
+          }
+          document.dispatchEvent(new CustomEvent('siper-models-changed', {bubbles: true, detail: {agent: name, models: _freshAgent.available_models || []}}));
+        }
+      } catch(_) {}
+    }
+  } catch(e) {
+    if (showToast !== false) toast && toast.error && toast.error('模型保存失败');
+  }
+}
+
+// chatSwitchPage
 window.chatSwitchPage = function(page) {
   if (page === 'chat') {
     // 从 agent 设置返回对话：重新渲染聊天内容

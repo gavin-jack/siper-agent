@@ -381,17 +381,11 @@ def _render_index() -> str:
             return f'<script src="{js_path}?v={int(os.path.getmtime(full))}"></script>'
         return match.group(0)
     html = _re.sub(r'<script[^>]*src="(/static/(?:pages|js)/[^"]+)"[^>]*></script>', _js_mtime, html)
-    # Also patch ESM module entry: <script type="module" src="/js/app.js"></script>
-    _app_mtime = int(os.path.getmtime(PROJECT_ROOT / "webui" / "js" / "app.js")) if (PROJECT_ROOT / "webui" / "js" / "app.js").exists() else int(time.time() * 1000)
-    html = _re.sub(
-        r'<script type="module" src="/js/app\.js"></script>',
-        f'<script type="module" src="/js/app.js?v={_app_mtime}"></script>',
-        html,
-    )
+    # Compute cache-buster ONCE at module load (start_time), use everywhere
+    _cb = str(int(start_time * 1000))
+    # Patch ESM static imports in ALL js files (except static/) to include cache-buster
     _js_entry = PROJECT_ROOT / "webui" / "js" / "app.js"
     if _js_entry.exists():
-        _cb = str(int(start_time * 1000))
-        # Patch ESM static imports in ALL js files (except static/) to include cache-buster
         _js_dir = PROJECT_ROOT / "webui" / "js"
         _import_re = _re.compile(r"from '(\.\./[^']+\.js|\./[^']+\.js)(\?v=[0-9]+)?'")
         for _js_file in _js_dir.rglob("*.js"):
@@ -403,12 +397,19 @@ def _render_index() -> str:
                 _orig,
             )
             if _patched != _orig:
+                # Force LF to ensure ESM modules parse correctly in browsers
+                _patched = '\n'.join(_patched.splitlines())
+                # Also patch hardcoded _PAGE_CACHE_VER in app.js for dynamic imports
+                _patched = _re.sub(
+                    r"_PAGE_CACHE_VER = (\d+)",
+                    f"_PAGE_CACHE_VER = {_cb}",
+                    _patched,
+                )
                 _js_file.write_text(_patched)
-    else:
-        _cb = str(int(time.time() * 1000))
+    # Replace ESM entry reference with unified cache-buster
     html = _re.sub(
-        r'<script type="module" src="(/js/app\.js)"></script>',
-        lambda m: f'<script type="module" src="/js/app.js?v={_cb}"></script>',
+        r'<script type="module" src="/js/app\.js(?:\?v=[0-9]+)?"></script>',
+        f'<script type="module" src="/js/app.js?v={_cb}"></script>',
         html,
     )
     # Inject cache-busting CSS — base.css (global, always needed) + page.css (standalone pages)
@@ -534,11 +535,6 @@ async def main():
             logger.info(f"为 agent '{agent_name}' 创建 SessionManager: {agent_data_dir}")
             return sm
 
-    # Load per-agent config (icon, avatar, display_name, session_timeout, etc.) from config.json
-    # NOTE: models are NOT stored in config.json — they live in models.db (SQLite)
-    from agents import load_agent_config_file
-    agent_cfg = load_agent_config_file("default") or {}
-    _cfg_key_default = ""
     # Load models from SQLite (agents/default/models.db)
     from ai_agent.models_db import ModelsDB as _ModelsDB
     _models_db = _ModelsDB(str(PROJECT_ROOT / "data" / "models.db"))
@@ -555,9 +551,6 @@ async def main():
     except Exception: pass
 
     # Load config from SQLite (config.db) — migrate from JSON on first run
-    try:
-        logger.info("config.db: starting initialization")
-    except Exception: pass
     try:
         from ai_agent.config_db import ConfigDB as _ConfigDB
         _config_db = _ConfigDB(str(PROJECT_ROOT / "data" / "config.db"))
@@ -602,8 +595,58 @@ async def main():
     if _models_db:
         _handlers._models_db = _models_db
         print(f"✔ _models_db injected into handlers")
-    # _token_db_conn / _log_buffer 注入在 _init_token_db() 之后（L832 附近）
-    # API key priority: env LONGCAT_API_KEY > default model key > .env file
+
+    # Load agent config from config.db (Single Source of Truth)
+    # Fallback: if config.db has no record, import from config.json once
+    _agent_loaded_from_db = False
+    if _config_db:
+        _agent_loaded_from_db = _config_db.apply_to_agent(agent)
+        if _agent_loaded_from_db:
+            logger.info(f"配置：从 config.db 加载 agent=default 成功")
+            print(f"✔ 配置加载：从 config.db")
+    if not _agent_loaded_from_db:
+        # Fallback: import from config.json → config.db → agent.config
+        from agents import load_agent_config_file
+        agent_cfg = load_agent_config_file("default") or {}
+        if agent_cfg and _config_db:
+            _config_db._migrate_agent_config("default", agent_cfg)
+            _config_db.apply_to_agent(agent)
+            logger.info(f"配置：config.json → config.db 迁移完成")
+            print(f"✔ 配置迁移：config.json → config.db")
+        elif agent_cfg:
+            # No config.db: apply config.json directly
+            if agent_cfg.get("name"):
+                agent.config.name = agent_cfg["name"]
+            if agent_cfg.get("icon"):
+                agent.config.icon = agent_cfg["icon"]
+            if agent_cfg.get("avatar"):
+                agent.config.avatar = agent_cfg["avatar"]
+            _global_model_names = set(m.get("name", "") or m.get("id", "") for m in _gm_models)
+            if agent_cfg.get("available_models"):
+                agent.config.available_models = [n for n in agent_cfg["available_models"] if n in _global_model_names]
+            if agent_cfg.get("default_chat_model"):
+                agent.config.default_chat_model = agent_cfg["default_chat_model"]
+            if agent_cfg.get("default_vision_model"):
+                agent.config.default_vision_model = agent_cfg["default_vision_model"]
+            if agent_cfg.get("default_tts_model"):
+                agent.config.default_tts_model = agent_cfg["default_tts_model"]
+            for _key in ("session_timeout", "max_tools", "max_tool_rounds", "llm_timeout",
+                         "llm_max_tokens", "llm_max_retries", "max_history_messages",
+                         "skill_pre_filter_top_k"):
+                if _key in agent_cfg:
+                    try:
+                        setattr(agent.config, _key, int(agent_cfg[_key]))
+                    except (ValueError, TypeError):
+                        pass
+            logger.info("配置：直接应用 config.json（无 config.db）")
+            print(f"⚠ 配置加载：config.json（建议检查 config.db）")
+        else:
+            logger.info("配置：无 config.json 也无 config.db 记录，使用默认值")
+            print(f"⚠ 配置加载：使用默认值")
+
+    # Resolve API keys (always run regardless of config source)
+    _lc_key = os.environ.get("LONGCAT_API_KEY", "")
+    _cfg_key_default = ""
     if _gm_models:
         _first = _gm_models[0]
         for _m in _gm_models:
@@ -611,8 +654,9 @@ async def main():
                 _first = _m
                 break
         _cfg_key_default = _first.get("api_key", "")
-    _lc_key = os.environ.get("LONGCAT_API_KEY", "") or _cfg_key_default
-    # Fallback: try reading from .env file in project root
+    if not _lc_key:
+        _lc_key = _cfg_key_default
+    # Fallback: try reading from .env file
     if not _lc_key:
         _env_path = PROJECT_ROOT / ".env"
         if _env_path.exists():
@@ -626,134 +670,38 @@ async def main():
                         break
             except Exception:
                 pass
+
+    # Configure LLM (always run)
     _sv_key = os.environ.get("SENSENOVA_API_KEY", "")
-    if agent_cfg:
-        # Apply display properties
-        if agent_cfg.get("name"):
-            agent.config.name = agent_cfg["name"]
-            logger.info(f"配置：显示名称 = {agent_cfg['name']}")
-        if agent_cfg.get("icon"):
-            agent.config.icon = agent_cfg["icon"]
-        if agent_cfg.get("avatar"):
-            agent.config.avatar = agent_cfg["avatar"]
-        # Apply model references (available_models, default_chat_model, etc.)
-        # Validate against global models: filter out deleted model names
-        _global_model_names = set(m.get("name", "") or m.get("id", "") for m in _gm_models)
-        if agent_cfg.get("available_models"):
-            _valid = [n for n in agent_cfg["available_models"] if n in _global_model_names]
-            _dropped = len(agent_cfg["available_models"]) - len(_valid)
-            if _dropped > 0:
-                logger.info(f"配置：过滤了 {_dropped} 个已删除模型，保留 {_valid}")
-            agent.config.available_models = _valid
-        if agent_cfg.get("default_chat_model"):
-            if agent_cfg["default_chat_model"] in _global_model_names or not _global_model_names:
-                agent.config.default_chat_model = agent_cfg["default_chat_model"]
-            else:
-                logger.info(f"配置：默认模型 '{agent_cfg['default_chat_model']}' 不在全局模型中，已清除")
-                agent.config.default_chat_model = ""
-        if agent_cfg.get("default_vision_model"):
-            agent.config.default_vision_model = agent_cfg["default_vision_model"]
-        if agent_cfg.get("default_tts_model"):
-            agent.config.default_tts_model = agent_cfg["default_tts_model"]
-        # Legacy: if config.json still has models/default_model, migrate
-        if agent_cfg.get("models") and not agent_cfg.get("available_models"):
-            _migrated = [m.get("name", m.get("id", "")) for m in agent_cfg["models"]]
-            _valid = [n for n in _migrated if n in _global_model_names]
-            agent.config.available_models = _valid
-            agent.config.default_chat_model = agent_cfg.get("default_model", "") if agent_cfg.get("default_model", "") in _global_model_names else ""
-            logger.info(f"配置：从旧格式迁移了 {len(_valid)}/{len(_migrated)} 个模型引用")
-        # Apply session_timeout and max_tools from config.json
-        if "session_timeout" in agent_cfg:
-            agent.config.session_timeout = int(agent_cfg["session_timeout"])
-            logger.info(f"配置：会话超时 = {agent.config.session_timeout}秒")
-        if "max_tools" in agent_cfg:
-            agent.config.max_concurrent_tools = int(agent_cfg["max_tools"])
-            logger.info(f"配置：最大工具数 = {agent.config.max_concurrent_tools}")
-        if "max_tool_rounds" in agent_cfg:
-            agent.config.max_tool_rounds = int(agent_cfg["max_tool_rounds"])
-            logger.info(f"配置：最大工具调用轮次 = {agent.config.max_tool_rounds}")
-        # Apply per-agent response limits from config.json
-        if "llm_timeout" in agent_cfg:
-            agent.config.llm_timeout = int(agent_cfg["llm_timeout"])
-            logger.info(f"配置：LLM 超时 = {agent.config.llm_timeout}秒")
-        if "llm_max_tokens" in agent_cfg:
-            agent.config.llm_max_tokens = int(agent_cfg["llm_max_tokens"])
-            logger.info(f"配置：LLM max_tokens = {agent.config.llm_max_tokens}")
-        if "llm_max_retries" in agent_cfg:
-            agent.config.llm_max_retries = int(agent_cfg["llm_max_retries"])
-            logger.info(f"配置：LLM 重试次数 = {agent.config.llm_max_retries}")
-        if "max_history_messages" in agent_cfg:
-            agent.config.max_history_messages = int(agent_cfg["max_history_messages"])
-            logger.info(f"配置：历史消息加载数 = {agent.config.max_history_messages}")
-        if "skill_pre_filter_top_k" in agent_cfg:
-            agent.config.skill_pre_filter_top_k = int(agent_cfg["skill_pre_filter_top_k"])
-            logger.info(f"配置：技能预筛选 top_k = {agent.config.skill_pre_filter_top_k}")
-        # Apply context compression settings from config.json
-        if "context_compression" in agent_cfg:
-            cc = agent_cfg["context_compression"]
-            if "mode" in cc:
-                agent.config.context_compression_mode = cc["mode"]
-            if "sliding_window_size" in cc:
-                agent.config.sliding_window_size = int(cc["sliding_window_size"])
-            if "summary_max_tokens" in cc:
-                agent.config.summary_max_tokens = int(cc["summary_max_tokens"])
-            if "tool_result_max_tokens" in cc:
-                agent.config.tool_result_max_tokens = int(cc["tool_result_max_tokens"])
-            logger.info(f"配置：上下文压缩模式 = {agent.config.context_compression_mode}, "
-                       f"窗口大小 = {agent.config.sliding_window_size}, "
-                       f"工具结果最大 tokens = {agent.config.tool_result_max_tokens}")
-        # Find the default model entry for LLM client configuration
-        # Priority: agent config default_chat_model > global default model
-        _agent_default_model = agent.config.default_chat_model or _gm_default
-        llm_cfg = None
-        for m in (_gm_models or []):
-            if m.get("name") == _agent_default_model:
-                llm_cfg = m
-                break
-        if not llm_cfg and _gm_models:
-            llm_cfg = _gm_models[0]
-        # Resolve API key: env var > config.json > empty
-        _cfg_key = llm_cfg.get("api_key", "") if llm_cfg else ""
-        if not _lc_key:
-            _lc_key = _cfg_key
-        if llm_cfg and _lc_key:
-            agent.configure_llm(
-                api_key=_lc_key,
-                base_url=llm_cfg.get("base_url", ""),
-                model=llm_cfg.get("name", ""),
-                vision_api_key=_sv_key,
-                vision_base_url="",
-                vision_model="",
-            )
-            logger.info(f"配置：LLM 来自 models.db — 模型={llm_cfg.get('name')}, 地址={llm_cfg.get('base_url')}")
-            _p = f"✔ LLM 已配置：{llm_cfg.get('name', '默认模型')}"
-            print(_p)
-            with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg: _dbg.write(_p + "\n")
-        else:
-            logger.info("配置：无可用模型/密钥，LLM 暂未配置 — 可在 Web UI 模型设置页面添加")
-            _p = "⚠ LLM 未配置：可在 Web UI 模型设置页面添加"
-            print(_p)
-            with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg: _dbg.write(_p + "\n")
+    _agent_default_model = agent.config.default_chat_model or _gm_default
+    llm_cfg = None
+    for m in (_gm_models or []):
+        if m.get("name") == _agent_default_model:
+            llm_cfg = m
+            break
+    if not llm_cfg and _gm_models:
+        llm_cfg = _gm_models[0]
+    _cfg_key = llm_cfg.get("api_key", "") if llm_cfg else ""
+    if not _lc_key:
+        _lc_key = _cfg_key
+    if llm_cfg and _lc_key:
+        agent.configure_llm(
+            api_key=_lc_key,
+            base_url=llm_cfg.get("base_url", ""),
+            model=llm_cfg.get("name", ""),
+            vision_api_key=_sv_key,
+            vision_base_url="",
+            vision_model="",
+        )
+        logger.info(f"配置：LLM 来自 models.db — 模型={llm_cfg.get('name')}, 地址={llm_cfg.get('base_url')}")
+        _p = f"✔ LLM 已配置：{llm_cfg.get('name', '默认模型')}"
+        print(_p)
+        with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg: _dbg.write(_p + "\n")
     else:
-        if _lc_key:
-            _def_model = _gm_default or ""
-            agent.configure_llm(
-                api_key=_lc_key,
-                base_url="",
-                model=_def_model,
-                vision_api_key=_sv_key,
-                vision_base_url="",
-                vision_model="",
-            )
-            logger.info(f"配置：未找到 config.json，使用环境变量 LLM 配置，模型={_def_model}")
-            _p = f"✔ LLM 已配置（环境变量）：{_def_model}"
-            print(_p)
-            with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg: _dbg.write(_p + "\n")
-        else:
-            logger.info("配置：无可用模型/密钥，LLM 暂未配置 — 可在 Web UI 模型设置页面添加")
-            _p = "⚠ LLM 未配置：可在 Web UI 模型设置页面添加"
-            print(_p)
-            with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg: _dbg.write(_p + "\n")
+        logger.info("配置：无可用模型/密钥，LLM 暂未配置 — 可在 Web UI 模型设置页面添加")
+        _p = "⚠ LLM 未配置：可在 Web UI 模型设置页面添加"
+        print(_p)
+        with open(os.path.join(_LogDir, "siper_startup.log"), "a") as _dbg: _dbg.write(_p + "\n")
 
     # NOTE: coordinator is lazily initialized
     # on first use to reduce memory footprint when not needed.
@@ -1977,13 +1925,11 @@ async def main():
             return {"agents": [], "active": agent.config.agent_name, "error": "agents package not found"}
 
     def api_save_agent_meta(name, body):
-        """Save per-agent config.json (icon, avatar, name, model refs, display settings, session_timeout, max_tools)."""
+        """Save per-agent config to config.db (Single Source of Truth)."""
         try:
-            from agents import get_agent_dir, save_agent_config_file
-            agent_dir = get_agent_dir(name)
-            if not agent_dir:
-                return {"success": False, "error": "agent not found"}
-            # Build the data to save (only known config keys)
+            if not _config_db:
+                return {"success": False, "error": "config.db not available"}
+            # Build config dict (only known keys)
             data = {}
             for key in ("name", "icon", "avatar", "models", "default_model",
                         "available_models", "default_chat_model", "default_vision_model", "default_tts_model",
@@ -1993,16 +1939,17 @@ async def main():
                 if key in body:
                     # memory_integration: merge with existing to preserve mode/position/template
                     if key == "memory_integration":
-                        from agents import load_agent_config_file as _load_cfg
-                        existing = _load_cfg(name) or {}
-                        existing_mi = existing.get("memory_integration", {})
-                        existing_mi.update(body[key])
-                        data[key] = existing_mi
+                        existing = _config_db.get_agent_config(name) or {}
+                        existing_mi = existing.get("memory_integration") or {}
+                        if isinstance(existing_mi, dict) and isinstance(body[key], dict):
+                            existing_mi.update(body[key])
+                            data[key] = existing_mi
+                        else:
+                            data[key] = body[key]
                     else:
                         data[key] = body[key]
-            ok = save_agent_config_file(name, data)
-            if not ok:
-                return {"success": False, "error": "save failed"}
+            # Write to config.db only (Single Source of Truth)
+            _config_db.upsert_agent_config(name, data)
             # If this is the active agent, apply config changes to runtime
             if name == agent.config.agent_name:
                 if "name" in body:
@@ -2011,7 +1958,6 @@ async def main():
                     agent.config.icon = body["icon"]
                 if "avatar" in body:
                     agent.config.avatar = body["avatar"]
-                # New model reference fields
                 if "available_models" in body:
                     agent.config.available_models = body["available_models"]
                 if "default_chat_model" in body:
@@ -2020,7 +1966,6 @@ async def main():
                     agent.config.default_vision_model = body["default_vision_model"]
                 if "default_tts_model" in body:
                     agent.config.default_tts_model = body["default_tts_model"]
-                # Per-agent response limits
                 if "llm_timeout" in body:
                     agent.config.llm_timeout = int(body["llm_timeout"])
                 if "llm_max_tokens" in body:
@@ -2029,9 +1974,8 @@ async def main():
                     agent.config.llm_max_retries = int(body["llm_max_retries"])
                 if "max_history_messages" in body:
                     agent.config.max_history_messages = int(body["max_history_messages"])
-                # Legacy fields (backward compat)
                 if "models" in body:
-                    pass  # models are saved to models.db (SQLite)
+                    pass  # models are saved to models.db
                 if "default_model" in body:
                     agent.config.default_chat_model = body["default_model"]
                 # Rebuild LLMClient if model/base_url/api_key changed
@@ -2045,7 +1989,6 @@ async def main():
                     rebuild_api_key = new_api_key or (cur.api_key if cur else "")
                     if rebuild_api_key:
                         vision_key = os.environ.get("SENSENOVA_API_KEY", "")
-                        # Get vision config from request body or existing agent config
                         vbu = body.get("vision_base_url", "")
                         vm = body.get("vision_model", "")
                         if not vbu and agent.config.default_vision_model:
@@ -2058,7 +2001,7 @@ async def main():
                             vision_base_url=vbu,
                             vision_model=vm,
                         )
-                        logger.info(f"LLM 客户端已更新（agent meta）：模型={rebuild_model}, 地址={rebuild_base_url}")
+                        logger.info(f"LLM 客户端已更新（agent meta）：模型={rebuild_model}")
                     else:
                         logger.warning("Agent 配置更新：未提供 API Key，跳过 LLM 客户端重建")
                 if "session_timeout" in body:
@@ -3787,7 +3730,7 @@ async def main():
     # 注册 API 路由（在初始化阶段完成，不依赖前端 navigate 消息）
     from ai_agent.api.handlers import (
         api_get_sessions, api_get_session_messages, api_delete_session,
-        api_rename_session, api_save_response_dict, api_clear_sessions,
+        api_rename_session, api_touch_session, api_save_response_dict, api_clear_sessions,
         api_get_config, api_update_config,
         api_get_skills, api_skill_preview, api_skill_stats,
         api_get_system_stats, api_get_project_structure, api_get_tools,
@@ -3807,6 +3750,7 @@ async def main():
         "api_get_session_messages": api_get_session_messages,
         "api_delete_session": api_delete_session,
         "api_rename_session": api_rename_session,
+        "api_touch_session": api_touch_session,
         "api_save_response_dict": api_save_response_dict,
         "api_clear_sessions": api_clear_sessions,
         "api_get_config": api_get_config,
@@ -4734,6 +4678,8 @@ if __name__ == "__main__":
             print("\nShutdown complete")
             break
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             print(f"\n服务异常退出：{e}，5 秒后重启...")
             import time
             time.sleep(5)

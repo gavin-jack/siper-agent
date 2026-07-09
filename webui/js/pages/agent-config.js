@@ -1,12 +1,12 @@
 // pages/agent-config.js — Agent 配置管理
 // 优化：提取 _loadConfigWithCache / _buildAgentConfigBody 消除重复
 
-import { t } from '../utils/i18n.js?v=1782262241789';
-import { escapeHtml } from '../utils/escape.js?v=1782262241789';
-import { showConfirm, showForm } from '../components/toast.js?v=1782262241789';
-import { toast } from '../components/toast.js?v=1782262241789';
-import { _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile, setChatAgentFiles, setChatCurAgentFile } from '../chat/state.js?v=1782262241789';
-import { loadGlobalModelsForAgent, renderAgentModelSection, renderAgentModelsForAgent, globalModelsList, modelsLoaded, setPendingAgentModels } from '../components/agent-models.js?v=1782262241789';
+import { t } from '../utils/i18n.js?v=1783583146303';
+import { escapeHtml } from '../utils/escape.js?v=1783583146303';
+import { showConfirm, showForm } from '../components/toast.js?v=1783583146303';
+import { toast } from '../components/toast.js?v=1783583146303';
+import { _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile, setChatAgentFiles, setChatCurAgentFile } from '../chat/state.js?v=1783583146303';
+import { loadGlobalModelsForAgent, renderAgentModelSection, renderAgentModelsForAgent, globalModelsList, modelsLoaded, setPendingAgentModels } from '../components/agent-models.js?v=1783583146303';
 export { loadGlobalModelsForAgent };
 
 // ===== 页面模板 =====
@@ -123,6 +123,12 @@ function _applyAgentToForm(agent) {
 // ===== Agent Settings =====
 
 export async function loadAgentSettings() {
+  // 确保 agentConfigData 已加载（注意：[] 是 truthy，必须检查 length）
+  if (!agentConfigData?.agents?.length) {
+    try {
+      await refreshConfigAgentPanel();
+    } catch(e) {}
+  }
   if (currentConfigAgent && agentConfigData?.agents) {
     const agent = agentConfigData.agents.find(a => a.name === currentConfigAgent);
     if (agent) {
@@ -231,7 +237,7 @@ export async function selectConfigAgent(name) {
         const cache = window.__getPageCache('agent-config');
         if (cache?.agents) agentConfigData = { agents: cache.agents };
       }
-      if (!agentConfigData) { const r = await fetch('/api/agents'); agentConfigData = await r.json(); }
+      if (!agentConfigData?.agents?.length) { const r = await fetch('/api/agents'); agentConfigData = await r.json(); }
     } catch(e) {}
   }
   const agents = agentConfigData?.agents || [];

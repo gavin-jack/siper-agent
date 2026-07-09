@@ -181,6 +181,7 @@ class SessionManager:
                 user_id TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 ended_at TEXT,
+                updated_at TEXT,
                 context TEXT,
                 metadata TEXT,
                 title TEXT DEFAULT ''
@@ -189,6 +190,11 @@ class SessionManager:
         # Migration: add title column if missing (older databases)
         try:
             cursor.execute("ALTER TABLE sessions ADD COLUMN title TEXT DEFAULT ''")
+        except Exception:
+            pass
+        # Migration: add updated_at column if missing (older databases)
+        try:
+            cursor.execute("ALTER TABLE sessions ADD COLUMN updated_at TEXT")
         except Exception:
             pass
 
@@ -450,15 +456,19 @@ class SessionManager:
         """Save session to database."""
 
         cursor = self._db_connection.cursor()
+        now = datetime.now().isoformat()
+        # Update updated_at timestamp on every save
+        session.updated_at = now
         cursor.execute('''
             INSERT OR REPLACE INTO sessions
-            (session_id, user_id, created_at, ended_at, context, metadata, title)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (session_id, user_id, created_at, ended_at, updated_at, context, metadata, title)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             session.session_id,
             session.user_id,
             session.created_at,
             session.ended_at,
+            session.updated_at,
             json.dumps(session.context),
             json.dumps(session.metadata),
             getattr(session, 'title', '')

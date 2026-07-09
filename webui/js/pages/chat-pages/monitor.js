@@ -1,7 +1,7 @@
 // chat-pages/monitor.js — 统计页面（性能 + 词元 + 日志）
-import { escapeHtml } from '../../utils/escape.js?v=1782262241789';
-import { fmtNum } from '../../utils/format.js?v=1782262241789';
-import { apiGetCached } from '../../utils/api.js?v=1782262241789';
+import { escapeHtml } from '../../utils/escape.js?v=1783583146303';
+import { fmtNum } from '../../utils/format.js?v=1783583146303';
+import { apiGetCached } from '../../utils/api.js?v=1783583146303';
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {
@@ -125,10 +125,6 @@ export function switchMonitorTab(tab) {
   if (tab === 'performance') renderMonitorPerformance();
   if (tab === 'token') {
     if (typeof renderMonitorTokenTab === 'function') renderMonitorTokenTab();
-    setTimeout(function() {
-      if (typeof _renderTokenCharts === 'function') _renderTokenCharts();
-      if (typeof _mResizeCharts === 'function') _mResizeCharts();
-    }, 60);
   }
 }
 
@@ -169,12 +165,7 @@ export function renderMonitorTokenTab() {
   var container = document.getElementById('monitorTabToken');
   if (!container) return;
   container.innerHTML = _tplTokenShell();
-  var cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('monitor') : null;
-  if (cached && cached.token && cached.token.total_requests > 0) {
-    _applyTokenData(cached.token);
-    return;
-  }
-  apiGetCached('/api/token', 'monitor').then(function(data) {
+  apiGet('/api/token').then(function(data) {
     _applyTokenData(data);
   }).catch(function(e) { console.error('[monitor] renderMonitorTokenTab fetch failed:', e); });
 }
@@ -293,8 +284,12 @@ function _applyPerfData(data) {
 
 function _loadPerfData() {
   var cached = typeof window.__getPageCache === 'function' ? window.__getPageCache('monitor') : null;
-  if (cached && cached.perf) { _applyPerfData(cached.perf); return; }
-  apiGetCached('/api/stats', 'monitor').then(function(data) {
+  // 检查缓存中包含 stats 格式（有 system 字段或 memory_rss_mb），避免与其他 tab 的缓存混淆
+  if (cached && (cached.system || cached.memory_rss_mb !== undefined)) {
+    _applyPerfData(cached);
+    return;
+  }
+  apiGet('/api/stats').then(function(data) {
     _applyPerfData(data);
   }).catch(function(e) { console.error('[monitor] _loadPerfData failed:', e); });
 }
@@ -369,7 +364,16 @@ function _applyTokenData(data) {
       '</div>';
   }
   _mTokenData = data;
-  _renderTokenCharts();
+  // 延迟渲染确保浏览器完成布局（避免 display:none 导致 0 尺寸）
+  var tokenTab = document.getElementById('monitorTabToken');
+  if (tokenTab && !tokenTab.classList.contains('js-hidden') && typeof renderMonitorCharts === 'function') {
+    setTimeout(function() { renderMonitorCharts(data); }, 100);
+  }
+}
+
+function _renderNoData(el, msg) {
+  if (!el) return;
+  el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--color-text-dim);font-size:13px">' + msg + '</div>';
 }
 
 // ── ECharts 公共样式 ──────────────────────────────────
@@ -427,10 +431,10 @@ export function renderMonitorCharts(data) {
   var modelPieData = modelStats.map(function(m) {
     return { name: m.model.length > 20 ? m.model.slice(0, 18) + '…' : m.model, value: m.total_tokens, fullName: m.model };
   });
+  var elModel = document.getElementById('monitorChartModel');
   if (modelPieData.length > 0) {
-    var el = document.getElementById('monitorChartModel');
-    if (el) {
-      _mChartModel = window.echarts.init(el);
+    if (elModel) {
+      _mChartModel = window.echarts.init(elModel);
       _mChartModel.setOption({
         backgroundColor: 'transparent', animation: true, animationDuration: 800, animationEasing: 'cubicOut',
         tooltip: { trigger: 'item', backgroundColor: base.tooltipStyle.backgroundColor, textStyle: base.tooltipStyle.textStyle, formatter: function(p) { var item = modelPieData.find(function(d) { return d.name === p.name; }); return (item ? item.fullName : p.name) + '<br/>Tokens: ' + fmtNum(p.value) + '<br/>占比: ' + p.percent + '%'; } },
@@ -438,15 +442,17 @@ export function renderMonitorCharts(data) {
         series: [{ type: 'pie', radius: ['42%', '72%'], center: ['35%', '50%'], data: modelPieData, label: { color: colors.text, fontSize: 12 }, labelLine: { lineStyle: { color: colors.textDim } }, itemStyle: { borderRadius: 4, borderColor: colors.surface, borderWidth: 2 }, emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.15)' } }, color: palette }],
       });
     }
+  } else {
+    _renderNoData(elModel, '暂无模型数据');
   }
 
   // Chart 2: Daily trend
   var dateStats = data.date_stats || {};
   var dateKeys = Object.keys(dateStats).sort();
+  var elDate = document.getElementById('monitorChartDate');
   if (dateKeys.length > 0) {
-    el = document.getElementById('monitorChartDate');
-    if (el) {
-      _mChartDate = window.echarts.init(el);
+    if (elDate) {
+      _mChartDate = window.echarts.init(elDate);
       _mChartDate.setOption({
         backgroundColor: 'transparent', animation: true, animationDuration: 800, animationEasing: 'cubicOut',
         tooltip: { trigger: 'axis', backgroundColor: base.tooltipStyle.backgroundColor, textStyle: base.tooltipStyle.textStyle, axisPointer: { type: 'shadow' } },
@@ -461,15 +467,17 @@ export function renderMonitorCharts(data) {
         ],
       });
     }
+  } else {
+    _renderNoData(elDate, '暂无每日数据');
   }
 
   // Chart 3: Hourly bar
   var hourlyStats = data.hourly_stats || [];
-  if (hourlyStats.length > 0) {
+  var elHourly = document.getElementById('monitorChartHourly');
+  if (hourlyStats.length > 0 && hourlyStats.some(function(h) { return h.total_tokens > 0; })) {
     var maxVal = Math.max.apply(null, hourlyStats.map(function(x) { return x.total_tokens; }));
-    el = document.getElementById('monitorChartHourly');
-    if (el) {
-      _mChartHourly = window.echarts.init(el);
+    if (elHourly) {
+      _mChartHourly = window.echarts.init(elHourly);
       _mChartHourly.setOption({
         backgroundColor: 'transparent', animation: true, animationDuration: 800, animationEasing: 'cubicOut',
         tooltip: { trigger: 'axis', backgroundColor: base.tooltipStyle.backgroundColor, textStyle: base.tooltipStyle.textStyle, formatter: function(params) { var idx = params[0].dataIndex; var d = hourlyStats[idx]; return d.hour + '<br/>Tokens: ' + fmtNum(d.total_tokens) + '<br/>调用: ' + d.requests; } },
@@ -479,18 +487,20 @@ export function renderMonitorCharts(data) {
         series: [{ type: 'bar', data: hourlyStats.map(function(h) { var v = h.total_tokens; var barColor; if (v === 0) barColor = colors.border; else if (maxVal > 0) { var ratio = v / maxVal; if (ratio > 0.7) barColor = colors.errorText; else if (ratio > 0.4) barColor = '#f97316'; else if (ratio > 0.15) barColor = colors.warning; else barColor = colors.primary; } else barColor = colors.primary; return { value: v, itemStyle: { color: barColor, borderRadius: [4, 4, 0, 0] } }; }), barWidth: '60%' }],
       });
     }
+  } else {
+    _renderNoData(elHourly, '暂无时段数据');
   }
 
   // Chart 4: Heatmap
   var heatmapData = data.heatmap || [];
-  if (heatmapData.length > 0) {
+  var elHeatmap = document.getElementById('monitorChartHeatmap');
+  if (heatmapData.length > 0 && heatmapData.some(function(h) { return h.total_tokens > 0; })) {
     var maxHeat = Math.max.apply(null, heatmapData.map(function(h) { return h.total_tokens; }));
     var heatDays = _mDAY_NAMES;
     var heatHours = Array.from({ length: 24 }, function(_, i) { return i + '时'; });
     var heatSeriesData = heatmapData.filter(function(h) { return h.total_tokens > 0; }).map(function(h) { return [h.hour, h.dow, h.total_tokens]; });
-    el = document.getElementById('monitorChartHeatmap');
-    if (el) {
-      _mChartHeatmap = window.echarts.init(el);
+    if (elHeatmap) {
+      _mChartHeatmap = window.echarts.init(elHeatmap);
       _mChartHeatmap.setOption({
         backgroundColor: 'transparent', animation: true, animationDuration: 800, animationEasing: 'cubicOut',
         tooltip: { backgroundColor: base.tooltipStyle.backgroundColor, textStyle: base.tooltipStyle.textStyle, formatter: function(p) { var d = p.data; return heatDays[d[1]] + ' ' + d[0] + '时<br/>Tokens: ' + fmtNum(d[2]) + '<br/>调用: ' + (heatmapData.find(function(h) { return h.hour === d[0] && h.dow === d[1]; })?.requests || 0); } },
@@ -501,32 +511,35 @@ export function renderMonitorCharts(data) {
         series: [{ type: 'heatmap', data: heatSeriesData, label: { show: false }, emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.3)' } } }],
       });
     }
+  } else {
+    _renderNoData(elHeatmap, '暂无热力数据');
   }
 
   // Chart 5: Model efficiency
   var effModels = modelStats.filter(function(m) { return m.total_tokens > 0; });
+  var elEfficiency = document.getElementById('monitorChartEfficiency');
   if (effModels.length > 0) {
-    el = document.getElementById('monitorChartEfficiency');
-    if (el) {
-      _mChartEfficiency = window.echarts.init(el);
+    if (elEfficiency) {
+      _mChartEfficiency = window.echarts.init(elEfficiency);
       _mChartEfficiency.setOption({
         backgroundColor: 'transparent', animation: true, animationDuration: 800, animationEasing: 'cubicOut',
         tooltip: { trigger: 'axis', backgroundColor: base.tooltipStyle.backgroundColor, textStyle: base.tooltipStyle.textStyle, axisPointer: { type: 'shadow' }, formatter: function(params) { var idx = params[0].dataIndex; var m = effModels[idx]; var ratio = m.prompt_tokens > 0 ? ((m.completion_tokens / m.prompt_tokens) * 100).toFixed(1) : '0.0'; return m.model + '<br/>平均 Token: ' + Math.round(m.total_tokens / m.requests) + '<br/>完成/提示比: ' + ratio + '%<br/>调用次数: ' + m.requests; } },
         legend: { data: ['平均 Token', '完成/提示比'], textStyle: base.textStyle, top: 4 },
-        grid: { left: 55, right: 55, top: 44, bottom: 30 },
-        xAxis: { type: 'category', data: effModels.map(function(m) { return m.model.length > 15 ? m.model.slice(0, 13) + '…' : m.model; }), axisLabel: base.axisLabelStyle, axisLine: base.axisLineStyle },
+        grid: { left: 50, right: 24, top: 30, bottom: 30 },
+        xAxis: { type: 'category', data: effModels.map(function(m) { return m.model; }), axisLabel: Object.assign({}, base.axisLabelStyle, { rotate: 30 }), axisLine: base.axisLineStyle },
         yAxis: [
-          { type: 'value', name: 'Token', nameTextStyle: base.axisLabelStyle, axisLabel: Object.assign({}, base.axisLabelStyle, { formatter: function(v) { return fmtNum(v); } }), axisLine: base.axisLineStyle, splitLine: base.splitLineStyle },
-          { type: 'value', name: '比例', nameTextStyle: base.axisLabelStyle, axisLabel: { color: colors.textDim, formatter: function(v) { return v + '%'; } }, axisLine: { lineStyle: { color: colors.success } }, splitLine: { show: false }, max: function(value) { return Math.max(value.max + 5, 20); } },
+          { type: 'value', name: 'Token', axisLabel: base.axisLabelStyle, axisLine: base.axisLineStyle, splitLine: base.splitLineStyle },
+          { type: 'value', name: '%', max: 200, axisLabel: Object.assign({}, base.axisLabelStyle, { formatter: '{value}%' }), axisLine: base.axisLineStyle, splitLine: { show: false } },
         ],
         series: [
-          { name: '平均 Token', type: 'bar', data: effModels.map(function(m) { return m.avg_tokens || Math.round(m.total_tokens / m.requests); }), itemStyle: { color: colors.primary, borderRadius: [4, 4, 0, 0] }, barWidth: '35%' },
-          { name: '完成/提示比', type: 'line', yAxisIndex: 1, data: effModels.map(function(m) { return m.prompt_tokens > 0 ? Math.round((m.completion_tokens / m.prompt_tokens) * 1000) / 10 : 0; }), itemStyle: { color: colors.success }, lineStyle: { width: 2.5 }, symbol: 'circle', symbolSize: 8, smooth: true },
+          { name: '平均 Token', type: 'bar', data: effModels.map(function(m) { return Math.round(m.total_tokens / m.requests); }), itemStyle: { color: colors.primary }, barWidth: '40%' },
+          { name: '完成/提示比', type: 'line', yAxisIndex: 1, data: effModels.map(function(m) { return m.prompt_tokens > 0 ? parseFloat(((m.completion_tokens / m.prompt_tokens) * 100).toFixed(1)) : 0; }), itemStyle: { color: colors.warning }, lineStyle: { width: 2.5 }, symbol: 'circle', symbolSize: 6, smooth: true },
         ],
       });
     }
+  } else {
+    _renderNoData(elEfficiency, '暂无模型效率数据');
   }
-
   window.removeEventListener('resize', _mResizeCharts);
   window.addEventListener('resize', _mResizeCharts);
 }
