@@ -10,18 +10,23 @@ import {
     getStreamState, syncStreamFromCurrent, syncStreamToCurrent,
     setChatStreamAcc, setChatStreamRow, setChatStreamBubble,
     setIsThinking, updateStreamingBadge,
-} from './state.js?v=1783607957441';
-import { chatEscapeHtml, chatRenderMarkdown, buildMetaHtml, updateCtxInfoDisplay, playNotifySound } from './message.js?v=1783607957441';
-import { updateCtxFromStreamEnd, resetSendState } from './session.js?v=1783607957441';
-import { chatThinkingHide, chatThinkingClear, chatThinkingAddTextRow, chatThinkingShow } from './thinking.js?v=1783607957441';
-import { _showNewMsgIndicator, _hideNewMsgIndicator } from './badge.js?v=1783607957441';
-import { renderFull, applyDelta } from '../renderer.js?v=1783607957441';
-import { markSessionUnread, renderMiddleList, refreshAgentsAndRender } from './sidebar.js?v=1783607957441';
+} from './state.js?v=1783611558619';
+import { chatEscapeHtml, chatRenderMarkdown, buildMetaHtml, updateCtxInfoDisplay, playNotifySound } from './message.js?v=1783611558619';
+import { updateCtxFromStreamEnd, resetSendState } from './session.js?v=1783611558619';
+import { chatThinkingHide, chatThinkingClear, chatThinkingAddTextRow, chatThinkingShow } from './thinking.js?v=1783611558619';
+import { _showNewMsgIndicator, _hideNewMsgIndicator } from './badge.js?v=1783611558619';
+import { renderFull, applyDelta } from '../renderer.js?v=1783611558619';
+import { markSessionUnread, renderMiddleList, refreshAgentsAndRender } from './sidebar.js?v=1783611558619';
 
 // 流式 DOM 元素（当前会话）
 let _streamTextEl = null;
 let _streamRenderTimer = null;
 let _streamAcc = '';  // 独立累加器（不依赖 state.js 的 _chatStreamAcc）
+
+// Markdown 渲染辅助（一次性 feature-detect，避免每次渲染重复判断）
+const _renderMd = typeof renderMarkdown === 'function'
+  ? (el, text) => { el.innerHTML = ''; el.appendChild(renderMarkdown(text)); }
+  : (el, text) => { el.innerHTML = chatRenderMarkdown(text); };
 
 /**
  * 处理 stream_delta 消息
@@ -35,21 +40,14 @@ export function appendStream(delta, streamSessionId) {
     if (streamSessionId && _chatSessionId && streamSessionId !== _chatSessionId) {
         const s = getStreamState(streamSessionId);
         s.acc += delta || '';
-        // 更新缓存中的流式 DOM（如果该 session 的 DOM 在缓存中）
-        if (typeof window._sessionDomCache !== 'undefined') {
-            const cached = window._sessionDomCache.get(streamSessionId);
-            if (cached && cached.streamRow) {
-                const textEl = cached.streamRow.querySelector('.siper-stream-text');
-                if (textEl) {
-                    const accLen = s.acc.length;
-                    if (accLen < 200 || accLen % 3 === 0 || (delta && delta.length > 50)) {
-                        textEl.innerHTML = '';
-                        if (typeof renderMarkdown === 'function') textEl.appendChild(renderMarkdown(s.acc));
-                        else textEl.innerHTML = chatRenderMarkdown(s.acc);
-                    }
-                }
-                cached.streamRow.dataset.rawText = s.acc;
+        const cached = window._sessionDomCache?.get(streamSessionId);
+        const textEl = cached?.streamRow?.querySelector('.siper-stream-text');
+        if (textEl) {
+            const accLen = s.acc.length;
+            if (accLen < 200 || accLen % 3 === 0 || (delta && delta.length > 50)) {
+                _renderMd(textEl, s.acc);
             }
+            cached.streamRow.dataset.rawText = s.acc;
         }
         return;
     }
@@ -93,11 +91,7 @@ export function appendStream(delta, streamSessionId) {
         const accLen = _streamAcc.length;
         if (accLen < 200 || accLen % 3 === 0 || delta.length > 50) {
             textEl.innerHTML = '';
-            if (typeof renderMarkdown === 'function') {
-                textEl.appendChild(renderMarkdown(_streamAcc));
-            } else {
-                textEl.innerHTML = chatRenderMarkdown(_streamAcc);
-            }
+            _renderMd(textEl, _streamAcc);
         }
     }
     _chatStreamRow.dataset.rawText = _streamAcc;
@@ -117,6 +111,24 @@ export function appendStream(delta, streamSessionId) {
  * 处理 stream_end 消息
  * 对应 core.js 的 chatHandleStreamEnd()
  */
+/**
+ * 清理流式状态（finalizeStream / handleStopped 共用）
+ */
+function _cleanupStreamState() {
+    setChatStreamAcc('');
+    setChatStreamRow(null);
+    setChatStreamBubble(null);
+    _thinkingSteps.length = 0;
+    setIsThinking(false);
+    if (_chatSessionId) updateStreamingBadge(_chatSessionId, false);
+    resetSendState();
+    _hideNewMsgIndicator();
+    chatThinkingClear();
+    chatThinkingHide();
+    refreshAgentsAndRender();
+    playNotifySound();
+}
+
 export function finalizeStream(data, streamSessionId) {
     // 跨会话：清理 per-session 状态 + 缓存中的流式 DOM
     if (streamSessionId && _chatSessionId && streamSessionId !== _chatSessionId) {
@@ -124,7 +136,6 @@ export function finalizeStream(data, streamSessionId) {
         s.thinking = false;
         s.thinkingSteps = [];
         s.row = null; s.bubble = null; s.acc = '';
-        // 从缓存中移除该 session 的流式 DOM（已 finalize，缓存内容过时）
         if (typeof window._sessionDomCache !== 'undefined' && window._sessionDomCache.has(streamSessionId)) {
             window._sessionDomCache.delete(streamSessionId);
         }
@@ -137,7 +148,6 @@ export function finalizeStream(data, streamSessionId) {
 
     if (data && data.usage) updateCtxFromStreamEnd(data.usage);
 
-    // 保存 thinking steps 用于渲染到气泡
     const steps = [..._thinkingSteps];
 
     // 复用流式 DOM，直接更新内容
@@ -150,24 +160,20 @@ export function finalizeStream(data, streamSessionId) {
             const parent = streamTextEl.parentElement;
             if (parent) {
                 parent.innerHTML = '';
-                if (text) {
-                    if (typeof renderMarkdown === 'function') parent.appendChild(renderMarkdown(text));
-                    else parent.innerHTML = chatRenderMarkdown(text);
-                } else if (data && data.tool_call_steps && data.tool_call_steps.length) {
+                if (text) _renderMd(parent, text);
+                else if (data && data.tool_call_steps && data.tool_call_steps.length) {
                     const toolNames = data.tool_call_steps.map(s => s.tool_name).filter(Boolean);
                     const summary = document.createElement('div');
                     summary.className = 'siper-tool-summary';
                     summary.textContent = '🔧 执行工具：' + (toolNames.length ? toolNames.join(', ') : data.tool_call_steps.length + ' calls');
                     parent.appendChild(summary);
                 }
-                // 报错标记
                 if (data && data.success === false) {
                     const errEl = document.createElement('div');
                     errEl.className = 'siper-stream-error';
                     errEl.textContent = '⚠️ LLM 响应异常';
                     parent.appendChild(errEl);
                 }
-                // 报错标记
             }
         }
         // 追加 meta
@@ -186,7 +192,7 @@ export function finalizeStream(data, streamSessionId) {
             if (bubble) {
                 let attHtml = '';
                 for (const att of data.attachments) {
-                    if (att.category === 'image' || att.type === 'image') attHtml += '<img src="' + (att.url || att.data || '') + '" class="siper-img" alt="' + chatEscapeHtml(att.name || 'image') + '" onclick="window.open(this.src)">';
+                    if (att.category === 'image' || att.type === 'image') attHtml += '<img src="' + (att.url || att.data || '') + '" class="siper-img" alt="' + chatEscapeHtml(att.name || 'image') + '" onclick="window.open(this.src)">'; 
                 }
                 if (attHtml) { const w = document.createElement('div'); w.className = 'siper-attachments'; w.innerHTML = attHtml; bubble.appendChild(w); }
             }
@@ -223,23 +229,8 @@ export function finalizeStream(data, streamSessionId) {
         if (timeEl) timeEl.textContent = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
     }
 
-    setChatStreamAcc('');
-    setChatStreamRow(null);
-    setChatStreamBubble(null);
-    _thinkingSteps.length = 0;
-    setIsThinking(false);
-    if (_chatSessionId) updateStreamingBadge(_chatSessionId, false);
+    _cleanupStreamState();
     syncStreamToCurrent();
-    resetSendState();
-    _hideNewMsgIndicator();
-    chatThinkingClear();
-    chatThinkingHide();
-
-    // 刷新中栏会话排序（LLM 回复完成，updated_at 变化）
-    refreshAgentsAndRender();
-
-    // 停止交流后：提示音 + 未选中红点
-    playNotifySound();
     if (_chatSessionId && streamSessionId && _chatSessionId !== streamSessionId) {
         markSessionUnread(streamSessionId);
     }
@@ -261,28 +252,12 @@ export function handleStopped() {
             if (parent) {
                 parent.innerHTML = '';
                 if (text) {
-                    if (typeof renderMarkdown === 'function') parent.appendChild(renderMarkdown(text));
-                    else parent.innerHTML = chatRenderMarkdown(text);
+                if (text) _renderMd(parent, text);
                 }
             }
         }
     }
-    setChatStreamAcc('');
-    setChatStreamRow(null);
-    setChatStreamBubble(null);
-    _thinkingSteps.length = 0;
-    setIsThinking(false);
-    resetSendState();
-    _hideNewMsgIndicator();
-    chatThinkingClear();
-    chatThinkingHide();
-    if (_chatSessionId && typeof updateStreamingBadge === 'function') updateStreamingBadge(_chatSessionId, false);
-
-    // 刷新中栏会话排序（停止交流，updated_at 变化）
-    refreshAgentsAndRender();
-
-    // 停止交流后：提示音 + 未选中红点
-    playNotifySound();
+    _cleanupStreamState();
     if (_chatSessionId && stoppedSessionId && _chatSessionId !== stoppedSessionId) {
         markSessionUnread(stoppedSessionId);
     }

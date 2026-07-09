@@ -1,5 +1,5 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
-import { getWs } from '../core.js?v=1783607957441';
+import { getWs } from '../core.js?v=1783611558619';
 import {
   _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
@@ -9,12 +9,12 @@ import {
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, setThinkingSteps, setIsThinking, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
-} from './state.js?v=1783607957441';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1783607957441';
-import { chatThinkingHide } from './thinking.js?v=1783607957441';
-import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns } from './input.js?v=1783607957441';
-import { toast, showInput } from '../components/toast.js?v=1783607957441';
-import { chatConfirm } from './toast.js?v=1783607957441';
+} from './state.js?v=1783611558619';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1783611558619';
+import { chatThinkingHide } from './thinking.js?v=1783611558619';
+import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns } from './input.js?v=1783611558619';
+import { toast, showInput } from '../components/toast.js?v=1783611558619';
+import { chatConfirm } from './toast.js?v=1783611558619';
 
 // ===== 从 page_cache 读取 agents 列表 =====
 function getAgentsFromCache() {
@@ -184,7 +184,7 @@ function _doRenderMiddle() {
         e.stopPropagation();
         const agentName = e.target.dataset.agentName;
         const agent = agents.find(a => a.name === agentName);
-        if (agent && typeof window.startNewChat === 'function') window.startNewChat(agent);
+        if (agent) startNewChat(agent);
         return;
       }
       chatToggleAgent(agent.name);
@@ -261,7 +261,7 @@ function _doRenderMiddle() {
     container.appendChild(group);
   }
   // Re-apply streaming wave badges after DOM rebuild
-  if (typeof reapplyAllStreamingBadges === 'function') reapplyAllStreamingBadges();
+  reapplyAllStreamingBadges();
 }
 
 export async function chatToggleAgent(agentName) {
@@ -315,9 +315,9 @@ async function switchToAgent(agentName) {
     // 清空当前会话，等待用户选择
     setChatSessionId(null);
     // 不调用 chatSwitchPage — 调用方决定切换到哪个页面
-    if (typeof updateChatHeader === 'function') updateChatHeader();
+    updateChatHeader();
     // 刷新设置页 agent 面板
-    if (typeof window.refreshConfigAgentPanel === 'function') window.refreshConfigAgentPanel();
+    window.refreshConfigAgentPanel?.();
   } catch(e) {
     console.error('switchToAgent error:', e);
     toast.error(t ? t('chat.switchAgentFailed') : '切换 Agent 失败');
@@ -376,29 +376,28 @@ export function selectChatSession(session, agent) {
     window.renderChatPage(_contentArea, true);
   }
   // 恢复目标会话的输入框内容 + 按钮状态
-  if (typeof restoreInputCache === 'function') restoreInputCache(session.session_id);
-  if (typeof updateSendBtns === 'function') updateSendBtns();
-  if (typeof updateChatHeader === 'function') updateChatHeader();
+  restoreInputCache(session.session_id);
+  updateSendBtns();
+  updateChatHeader();
   window.chatCtxTokens = null;
   updateCtxInfoDisplay();
-  if (typeof loadChatModels === 'function') loadChatModels();
+  loadChatModels();
   // Hide thinking panel on switch; restore from _thinkingSteps if target session has active thinking
-  if (typeof chatThinkingHide === 'function') chatThinkingHide();
+  chatThinkingHide();
   // Restore thinking panel if target session has active thinking/stream
   if ((_thinkingSteps && _thinkingSteps.length > 0) || _isThinking) {
     const panel = document.getElementById('chatThinkingPanel');
     const body = document.getElementById('chatThinkingBody');
     if (panel && body) {
       body.innerHTML = '';
-      // If still in thinking phase (no tool steps yet), show "正在思考..."
       if (_isThinking && (!_thinkingSteps || _thinkingSteps.length === 0)) {
-        if (typeof chatThinkingAddTextRow === 'function') chatThinkingAddTextRow('正在思考...');
+        chatThinkingAddTextRow('正在思考...');
       }
       for (const step of (_thinkingSteps || [])) {
         if (step.type === 'text') {
-          if (typeof chatThinkingAddTextRow === 'function') chatThinkingAddTextRow(step.text);
+          chatThinkingAddTextRow(step.text);
         } else {
-          if (typeof chatThinkingAddToolStep === 'function') chatThinkingAddToolStep(step.callId, step.toolName, step.status, step.params, step.resultSummary);
+          chatThinkingAddToolStep(step.callId, step.toolName, step.status, step.params, step.resultSummary);
         }
       }
       panel.classList.add('open');

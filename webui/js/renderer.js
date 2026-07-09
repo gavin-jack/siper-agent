@@ -12,6 +12,8 @@
  */
 
 // ===== 路径 → 处理函数映射 =====
+import { showToastCompat, showDialogCompat } from './utils/ws-compat.js?v=1783611558619';
+
 const _handlers = {};
 
 export function register(path, fn) {
@@ -81,7 +83,7 @@ export { _handlers };
 
 // ===== Message rendering (migrated from dom.js) =====
 
-import { escapeHtml } from './utils/escape.js?v=1783607957441';
+import { escapeHtml } from './utils/escape.js?v=1783611558619';
 
 /**
  * Add a message bubble to the chat.
@@ -189,29 +191,8 @@ export function registerAllHandlers() {
         }
     });
 
-    register('toasts', (v) => {
-        if (v && v.length > 0) {
-            const t = v[v.length - 1];
-            if (typeof window.showToast === 'function') {
-                window.showToast(t);
-            } else if (typeof window.toast === 'function') {
-                window.toast(t.message || '', t.type || 'info');
-            }
-        }
-    });
-
-    register('dialog', (v) => {
-        if (!v) return;
-        if (typeof window.showDialog === 'function') {
-            window.showDialog(v);
-        } else if (typeof window.showConfirm === 'function' && v.type === 'confirm') {
-            if (typeof v.title === 'object' && v.title !== null) {
-                window.showConfirm(v.title);
-            } else {
-                window.showConfirm({ title: v.title || '确认', msg: v.message || '', onConfirm: v.onConfirm });
-            }
-        }
-    });
+    register('toasts', (v) => { if (v?.length) showToastCompat(v[v.length - 1]); });
+    register('dialog', showDialogCompat);
 
     // page_cache 更新 → 通知所有页面
     register('page_cache', (v) => {
