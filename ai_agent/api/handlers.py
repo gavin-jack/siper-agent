@@ -1041,7 +1041,8 @@ def api_switch_agent(body):
         target = body.get("agent", "")
         if not target:
             return {"success": False, "error": "missing agent name"}
-        from agents import get_agent_dir, load_agent_soul, load_agent_config
+        from agents import get_agent_dir, load_agent_soul, load_agent_config, load_agent_config_file
+
         agent_dir = get_agent_dir(target)
         if not agent_dir:
             return {"success": False, "error": f"agent '{target}' not found or has no soul.md"}
@@ -1052,7 +1053,6 @@ def api_switch_agent(body):
         agent._soul_content = soul or ""
         agent._agent_config_content = cfg or ""
         # Load per-agent config (icon, avatar, models, display name) from config.json
-        from agents import load_agent_config_file
         agent_cfg = load_agent_config_file(target)
         if agent_cfg:
             if agent_cfg.get("name"):

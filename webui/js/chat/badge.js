@@ -2,7 +2,7 @@
  * chat/badge.js — 流式徽章 + 新消息指示器 + 未读标记
  * 从 core.js 拆出。
  */
-import { _unreadSessions } from './state.js?v=1783614889239';
+import { _unreadSessions } from './state.js?v=1783620257626';
 
 // ===== New Message Indicator =====
 
