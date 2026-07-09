@@ -301,9 +301,12 @@ export async function loadChatModels() {
       models = d.models || [];
     }
     const globalDefault = models.length ? (models[0].name || '') : '';
-    setCurrentModel(globalDefault);
-    const cur = models.find(m => m.name === globalDefault);
-    if (cur && cur.context_window) setModelContextWindow(cur.context_window);
+    // Preserve session model if already set; otherwise use global default
+    if (!_chatCurrentModel) {
+      setCurrentModel(globalDefault);
+      const cur = models.find(m => m.name === globalDefault);
+      if (cur && cur.context_window) setModelContextWindow(cur.context_window);
+    }
     renderChatModelDropdown(models, noModels);
     updateCtxInfoDisplay();
     updateChatHeader();
