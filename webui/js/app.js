@@ -1,41 +1,41 @@
 // app.js — ESM 入口
 // 三模板 SPA: chat(默认) | standalone(懒加载) | sidebar(常驻)
-import { connectWS, setConnected, getWs } from './core.js?v=1783612457431';
+import { connectWS, setConnected, getWs } from './core.js?v=1783614260116';
 // expose getWs globally for debugging
 window.getWs = getWs;
 // -------------------------------------------------
 // 初始化：立即建立 WebSocket 连接
 // -------------------------------------------------
 connectWS();
-import { registerAllHandlers } from './renderer.js?v=1783612457431';
+import { registerAllHandlers } from './renderer.js?v=1783614260116';
 
 // Utils
-import { escapeHtml } from './utils/escape.js?v=1783612457431';
-import { LANG, t, applyLang, selectLang } from './utils/i18n.js?v=1783612457431';
-import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js?v=1783612457431';
-import { apiGet, apiPost } from './utils/api.js?v=1783612457431';
-import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js?v=1783612457431';
+import { escapeHtml } from './utils/escape.js?v=1783614260116';
+import { LANG, t, applyLang, selectLang } from './utils/i18n.js?v=1783614260116';
+import { updateThemePaletteTrigger, toggleChatSidebar, toggleThemePalette } from './utils/dom.js?v=1783614260116';
+import { apiGet, apiPost } from './utils/api.js?v=1783614260116';
+import { toggleChatLangDropdown, selectChatLang } from './chat/lang.js?v=1783614260116';
 
 // Components
-import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmDeleteModel, showInput, cancelInput, execInput, openImageLightbox } from './components/toast.js?v=1783612457431';
-import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js?v=1783612457431';
-import * as AgentModels from './components/agent-models.js?v=1783612457431';
+import { toast, showConfirm, cancelConfirm, execConfirm, showDictModal, confirmDeleteModel, showInput, cancelInput, execInput, openImageLightbox } from './components/toast.js?v=1783614260116';
+import { testModel, verifyGlobalModel, verifyChatModel, initModelTestDelegation } from './components/model-test.js?v=1783614260116';
+import * as AgentModels from './components/agent-models.js?v=1783614260116';
 
 // Chat core (must load before DOMContentLoaded)
-import * as Chat from './pages/chat-pages/chat.js?v=1783612457431';
+import * as Chat from './pages/chat-pages/chat.js?v=1783614260116';
 
 // Chat input
-import { toggleChatModelDropdown } from './chat/input.js?v=1783612457431';
+import { toggleChatModelDropdown } from './chat/input.js?v=1783614260116';
 
 // Sidebar / UI
-import { startNewChat, expandAllAgents } from './chat/sidebar.js?v=1783612457431';
-import { newSession } from './chat/session.js?v=1783612457431';
+import { startNewChat, expandAllAgents } from './chat/sidebar.js?v=1783614260116';
+import { newSession } from './chat/session.js?v=1783614260116';
 
 // Template-clone pages (保留全量 import，后续逐步迁移)
-import * as Sessions from './pages/sessions.js?v=1783612457431';
-import * as Memory from './pages/memory.js?v=1783612457431';
-import * as AgentConfig from './pages/agent-config.js?v=1783612457431';
-import * as Theme from './pages/theme.js?v=1783612457431';
+import * as Sessions from './pages/sessions.js?v=1783614260116';
+import * as Memory from './pages/memory.js?v=1783614260116';
+import * as AgentConfig from './pages/agent-config.js?v=1783614260116';
+import * as Theme from './pages/theme.js?v=1783614260116';
 
 // ===== Window Global Mounts =====
 // Utils
@@ -99,7 +99,7 @@ window.refreshSessions = () => {};
 window.refreshMemoryPage = () => {};
 
 // page_cache 基础设施
-import { initPageCache } from './page-cache.js?v=1783612457431';
+import { initPageCache } from './page-cache.js?v=1783614260116';
 initPageCache();
 
 // Template-clone pages 已全量加载，直接映射
@@ -132,7 +132,7 @@ const PAGE_RENDER_FN = {
 
 // ===== 动态页面模块加载器 =====
 // 2026-06-18: 增加 MutationObserver 防抖 + data-localized 标记避免重复翻译
-const _PAGE_CACHE_VER = 1783612457431;
+const _PAGE_CACHE_VER = 1783614260116;
 const _pageModCache = {};
 async function _loadPageModule(page) {
   if (_pageModCache[page]) return _pageModCache[page];
@@ -169,138 +169,83 @@ function loadCss(href) {
   document.head.appendChild(link);
 }
 
-async function navigateToPage(page, tab) {
-  // Ensure URL hash always reflects target page (including chat)
-  const hash = '#/' + page + (tab ? '?tab=' + tab : '');
-  if (location.hash !== hash) {
-      history.replaceState(null, '', hash);
-  }
-  // 记录当前页面（供 hash 守卫恢复用）
-  if (window.__setPageCache) window.__setPageCache('current_page', page);
-  // 更新侧边栏 active 状态
-  document.querySelectorAll('.siper-nav-item').forEach(el => {
-    el.classList.toggle('active', el.getAttribute('data-page') === page);
-  });
+// 页面→模板函数名映射
+const PAGE_TPL_FN = {
+  'sessions': '_tplSessionsPage',
+  'memory': '_tplMemoryPage',
+  'agent-config': '_tplAgentConfigPage',
+  'theme': '_tplThemePage',
+};
 
-  // Chat 页面 — 显示中栏+右栏，隐藏独立页面
+// 页面→需挂载的 window 函数列表
+const PAGE_MOUNT_FN = {
+  'agent-config': ['loadAgentSettings', 'saveAgentSettings', 'refreshConfigAgentPanel', 'switchConfigAgentPageTab', 'selectConfigAgent'],
+  'sessions': ['renderSessions'],
+  'memory': ['renderMemoryContent'],
+  'model-settings': ['switchModelTab', 'applyProviderPreset', 'discoverModels', 'addSelectedDiscoveredModels', 'addAllDiscoveredModels', 'chatFilterDiscovered', 'chatClearDiscoverFilter', 'loadSettingsModels', 'filterModelsList', 'clearModelSearch', 'toggleCapFilterDropdown', 'selectCapFilter', 'clearCapFilter', 'applyCapFilter', 'toggleSortDir', 'verifyAllModels', 'verifySingleModel', 'removeSettingsModel', 'removeSettingsModelByName', 'resetSettingsModels', 'renderSettingsModelsList', 'clearModelFilter', 'editProviderName', 'copyModelName', 'autoSaveModels'],
+  'monitor': ['switchMonitorTab'],
+  'settings': ['switchSettingsTab', 'resetSystemParams', 'refreshGlobalSettings'],
+  'global-settings': ['switchSettingsTab', 'resetSystemParams', 'refreshGlobalSettings'],
+};
+
+// 页面→tab切换函数名
+const PAGE_TAB_FN = {
+  'monitor': 'switchMonitorTab',
+  'model-settings': 'switchModelTab',
+  'settings': 'switchSettingsTab',
+};
+
+async function navigateToPage(page, tab) {
+  history.replaceState(null, '', '#/' + page + (tab ? '?tab=' + tab : ''));
+  window.__setPageCache?.('current_page', page);
+  document.querySelectorAll('.siper-nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
+
   if (page === 'chat') {
     document.getElementById('page-chat').style.display = 'flex';
     document.getElementById('page-standalone').style.display = 'none';
     document.getElementById('chatSidebar').style.display = '';
     loadCss('/css/chat.css');
-    if (typeof window.initChatPage === 'function') {
-      window.initChatPage();
-    }
+    window.initChatPage?.();
     return;
   }
 
-  // 独立页面 — 隐藏中栏+右栏，侧边栏保持显示
   const container = document.getElementById('page-standalone');
   container.style.display = 'flex';
   document.getElementById('page-chat').style.display = 'none';
   document.getElementById('chatSidebar').style.display = '';
   loadCss('/css/page.css');
   if (page === 'api-docs') loadCss('/css/api-docs.css');
+
   try {
-    // Template-clone pages: 先创建模板 DOM（模板函数在各模块的 _tplXxxPage() 中）
-    if (PAGE_TEMPLATE[page] && typeof PAGE_TEMPLATE[page]._tplSessionsPage === 'function') {
-      container.innerHTML = PAGE_TEMPLATE[page]._tplSessionsPage();
-    } else if (PAGE_TEMPLATE[page] && typeof PAGE_TEMPLATE[page]._tplMemoryPage === 'function') {
-      container.innerHTML = PAGE_TEMPLATE[page]._tplMemoryPage();
-    } else if (PAGE_TEMPLATE[page] && typeof PAGE_TEMPLATE[page]._tplAgentConfigPage === 'function') {
-      container.innerHTML = PAGE_TEMPLATE[page]._tplAgentConfigPage();
-    } else if (PAGE_TEMPLATE[page] && typeof PAGE_TEMPLATE[page]._tplThemePage === 'function') {
-      container.innerHTML = PAGE_TEMPLATE[page]._tplThemePage();
+    // 渲染模板
+    const tplFn = PAGE_TPL_FN[page];
+    if (PAGE_TEMPLATE[page] && tplFn && PAGE_TEMPLATE[page][tplFn]) {
+      container.innerHTML = PAGE_TEMPLATE[page][tplFn]();
     } else if (!PAGE_TEMPLATE[page]) {
       container.innerHTML = '<div class="siper-loading">加载中...</div>';
     }
 
-    // 获取模块（全量 import，直接取模块对象）
+    // 获取模块
     let mod;
-    if (PAGE_TEMPLATE[page]) {
-      mod = PAGE_TEMPLATE[page];
-    } else if (PAGE_LAZY_LOADER[page]) {
-      mod = await PAGE_LAZY_LOADER[page]();
-    } else {
-      return;
-    }
+    if (PAGE_TEMPLATE[page]) mod = PAGE_TEMPLATE[page];
+    else if (PAGE_LAZY_LOADER[page]) mod = await PAGE_LAZY_LOADER[page]();
+    else return;
 
     // 调用渲染函数
     const fnName = PAGE_RENDER_FN[page];
-    if (fnName && typeof mod[fnName] === 'function') {
-      await mod[fnName](container);
+    if (fnName && mod[fnName]) await mod[fnName](container);
+
+    // 挂载页面函数到 window
+    const mountFns = PAGE_MOUNT_FN[page];
+    if (mountFns) for (const fn of mountFns) if (mod[fn]) window[fn] = mod[fn];
+
+    // 切换tab
+    if (tab && PAGE_TAB_FN[page]) {
+      setTimeout(() => window[PAGE_TAB_FN[page]]?.(tab), 60);
     }
 
-    // 挂载页面特有的全局函数（供 HTML onclick 调用）
-    if (page === 'agent-config' && typeof mod.loadAgentSettings === 'function') {
-      window.loadAgentSettings = mod.loadAgentSettings;
-      window.saveAgentSettings = mod.saveAgentSettings;
-      window.refreshConfigAgentPanel = mod.refreshConfigAgentPanel;
-      window.switchConfigAgentPageTab = mod.switchConfigAgentPageTab;
-      window.selectConfigAgent = mod.selectConfigAgent;
-    }
-    // 模板克隆页面 — 挂载需要的函数到 window
-    if (page === 'sessions' && typeof mod.renderSessions === 'function') {
-      window.renderSessions = mod.renderSessions;
-    }
-    if (page === 'memory' && typeof mod.renderMemoryContent === 'function') {
-      window.renderMemoryContent = mod.renderMemoryContent;
-    }
-    if (page === 'model-settings' && typeof mod.switchModelTab === 'function') {
-      window.switchModelTab = mod.switchModelTab;
-      window.applyProviderPreset = mod.applyProviderPreset;
-      window.discoverModels = mod.discoverModels;
-      window.addSelectedDiscoveredModels = mod.addSelectedDiscoveredModels;
-      window.addAllDiscoveredModels = mod.addAllDiscoveredModels;
-      window.chatFilterDiscovered = mod.chatFilterDiscovered;
-      window.chatClearDiscoverFilter = mod.chatClearDiscoverFilter;
-      window.loadSettingsModels = mod.loadSettingsModels;
-      window.filterModelsList = mod.filterModelsList;
-      window.clearModelSearch = mod.clearModelSearch;
-      window.toggleCapFilterDropdown = mod.toggleCapFilterDropdown;
-      window.selectCapFilter = mod.selectCapFilter;
-      window.clearCapFilter = mod.clearCapFilter;
-      window.applyCapFilter = mod.applyCapFilter;
-      window.toggleSortDir = mod.toggleSortDir;
-      window.verifyAllModels = mod.verifyAllModels;
-      window.verifySingleModel = mod.verifySingleModel;
-      window.removeSettingsModel = mod.removeSettingsModel;
-      window.removeSettingsModelByName = mod.removeSettingsModelByName;
-      window.resetSettingsModels = mod.resetSettingsModels;
-      window.renderSettingsModelsList = mod.renderSettingsModelsList;
-      window.clearModelFilter = mod.clearModelFilter;
-      window.editProviderName = mod.editProviderName;
-      window.copyModelName = mod.copyModelName;
-      window.autoSaveModels = mod.autoSaveModels;
-    }
-    if (page === 'monitor' && typeof mod.switchMonitorTab === 'function') {
-      window.switchMonitorTab = mod.switchMonitorTab;
-    }
-    if ((page === 'settings' || page === 'global-settings') && typeof mod.switchSettingsTab === 'function') {
-      window.switchSettingsTab = mod.switchSettingsTab;
-      window.resetSystemParams = mod.resetSystemParams;
-      window.refreshGlobalSettings = mod.refreshGlobalSettings;
-    }
-
-    // 切换到指定 tab（如果有）
-    if (tab) {
-      if (page === 'monitor' && typeof window.switchMonitorTab === 'function') {
-        setTimeout(() => window.switchMonitorTab(tab), 60);
-      } else if (page === 'model-settings' && typeof window.switchModelTab === 'function') {
-        setTimeout(() => window.switchModelTab(tab), 60);
-      } else if (page === 'settings' && typeof window.switchSettingsTab === 'function') {
-        setTimeout(() => window.switchSettingsTab(tab), 60);
-      }
-    }
-
-    // 通知后端页面切换（后端推送页面数据到 page_cache）
-    try {
-      var _ws = typeof getWs === 'function' ? getWs() : (window.__ws || null);
-      if (_ws && _ws.readyState === 1) {
-        _ws.send(JSON.stringify({type: 'navigate', page: page, tab: tab || ''}));
-      }
-    } catch(e) {}
-
+    // 通知后端
+    send({ type: 'navigate', page, tab: tab || '' });
   } catch(e) {
     console.error('[app.js] navigateToPage failed:', e);
     container.innerHTML = '<div class="empty-state">加载失败: ' + escapeHtml(e.message) + '</div>';

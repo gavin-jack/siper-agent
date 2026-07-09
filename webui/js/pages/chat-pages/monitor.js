@@ -1,7 +1,7 @@
 // chat-pages/monitor.js — 统计页面（性能 + 词元 + 日志）
-import { escapeHtml } from '../../utils/escape.js?v=1783612457431';
-import { fmtNum } from '../../utils/format.js?v=1783612457431';
-import { apiGetCached } from '../../utils/api.js?v=1783612457431';
+import { escapeHtml } from '../../utils/escape.js?v=1783614260116';
+import { fmtNum } from '../../utils/format.js?v=1783614260116';
+import { apiGetCached } from '../../utils/api.js?v=1783614260116';
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {

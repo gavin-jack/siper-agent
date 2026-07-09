@@ -1,5 +1,5 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
-import { getWs } from '../core.js?v=1783612457431';
+import { getWs } from '../core.js?v=1783614260116';
 import {
   _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
@@ -9,12 +9,12 @@ import {
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, setThinkingSteps, setIsThinking, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
-} from './state.js?v=1783612457431';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1783612457431';
-import { chatThinkingHide } from './thinking.js?v=1783612457431';
-import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns } from './input.js?v=1783612457431';
-import { toast, showInput } from '../components/toast.js?v=1783612457431';
-import { chatConfirm } from './toast.js?v=1783612457431';
+} from './state.js?v=1783614260116';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1783614260116';
+import { chatThinkingHide } from './thinking.js?v=1783614260116';
+import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns } from './input.js?v=1783614260116';
+import { toast, showInput } from '../components/toast.js?v=1783614260116';
+import { chatConfirm } from './toast.js?v=1783614260116';
 
 // ===== 从 page_cache 读取 agents 列表 =====
 function getAgentsFromCache() {
@@ -327,114 +327,98 @@ async function switchToAgent(agentName) {
 // ===== Session CRUD =====
 
 export function selectChatSession(session, agent) {
-  // Reset sending state from previous session — resume button availability
+  const prevSid = _chatSessionId;
+  _resetSessionState(prevSid);
+  _applySessionState(session, agent, prevSid);
+  _restoreSessionUI(session, agent);
+  _restoreOrLoadMessages(session);
+}
+
+function _resetSessionState(prevSid) {
   setIsSending(false);
-  const _ssb = document.getElementById('chatSendBtn');
-  if (_ssb) _ssb.disabled = false;
-  const _sstb = document.getElementById('chatStopBtn');
-  if (_sstb) _sstb.classList.add('hidden');
+  document.getElementById('chatSendBtn')?.classList.remove('hidden');
+  document.getElementById('chatStopBtn')?.classList.add('hidden');
   syncStreamToCurrent();
-  // 切换会话时清除思考状态，防止上一个会话的"正在思考"残留
   setThinkingSteps([]);
   setIsThinking(false);
-  // Hide stream row instead of removeChild — preserves DOM for seamless restore
-  if (typeof _chatStreamRow !== 'undefined' && _chatStreamRow) _chatStreamRow.style.display = 'none';
-  const prevSid = _chatSessionId;
-  const _prevAgent = _chatCurrentAgent;
-
-  // ★ 切换前：保存当前会话 DOM 到缓存（含流式 DOM）+ 输入框内容
+  if (_chatStreamRow) _chatStreamRow.style.display = 'none';
   if (prevSid) _saveDomCache(prevSid);
-  if (typeof saveInputCache === 'function') saveInputCache();
+  saveInputCache();
+}
 
+function _applySessionState(session, agent, prevSid) {
   setChatSessionId(session.session_id);
   setChatCurrentAgent(agent);
-  // Restore target session's model preference
   if (session.model) {
     setChatCurrentModel(session.model);
-    const _ag = _getAgents && _getAgents().find(function(a){return a.name===agent;});
-    const _m = _ag && _ag.available_models && _ag.available_models.find(function(m){return m.name===session.model;});
+    const _ag = getAgentsFromCache().find(a => a.name === agent);
+    const _m = _ag?.available_models?.find(m => m.name === session.model);
     if (_m) setChatModelContextWindow(_m.context_window || 8192);
   }
-  // 中栏只更新 active class，不触发全量 rebuild（debounce 的 renderMiddleList 已足够）
   if (prevSid !== session.session_id) {
-    const items = document.querySelectorAll('.siper-session-item');
-    items.forEach(el => {
-      const sid = el.dataset && el.dataset.sessionId;
+    document.querySelectorAll('.siper-session-item').forEach(el => {
+      const sid = el.dataset?.sessionId;
       if (sid === session.session_id) el.classList.add('active');
       else if (sid === prevSid) el.classList.remove('active');
     });
   }
   clearSessionUnread(session.session_id);
   syncStreamFromCurrent();
-  // 确保 agent 展开（点+创建新会话或切换会话时）
   _expandedAgents.set(agent.name, true);
-  // 始终切换到 chat 页面确保右栏渲染消息列表+输入框
-  if (typeof window.chatSwitchPage === 'function') window.chatSwitchPage('chat');
-  // 每次切换会话时重新渲染右栏内容（确保 chatContentArea 有最新的消息容器）
-  var _contentArea = document.getElementById('chatContentArea');
-  if (_contentArea && typeof window.renderChatPage === 'function') {
-    window.renderChatPage(_contentArea, true);
+  window.chatSwitchPage('chat');
+  const contentArea = document.getElementById('chatContentArea');
+  if (contentArea) {
+    window.renderChatPage(contentArea, true);
   }
-  // 恢复目标会话的输入框内容 + 按钮状态
+}
+
+function _restoreSessionUI(session, agent) {
   restoreInputCache(session.session_id);
   updateSendBtns();
   updateChatHeader();
   window.chatCtxTokens = null;
   updateCtxInfoDisplay();
   loadChatModels();
-  // Hide thinking panel on switch; restore from _thinkingSteps if target session has active thinking
+  _restoreThinkingPanel();
+}
+
+function _restoreThinkingPanel() {
   chatThinkingHide();
-  // Restore thinking panel if target session has active thinking/stream
-  if ((_thinkingSteps && _thinkingSteps.length > 0) || _isThinking) {
-    const panel = document.getElementById('chatThinkingPanel');
-    const body = document.getElementById('chatThinkingBody');
-    if (panel && body) {
-      body.innerHTML = '';
-      if (_isThinking && (!_thinkingSteps || _thinkingSteps.length === 0)) {
-        chatThinkingAddTextRow('正在思考...');
-      }
-      for (const step of (_thinkingSteps || [])) {
-        if (step.type === 'text') {
-          chatThinkingAddTextRow(step.text);
-        } else {
-          chatThinkingAddToolStep(step.callId, step.toolName, step.status, step.params, step.resultSummary);
-        }
-      }
-      panel.classList.add('open');
-    }
+  if (!_thinkingSteps?.length && !_isThinking) return;
+  const panel = document.getElementById('chatThinkingPanel');
+  const body = document.getElementById('chatThinkingBody');
+  if (!panel || !body) return;
+  body.innerHTML = '';
+  if (_isThinking && !_thinkingSteps?.length) {
+    chatThinkingAddTextRow('正在思考...');
   }
-  // ★ 切换后：优先从缓存恢复 DOM，无缓存则 HTTP 加载
-  const _sid = session.session_id;
-  const _cacheHit = _sid && _restoreDomCache(_sid);
-  if (_cacheHit) {
-    // 缓存命中：DOM 已恢复，恢复流式状态
+  for (const step of _thinkingSteps || []) {
+    if (step.type === 'text') chatThinkingAddTextRow(step.text);
+    else chatThinkingAddToolStep(step.callId, step.toolName, step.status, step.params, step.resultSummary);
+  }
+  panel.classList.add('open');
+}
+
+function _restoreOrLoadMessages(session) {
+  const sid = session.session_id;
+  if (_restoreDomCache(sid)) {
     if (_chatStreamRow) {
       _chatStreamRow.style.display = '';
       const textEl = _chatStreamRow.querySelector('.siper-stream-text');
-      if (textEl && _chatStreamAcc) {
-        textEl.innerHTML = '';
-        if (typeof renderMarkdown === 'function') textEl.appendChild(renderMarkdown(_chatStreamAcc));
-        else textEl.innerHTML = chatRenderMarkdown(_chatStreamAcc);
-      }
-      if (typeof updateStreamingBadge === 'function' && _chatStreamAcc) updateStreamingBadge(_sid, true);
+      if (textEl && _chatStreamAcc) _renderMd(textEl, _chatStreamAcc);
+      if (_chatStreamAcc) updateStreamingBadge(sid, true);
     }
-    // 无论是否有流式 DOM，都滚动到底部（缓存恢复后 DOM 可能未渲染完成，用 rAF 确保）
-    requestAnimationFrame(function() {
-      const container = document.getElementById('chatMessages');
-      if (container) container.scrollTop = container.scrollHeight;
+    requestAnimationFrame(() => {
+      const c = document.getElementById('chatMessages');
+      if (c) c.scrollTop = c.scrollHeight;
     });
-  } else {
-    // 无缓存：HTTP 加载历史消息
-    if (_sid) {
-      fetch('/api/sessions/' + encodeURIComponent(_sid))
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-          if (d.success && Array.isArray(d.messages) && typeof window.renderChatMessages === 'function') {
-            window.renderChatMessages(d.messages);
-          }
-        })
-        .catch(function(e) { console.error('[sidebar] load session messages failed:', e); });
-    }
+  } else if (sid) {
+    fetch('/api/sessions/' + encodeURIComponent(sid))
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && Array.isArray(d.messages)) window.renderChatMessages?.(d.messages);
+      })
+      .catch(e => console.error('[sidebar] load session messages failed:', e));
   }
 }
 

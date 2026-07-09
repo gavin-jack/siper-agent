@@ -1,5 +1,5 @@
 // chat/lang.js — 语言切换
-import { selectChatLangAndSave } from '../utils/dom.js?v=1783612457431';
+import { selectChatLangAndSave } from '../utils/dom.js?v=1783614260116';
 
 export function toggleChatLangDropdown() {
   const menu = document.getElementById('chatLangMenu');

@@ -1,8 +1,8 @@
 // components/model-test.js — 模型验证功能
 // 从 js/model-test.js 迁移
 
-import { CAP_LABELS, CAP_ICONS } from '../utils/capabilities.js?v=1783612457431';
-import { toast } from './toast.js?v=1783612457431';
+import { CAP_LABELS, CAP_ICONS } from '../utils/capabilities.js?v=1783614260116';
+import { toast } from './toast.js?v=1783614260116';
 
 // ===== 辅助函数 =====
 

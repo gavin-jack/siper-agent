@@ -1,7 +1,7 @@
 // chat-pages/model-settings.js — 模型设置页面
 // 2026-08-25: 提取常量映射、CSS class 替代内联 style、简化 copyModelName
-import { fmtSpeed } from '../../utils/format.js?v=1783612457431';
-import { apiGetCached } from '../../utils/api.js?v=1783612457431';
+import { fmtSpeed } from '../../utils/format.js?v=1783614260116';
+import { apiGetCached } from '../../utils/api.js?v=1783614260116';
 
 // ===== 状态 =====
 export let settingsModelsCache = [];
@@ -167,107 +167,130 @@ export function loadSettingsModels() {
 
 // ===== 渲染模型列表 ──────────────────────────────────
 
-export function renderSettingsModelsList() {
-  var list = document.getElementById('settingsModelsList');
-  if (!list) return;
-  if (!settingsModelsCache || settingsModelsCache.length === 0) {
-    list.innerHTML = '<div class="settings-empty-msg">暂无模型，请添加</div>';
-    return;
-  }
-  var searchText = (document.getElementById('modelSearchInput')?.value || '').trim();
-  var hasCapFilter = _selectedCaps.size > 0;
-  var hasSort = (document.getElementById('modelSortBy') && document.getElementById('modelSortBy').value !== 'name' && document.getElementById('modelSortBy').value !== '') || _sortDir !== 'asc';
-  var showGroups = !searchText && !hasCapFilter && !hasSort;
-  var filtered = settingsModelsCache.slice();
+const SORT_FNS = {
+  ttft: m => m.ttft || 99999,
+  latency: m => m.latency || m._latency || 99999,
+  context: m => m.context_window || 0,
+  caps: m => (m.capabilities || []).length,
+};
+
+function _filterModels() {
+  const searchText = (document.getElementById('modelSearchInput')?.value || '').trim();
+  const hasCapFilter = _selectedCaps.size > 0;
+  const hasSort = (document.getElementById('modelSortBy')?.value || 'name') !== 'name' || _sortDir !== 'asc';
+  const showGroups = !searchText && !hasCapFilter && !hasSort;
+  let filtered = settingsModelsCache.slice();
+  
   if (searchText) {
-    var q = searchText.toLowerCase();
-    filtered = filtered.filter(function(m) { return (m.name || '').toLowerCase().includes(q); });
+    const q = searchText.toLowerCase();
+    filtered = filtered.filter(m => (m.name || '').toLowerCase().includes(q));
   }
-  if (_selectedCaps.size > 0) {
-    filtered = filtered.filter(function(m) {
-      var caps = m.capabilities || [];
-      return Array.from(_selectedCaps).every(function(c) { return caps.includes(c); });
-    });
+  if (hasCapFilter) {
+    filtered = filtered.filter(m => Array.from(_selectedCaps).every(c => (m.capabilities || []).includes(c)));
   }
-  var sortKey = document.getElementById('modelSortBy')?.value || '';
-  if (sortKey && sortKey !== 'name') {
-    var dir = _sortDir === 'asc' ? 1 : -1;
-    filtered.sort(function(a, b) {
-      var va = sortKey === 'ttft' ? (a.ttft || 99999) : sortKey === 'latency' ? (a.latency || a._latency || 99999) : sortKey === 'context' ? (a.context_window || 0) : (a.capabilities || []).length;
-      var vb = sortKey === 'ttft' ? (b.ttft || 99999) : sortKey === 'latency' ? (b.latency || b._latency || 99999) : sortKey === 'context' ? (b.context_window || 0) : (b.capabilities || []).length;
-      return (va - vb) * dir;
-    });
-  } else if (sortKey === 'name') {
-    var dir2 = _sortDir === 'asc' ? 1 : -1;
-    filtered.sort(function(a, b) { return (a.name || '').localeCompare(b.name || '') * dir2; });
+  return { filtered, showGroups, searchText, hasCapFilter, hasSort };
+}
+
+function _sortModels(filtered) {
+  const sortKey = document.getElementById('modelSortBy')?.value || '';
+  if (!sortKey) return filtered;
+  const dir = _sortDir === 'asc' ? 1 : -1;
+  if (sortKey === 'name') {
+    return filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '') * dir);
   }
-  list.style.maxHeight = Math.max(200, window.innerHeight - 200) + 'px';
-  list.style.overflowY = 'auto';
-  var html = '';
-  if (showGroups) {
-    var groups = new Map();
-    filtered.forEach(function(m) {
-      var key = m.base_url || '';
-      if (!groups.has(key)) groups.set(key, { base_url: key, models: [], provider: m.provider || '', provider_name: m.provider_name || '' });
-      groups.get(key).models.push(m);
-    });
-    var sortedGroups = Array.from(groups.values()).sort(function(a, b) {
-      var aHasDef = a.models.some(function(m) { return m._isDefault; });
-      var bHasDef = b.models.some(function(m) { return m._isDefault; });
-      if (aHasDef && !bHasDef) return -1;
-      if (!aHasDef && bHasDef) return 1;
-      return a.base_url.localeCompare(b.base_url);
-    });
-    sortedGroups.forEach(function(group) {
-      var providerAlias = group.provider_name || group.provider || '';
-      var displayName = providerAlias ? providerAlias + ' (' + group.base_url + ')' : (group.base_url || '默认');
-      html += '<div class="model-group-header" data-base-url="' + escapeAttr(group.base_url) + '" style="display:flex;align-items:center;gap:6px;margin-top:10px;margin-bottom:4px;padding:4px 0;border-bottom:1px solid var(--color-border);">';
-      html += '<span class="model-group-label model-name-text" data-base-url="' + escapeAttr(group.base_url) + '" title="双击修改名称" ondblclick="window.editProviderName(\'' + escapeAttr(group.base_url) + '\')">' + escapeHtml(displayName) + '</span>';
-      html += '<span class="model-group-count text-dim" style="font-size:11px">(' + group.models.length + ')</span></div>';
-      html += '<div class="models-grid">' + group.models.map(function(m) { return buildCardHtml(m); }).join('') + '</div>';
-    });
-  } else {
-    html += '<div class="models-grid">' + filtered.map(function(m) { return buildCardHtml(m); }).join('') + '</div>';
-    if (searchText || hasCapFilter || hasSort) {
-      var parts = [];
-      if (searchText) parts.push('搜索: "' + escapeHtml(searchText) + '"');
-      if (hasCapFilter) parts.push(_selectedCaps.size + '项筛选');
-      if (hasSort) parts.push('排序');
-      html = '<div class="js-model-card" style="display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:12px;color:var(--color-text-dim);">' +
-        '<span>📋 ' + parts.join(' + ') + '</span>' +
-        '<button class="siper-btn js-btn-xs" onclick="window.clearModelFilter()">恢复分组</button></div>' + html;
+  const fn = SORT_FNS[sortKey] || (() => 0);
+  return filtered.sort((a, b) => (fn(a) - fn(b)) * dir);
+}
+
+function _groupModels(filtered) {
+  const groups = new Map();
+  filtered.forEach(m => {
+    const key = m.base_url || '';
+    if (!groups.has(key)) {
+      groups.set(key, { base_url: key, models: [], provider: m.provider || '', provider_name: m.provider_name || '' });
     }
+    groups.get(key).models.push(m);
+  });
+  return Array.from(groups.values()).sort((a, b) => {
+    const aHasDef = a.models.some(m => m._isDefault);
+    const bHasDef = b.models.some(m => m._isDefault);
+    if (aHasDef !== bHasDef) return aHasDef ? -1 : 1;
+    return a.base_url.localeCompare(b.base_url);
+  });
+}
+
+function _buildGroupHtml(group) {
+  const providerAlias = group.provider_name || group.provider || '';
+  const displayName = providerAlias ? providerAlias + ' (' + group.base_url + ')' : (group.base_url || '默认');
+  const html = '<div class="model-group-header" data-base-url="' + escapeAttr(group.base_url) + '" style="display:flex;align-items:center;gap:6px;margin-top:10px;margin-bottom:4px;padding:4px 0;border-bottom:1px solid var(--color-border);">' +
+    '<span class="model-group-label model-name-text" data-base-url="' + escapeAttr(group.base_url) + '" title="双击修改名称" ondblclick="window.editProviderName(\'' + escapeAttr(group.base_url) + '\')">' + escapeHtml(displayName) + '</span>' +
+    '<span class="model-group-count text-dim" style="font-size:11px">(' + group.models.length + ')</span></div>' +
+    '<div class="models-grid">' + group.models.map(m => buildCardHtml(m)).join('') + '</div>';
+  return html;
+}
+
+function _buildFilteredHtml(filtered, searchText, hasCapFilter, hasSort) {
+  let html = '<div class="models-grid">' + filtered.map(m => buildCardHtml(m)).join('') + '</div>';
+  if (searchText || hasCapFilter || hasSort) {
+    const parts = [];
+    if (searchText) parts.push('搜索: "' + escapeHtml(searchText) + '"');
+    if (hasCapFilter) parts.push(_selectedCaps.size + '项筛选');
+    if (hasSort) parts.push('排序');
+    html = '<div class="js-model-card" style="display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:12px;color:var(--color-text-dim);">' +
+      '<span>📋 ' + parts.join(' + ') + '</span>' +
+      '<button class="siper-btn js-btn-xs" onclick="window.clearModelFilter()">恢复分组</button></div>' + html;
   }
-  list.innerHTML = html;
-  // 入场动画
-  var currentCount = list.querySelectorAll('.card.model-card').length;
+  return html;
+}
+
+function _animateNewCards(list) {
+  const currentCount = list.querySelectorAll('.card.model-card').length;
   if (currentCount > _lastRenderCount) {
-    requestAnimationFrame(function() {
-      var allCards = list.querySelectorAll('.card.model-card');
-      for (var i = _lastRenderCount; i < allCards.length; i++) {
-        var card = allCards[i];
+    requestAnimationFrame(() => {
+      const allCards = list.querySelectorAll('.card.model-card');
+      for (let i = _lastRenderCount; i < allCards.length; i++) {
+        const card = allCards[i];
         card.classList.add('model-card-animate');
         card.style.animationDelay = (i - _lastRenderCount) * 30 + 'ms';
-        (function(c, idx) {
-          setTimeout(function() {
-            c.classList.remove('model-card-animate');
-            c.style.animationDelay = '';
-          }, 250 + (idx - _lastRenderCount) * 30 + 50);
-        })(card, i);
+        ((c, idx) => setTimeout(() => {
+          c.classList.remove('model-card-animate');
+          c.style.animationDelay = '';
+        }, 250 + (idx - _lastRenderCount) * 30 + 50))(card, i);
       }
     });
   }
   _lastRenderCount = currentCount;
-  // 走马灯检测
-  requestAnimationFrame(function() {
-    list.querySelectorAll('.model-name-scroll').forEach(function(el) {
-      var text = el.querySelector('.model-name-text');
+}
+
+function _detectMarquee(list) {
+  requestAnimationFrame(() => {
+    list.querySelectorAll('.model-name-scroll').forEach(el => {
+      const text = el.querySelector('.model-name-text');
       if (text && text.scrollWidth > el.clientWidth) {
         el.classList.add('model-name-scrollable');
         text.style.setProperty('--scroll-distance', (el.clientWidth - text.scrollWidth) + 'px');
       }
     });
   });
+}
+
+export function renderSettingsModelsList() {
+  const list = document.getElementById('settingsModelsList');
+  if (!list) return;
+  if (!settingsModelsCache || settingsModelsCache.length === 0) {
+    list.innerHTML = '<div class="settings-empty-msg">暂无模型，请添加</div>';
+    return;
+  }
+  const { filtered, showGroups, searchText, hasCapFilter, hasSort } = _filterModels();
+  const sorted = _sortModels(filtered);
+  list.style.maxHeight = Math.max(200, window.innerHeight - 200) + 'px';
+  list.style.overflowY = 'auto';
+  const html = showGroups
+    ? _groupModels(sorted).map(g => _buildGroupHtml(g)).join('')
+    : _buildFilteredHtml(sorted, searchText, hasCapFilter, hasSort);
+  list.innerHTML = html;
+  _animateNewCards(list);
+  _detectMarquee(list);
 }
 
 // ===== 模型卡片 ──────────────────────────────────────
