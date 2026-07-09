@@ -2085,7 +2085,8 @@ async def main():
             target = body.get("agent", "")
             if not target:
                 return {"success": False, "error": "missing agent name"}
-            from agents import get_agent_dir, load_agent_soul, load_agent_config
+            from agents import get_agent_dir, load_agent_soul, load_agent_config, load_agent_config_file
+
             agent_dir = get_agent_dir(target)
             if not agent_dir:
                 return {"success": False, "error": f"agent '{target}' not found or has no soul.md"}
