@@ -12,7 +12,7 @@ import {
 } from './state.js?v=1783614889239';
 import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1783614889239';
 import { chatThinkingHide } from './thinking.js?v=1783614889239';
-import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns } from './input.js?v=1783614889239';
+import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns, loadChatModels } from './input.js?v=1783614889239';
 import { toast, showInput } from '../components/toast.js?v=1783614889239';
 import { chatConfirm } from './toast.js?v=1783614889239';
 
