@@ -2,12 +2,12 @@
 // 从 pages/chat.js 拆分，包含 initSidebar + initChatPage
 // 包含消息列表、输入框、思考面板、模型选择
 
-import * as Message from '../../chat/message.js?v=1783620257626';
-import * as Input from '../../chat/input.js?v=1783620257626';
-import * as Sidebar from '../../chat/sidebar.js?v=1783620257626';
-import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1783620257626';
-import { escapeHtml } from '../../utils/escape.js?v=1783620257626';
-import { toast } from '../../components/toast.js?v=1783620257626';
+import * as Message from '../../chat/message.js?v=1783575508437';
+import * as Input from '../../chat/input.js?v=1783575508437';
+import * as Sidebar from '../../chat/sidebar.js?v=1783575508437';
+import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1783575508437';
+import { escapeHtml } from '../../utils/escape.js?v=1783575508437';
+import { toast } from '../../components/toast.js?v=1783575508437';
 
 // 从 page_cache 读取 agents（不再从 state.js import chatAgents）
 function _getAgents() {
@@ -181,12 +181,13 @@ window.selectChatAgent = async function(agentName) {
 
   chatContent.innerHTML =
 
-        '<button class="agent-tab active" data-tab="about" id="agentTabAbout" onclick="window.switchConfigAgentPageTab(\'about\')">关于</button>' +
-        '<button class="agent-tab" data-tab="files" id="agentTabFiles" onclick="window.switchConfigAgentPageTab(\'files\')">属性文件</button>' +
-        '<button class="agent-tab" data-tab="memory" id="agentTabMemory" onclick="window.switchConfigAgentPageTab(\'memory\')">记忆</button>' +
-        '<button class="agent-tab" data-tab="limits" onclick="window.switchConfigAgentPageTab(\'limits\')">限制</button>' +
-      '</div>' +
-      // ── Tab: 关于（头像+名称同一行 → 模型设置左右分栏）──
+    '<div class="agent-tabs">' +
+      '<button class="agent-tab active" data-tab="about" id="agentTabAbout" onclick="window.switchConfigAgentPageTab(\'about\')">关于</button>' +
+      '<button class="agent-tab" data-tab="files" id="agentTabFiles" onclick="window.switchConfigAgentPageTab(\'files\')">属性文件</button>' +
+      '<button class="agent-tab" data-tab="memory" id="agentTabMemory" onclick="window.switchConfigAgentPageTab(\'memory\')">记忆</button>' +
+      '<button class="agent-tab" data-tab="limits" onclick="window.switchConfigAgentPageTab(\'limits\')">限制</button>' +
+    '</div>' +
+    // ── Tab: 关于
       '<div class="agent-tab-content active" id="agentTabContentAbout">' +
         '<div class="config-section">' +
           // 头像和名称同一行
