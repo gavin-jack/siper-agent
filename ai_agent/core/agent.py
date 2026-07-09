@@ -62,7 +62,7 @@ def _find_model_in_global(model_name: str) -> Optional[Dict]:
     """
     try:
         from ai_agent.models_db import ModelsDB
-        db_path = str(Path(__file__).resolve().parent.parent.parent / "models.db")
+        db_path = str(Path(__file__).resolve().parent.parent.parent / "data" / "models.db")
         db = ModelsDB(db_path)
         return db.get_model(model_name)
     except Exception:

@@ -1,12 +1,12 @@
 // pages/agent-config.js — Agent 配置管理
 // 优化：提取 _loadConfigWithCache / _buildAgentConfigBody 消除重复
 
-import { t } from '../utils/i18n.js?v=1783614260116';
-import { escapeHtml } from '../utils/escape.js?v=1783614260116';
-import { showConfirm, showForm } from '../components/toast.js?v=1783614260116';
-import { toast } from '../components/toast.js?v=1783614260116';
-import { _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile, setChatAgentFiles, setChatCurAgentFile } from '../chat/state.js?v=1783614260116';
-import { loadGlobalModelsForAgent, renderAgentModelSection, renderAgentModelsForAgent, globalModelsList, modelsLoaded, setPendingAgentModels } from '../components/agent-models.js?v=1783614260116';
+import { t } from '../utils/i18n.js?v=1783614889239';
+import { escapeHtml } from '../utils/escape.js?v=1783614889239';
+import { showConfirm, showForm } from '../components/toast.js?v=1783614889239';
+import { toast } from '../components/toast.js?v=1783614889239';
+import { _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile, setChatAgentFiles, setChatCurAgentFile } from '../chat/state.js?v=1783614889239';
+import { loadGlobalModelsForAgent, renderAgentModelSection, renderAgentModelsForAgent, globalModelsList, modelsLoaded, setPendingAgentModels } from '../components/agent-models.js?v=1783614889239';
 export { loadGlobalModelsForAgent };
 
 // ===== 页面模板 =====

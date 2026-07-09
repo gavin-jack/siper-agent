@@ -3765,7 +3765,6 @@ async def main():
         "api_upgrade_execute": api_upgrade_execute,
         "api_get_status": api_get_status,
         "api_get_logs": api_get_logs,
-        "api_get_logs": api_get_logs,
         # 模型管理（handlers.py 中的）
         "api_get_global_models": api_get_global_models,
         "api_save_global_models": api_save_global_models,
@@ -3783,10 +3782,7 @@ async def main():
         "api_get_agent_models_api": api_get_agent_models_api,
         "api_save_agent_models_api": api_save_agent_models_api,
         "api_set_agent_model": api_set_agent_model,
-        "api_get_tools": api_get_tools,
         "api_upload_file": api_upload_file,
-        "api_upgrade_check": api_upgrade_check,
-        "api_upgrade_execute": api_upgrade_execute,
     }
     if 'api_create_provider' in dir():
         _handlers_for_routes["api_create_provider"] = api_create_provider
