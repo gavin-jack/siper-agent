@@ -184,12 +184,13 @@ class ConfigDB:
                             "default_vision_model", "default_tts_model", "llm_timeout",
                             "llm_max_tokens", "llm_max_retries", "session_timeout",
                             "max_history_messages", "max_tools", "max_tool_rounds",
-                            "skill_pre_filter_top_k"):
+                            "skill_pre_filter_top_k", "available_models"):
                     if key in config:
                         d[key] = config[key]
                 # JSON 字段特殊处理
-                for jf in ("memory_integration", "appearance"):
+                for jf in ("memory_integration", "appearance", "available_models"):
                     if jf in config and isinstance(config[jf], dict):
+                        # Deep-merge: preserve existing values
                         old = d.get(jf)
                         if isinstance(old, str):
                             try:
@@ -201,6 +202,9 @@ class ConfigDB:
                             d[jf] = json.dumps(old, ensure_ascii=False)
                         else:
                             d[jf] = json.dumps(config[jf], ensure_ascii=False)
+                    elif jf in config and isinstance(config[jf], list):
+                        # available_models is a list → JSON encode
+                        d[jf] = json.dumps(config[jf], ensure_ascii=False)
                     elif jf in config and isinstance(config[jf], str):
                         d[jf] = config[jf]
                 # available_models 保持独立（通过 agent_models 表管理）
