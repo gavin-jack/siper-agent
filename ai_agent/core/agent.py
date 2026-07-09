@@ -68,7 +68,6 @@ def _find_model_in_global(model_name: str) -> Optional[Dict]:
     except Exception:
         pass
     return None
-    return None
 
 
 @dataclass

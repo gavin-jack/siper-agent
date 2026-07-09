@@ -277,7 +277,7 @@ def _heartbeat_log(msg):
         "level": "HEARTBEAT",
         "logger": "siper.ws",
         "message": msg,
-        "timestamp": _time.time(),
+        "timestamp": time.time(),
     }
     _log_buffer.append(entry)
     if len(_log_buffer) > _LOG_BUFFER_MAX:
