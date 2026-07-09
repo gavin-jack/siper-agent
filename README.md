@@ -44,10 +44,10 @@
 │  │   DOM 快照 (内存) │  ←──→  │   数据库持久化 (SQLite)│          │
 │  │                  │         │                      │          │
 │  │ • 当前页面状态    │         │ • 会话消息历史        │          │
-│  │ • 会话列表顺序    │         │ • 模型配置           │          │
+│  │ • 会话列表顺序    │         │ • 模型配置 (config.db)│          │
 │  │ • 流式输出文本    │         │ • Token 用量         │          │
 │  │ • 表单输入内容    │         │ • 技能统计           │          │
-│  │ • 页面缓存数据    │         │ • 全局配置           │          │
+│  │ • 页面缓存数据    │         │ • 快照持久化         │          │
 │  └──────────────────┘         └──────────────────────┘          │
 │                                                                   │
 │  快照更新流程：                                                    │
@@ -103,11 +103,11 @@ on_tool_progress()→ 接收工具进度
 
 | 模块 | 文件数 | 行数 |
 |------|--------|------|
-| Python 后端 | 64 个 .py | ~21,000 行 |
-| JS 前端 | 41 个 .js | ~9,200 行 |
-| CSS | 3 个（base/chat/page） | ~4,900 行 |
+| Python 后端 | 56 个 .py | ~15,200 行 |
+| JS 前端 | 40 个 .js | ~10,600 行 |
+| CSS | 4 个（base/chat/page/api-docs） | ~4,900 行 |
 | HTML | 1 个（index.html） | ~44 行 |
-| **总计** | **109 个源文件** | **~35,100 行** |
+| **总计** | **101 个源文件** | **~30,800 行** |
 
 ### 架构图
 
@@ -137,9 +137,9 @@ on_tool_progress()→ 接收工具进度
 │  └─────┘   └─────┘   └──────┘      │
 ├─────────────────────────────────────┤
 │         持久化层                      │
-│  sessions.db │ token.db │ models.db │
-│  memory.db   │ skill_call_log.db    │
-│  snapshot.db │ 配置文件             │
+│  config.db │ models.db │ token.db   │
+│  snapshot.db │ skill_call_log.db     │
+│  agents/*/sessions.db │ memory.db   │
 └─────────────────────────────────────┘
 ```
 
@@ -195,7 +195,7 @@ on_tool_progress()→ 接收工具进度
 
 ### 🤖 多 Agent 系统
 
-- **独立配置**：每个 Agent 拥有 `config.json`（配置）+ `soul.md`（人格）+ `agent.md`（行为指令），首次启动自动生成默认 Agent
+- **独立配置**：每个 Agent 拥有 `sessions.db` + `memory.db`（`agents/{name}/` 下），配置通过 config.db 统一管理（Single Source of Truth），首次启动自动生成默认 Agent
 - **独立会话**：per-Agent `sessions.db`（SQLite WAL 模式），会话数据完全隔离，支持乐观更新 + 快速切换
 - **独立记忆**：per-Agent `memory.db`，跨会话持久化，支持手动编辑 / 语义搜索
 - **Agent 配置页面**：6 个标签页（关于 / 属性文件 / 记忆 / 限制 / 模型 / 头像），自动保存
@@ -226,7 +226,7 @@ on_tool_progress()→ 接收工具进度
 
 ### 💾 数据持久化
 
-- **多数据库 SQLite WAL**：`sessions.db` / `memory.db` / `models.db` / `token.db` / `skill_call_log.db` / `snapshot.db`，互不干扰，并发安全
+- **多数据库 SQLite WAL**：`config.db` / `models.db` / `token.db` / `skill_call_log.db` / `snapshot.db`，互不干扰，并发安全
 - **per-Agent 数据库隔离**：每个 Agent 在 `agents/{name}/` 下拥有独立的 `sessions.db` + `memory.db`
 - **内存控制**：active_sessions LRU（MAX=200）、active_tasks deque(maxlen=1000）、page_cache TTL + 大小限制
 - **快照持久化**：`SnapshotManager` 每 5s 自动保存页面状态到 SQLite，启动时自动恢复，断线自动补发 delta
@@ -322,7 +322,7 @@ siper/
 ├── CHANGELOG.md               # 详细变更记录
 ├── LICENSE                    # MIT License
 │
-├── ai_agent/                  # Agent 核心（64 个 .py）
+├── ai_agent/                  # Agent 核心（56 个 .py, ~15,200 行）
 │   ├── core/
 │   │   ├── agent.py           #   Agent 主循环（工具调用/多轮对话/流式输出）
 │   │   └── llm_client.py      #   LLM 客户端（OpenAI 兼容/3层重试/超时）
@@ -344,22 +344,26 @@ siper/
 │   ├── sessions/              #   会话管理（SQLite + WAL + LRU）
 │   ├── tools/                 #   27 个工具实现
 │   ├── skills/                #   技能系统（自动加载/预筛选/上下文注入）
-│   └── memory/                #   记忆系统（跨会话持久化）
+│   ├── memory/                #   记忆系统（跨会话持久化）
+│   └── config_db.py           #   配置数据库（Single Source of Truth）
 │
 ├── agents/                    # Agent 数据（运行时自动生成）
 │   └── default/               #   默认 Agent
-│       ├── config.json        #     配置
-│       ├── soul.md            #     人格定义
-│       ├── sessions.db        #     会话 DB
-│       └── memory.db          #     记忆 DB
+│       ├── config.json        #   配置（bootstrap fallback）
+│       ├── soul.md            #   人格定义
+│       ├── sessions/
+│       │   └── sessions.db    #   会话 DB
+│       └── memory/
+│           └── memory.db      #   记忆 DB
 │
 ├── webui/                     # Web 前端
 │   ├── index.html             #   SPA 入口（44 行，纯容器）
 │   ├── css/
+│   │   ├── base.css           #   基础样式（变量/布局/动画）
 │   │   ├── chat.css           #   聊天页面样式
 │   │   ├── page.css           #   独立页面样式
-│   │   └── base.css           #   基础样式（变量/布局/动画）
-│   └── js/                    #   ESM 模块化 JS（41 个文件）
+│   │   └── api-docs.css       #   API 文档样式
+│   └── js/                    #   ESM 模块化 JS（40 个文件）
 │       ├── app.js             #     唯一 ESM 入口 + 路由 + 页面管理
 │       ├── core.js            #     WebSocket 连接 + 消息收发
 │       ├── renderer.js        #     统一 DOM 渲染引擎
@@ -375,6 +379,13 @@ siper/
 │   ├── web-search/
 │   └── siper-autonomous-learning/
 │
+├── data/                      # 全局数据库（运行时生成）
+│   ├── config.db               #   配置（agent_configs / agent_models / global_settings）
+│   ├── models.db               #   模型 + Provider
+│   ├── token.db               #   Token 用量
+│   ├── snapshot.db            #   快照持久化
+│   └── skill_call_log.db      #   技能调用日志
+│
 ├── docs/                      # 架构文档
 │
 └── knowledge-space/           # 知识空间
@@ -388,16 +399,19 @@ siper/
 
 | 文件 | 说明 |
 |------|------|
-| `models.db` | 模型和提供商配置（SQLite，项目根目录） |
-| `settings.json` | 系统参数（端口、心跳、日志等） |
-| `agents/{name}/config.json` | Agent 配置 |
+| `data/config.db` | **配置 Single Source of Truth**（agent_configs / agent_models / global_settings 表） |
+| `data/models.db` | 模型和提供商配置（SQLite WAL） |
+| `data/token.db` | Token 用量统计 |
+| `data/snapshot.db` | 快照持久化 |
+| `data/skill_call_log.db` | 技能调用日志 |
+| `agents/{name}/sessions/sessions.db` | 会话数据库（运行时生成） |
+| `agents/{name}/memory/memory.db` | 记忆数据库（运行时生成） |
+| `agents/{name}/config.json` | Agent 配置（bootstrap fallback，运行时不再读写） |
 | `agents/{name}/soul.md` | Agent 人格定义 |
-| `agents/{name}/sessions.db` | 会话数据库（运行时生成） |
-| `agents/{name}/memory.db` | 记忆数据库（运行时生成） |
 
 ### 端口配置
 
-端口优先级：CLI `--port` 参数 > `settings.json` > 默认 7240
+端口优先级：CLI `--port` 参数 > `config.db` > 默认 7240
 
 | 设置 | 默认值 | 说明 |
 |------|--------|------|
@@ -409,12 +423,22 @@ siper/
 
 ## 更新记录
 
-**v0.3.0** — Windows 10 迁移版本（详见 CHANGELOG.md）
+**v0.3.1** (2026-07-09) — 数据层统一 + 自动保存
+
+- 数据层统一为 config.db（Single Source of Truth），删除运行时 config.json 读取
+- 新增 `apply_to_agent()` 方法，启动时从 config.db 加载配置
+- Agent 设置自动保存（500ms text/number, 800ms textarea）
+- 模型选择器实时同步（`siper-models-changed` CustomEvent）
+- 会话时间戳更新（`updated_at` + `/api/sessions/{sid}/touch`）
+- 修复空白页面（chat.js initChatPage 缺少 `}`）
+- 修复 ESM 语法错误（stream.js if 块缺少闭合）
+
+**v0.3.0** — Windows 10 迁移版本
 
 - 端口从 9724/9725 改为动态分配（默认 7240/7241）
 - 添加 Windows 10 原生支持（`siper.ps1` 服务管理脚本）
 - 修复 `resource.getrusage` / `os.getloadavg` Windows 兼容性（psutil fallback）
-- 前端 JS 模块 38→41（添加 `file-icon.js` 统一工具、`directory.js` 独立页面）
+- 前端 JS 模块 38→40（添加 `file-icon.js` 统一工具、`directory.js` 独立页面）
 - 新增页面生命周期 API（init/cleanup 模式）
 - 删除冗余的 `.mjs` 复制品
 - 修复模型管理工具栏 CSS（统一 28px 高度体系）
