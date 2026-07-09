@@ -195,6 +195,16 @@ const PAGE_TAB_FN = {
   'settings': 'switchSettingsTab',
 };
 
+// 获取 WebSocket 连接并发送消息
+function send(payload) {
+  try {
+    const ws = (typeof getWs === 'function') ? getWs() : (window.__ws || null);
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify(payload));
+    }
+  } catch(e) {}
+}
+
 async function navigateToPage(page, tab) {
   history.replaceState(null, '', '#/' + page + (tab ? '?tab=' + tab : ''));
   window.__setPageCache?.('current_page', page);
