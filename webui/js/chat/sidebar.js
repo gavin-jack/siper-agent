@@ -356,9 +356,18 @@ function _applySessionState(session, agent, prevSid) {
     const _m = _ag?.available_models?.find(m => m.name === session.model);
     if (_m) setChatModelContextWindow(_m.context_window || 8192);
   } else {
-    /* 会话无模型：清空全局变量，避免上一个会话的模型污染 */
-    setChatCurrentModel('');
-    setChatModelContextWindow(8192);
+    /* 会话无模型：尝试从 agent 默认模型获取 */
+    const _agents = getAgentsFromCache();
+    const _agent = _agents.find(a => a.name === agent);
+    const _defaultModel = _agent?.default_chat_model || '';
+    if (_defaultModel) {
+      setChatCurrentModel(_defaultModel);
+      const _m = _agent?.available_models?.find(m => m.name === _defaultModel);
+      if (_m) setChatModelContextWindow(_m.context_window || 8192);
+    } else {
+      setChatCurrentModel('');
+      setChatModelContextWindow(8192);
+    }
   }
   if (prevSid !== session.session_id) {
     document.querySelectorAll('.siper-session-item').forEach(el => {

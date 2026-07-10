@@ -300,10 +300,9 @@ export async function loadChatModels() {
       const d = await r.json();
       models = d.models || [];
     }
+    // 从会话中获取模型，若无则 fallback 到 agent 默认模型
     const globalDefault = models.length ? (models[0].name || '') : '';
-    // Preserve session model if already set; otherwise use global default
-    // Note: _chatCurrentModel may be '' (empty model) — only override when truly unset
-    if (_chatCurrentModel === undefined || _chatCurrentModel === null) {
+    if (!_chatCurrentModel && _chatCurrentModel !== '') {
       setCurrentModel(globalDefault);
       const cur = models.find(m => m.name === globalDefault);
       if (cur && cur.context_window) setModelContextWindow(cur.context_window);
@@ -357,7 +356,7 @@ export function renderChatModelDropdown(models, showNoModels) {
   }
   if (btnName) {
     const cur = models.find(m => m.name === _chatCurrentModel);
-    btnName.textContent = cur ? (cur.alias || cur.name) : '默认模型';
+    btnName.textContent = cur ? (cur.alias || cur.name) : (models[0] ? (models[0].alias || models[0].name) : '未设置模型');
   }
   for (const m of models) {
     const item = document.createElement('div');
