@@ -302,7 +302,8 @@ export async function loadChatModels() {
     }
     const globalDefault = models.length ? (models[0].name || '') : '';
     // Preserve session model if already set; otherwise use global default
-    if (!_chatCurrentModel) {
+    // Note: _chatCurrentModel may be '' (empty model) — only override when truly unset
+    if (_chatCurrentModel === undefined || _chatCurrentModel === null) {
       setCurrentModel(globalDefault);
       const cur = models.find(m => m.name === globalDefault);
       if (cur && cur.context_window) setModelContextWindow(cur.context_window);
