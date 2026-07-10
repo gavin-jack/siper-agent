@@ -1258,6 +1258,17 @@ class AIAgent:
                     followup_tool_calls_result = llm_followup.get('tool_calls')
                     followup_usage = llm_followup.get('usage', {})
 
+                    # Save token usage for each follow-up LLM call
+                    if followup_usage and followup_usage.get("total_tokens", 0) > 0:
+                        _save_summary_token({
+                            "agent": self.config.agent_name,
+                            "model": self.llm_client.model or "",
+                            "prompt_tokens": followup_usage.get("prompt_tokens", 0),
+                            "completion_tokens": followup_usage.get("completion_tokens", 0),
+                            "total_tokens": followup_usage.get("total_tokens", 0),
+                            "source": "chat",
+                        })
+
                     # Detect repeated identical tool calls (LLM loop)
                     if followup_tool_calls_result:
                         _current_sig = json.dumps([{'name': tc.get('name',''), 'args': json.dumps(tc.get('parameters', {}), sort_keys=True)} for tc in followup_tool_calls_result], sort_keys=True)

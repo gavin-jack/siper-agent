@@ -1,6 +1,6 @@
 // chat-pages/api-docs.js — API 文档页面（Swagger UI）
 // CSS 由 app.js navigateToPage 加载 api-docs.css
-import { t } from '../../utils/i18n.js?v=1783625456886';
+import { t } from '../../utils/i18n.js?v=1783575508437';
 
 // ── 翻译映射 ──────────────────────────────────────────
 

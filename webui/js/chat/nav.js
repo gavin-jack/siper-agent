@@ -2,7 +2,7 @@
 // 所有页面通过 app.js 的 navigateToPage() 动态加载
 // 此文件保留路由相关的常量和辅助函数
 
-import { setCurrentPage } from './state.js?v=1783625456886';
+import { setCurrentPage } from './state.js?v=1783575508437';
 
 // 页面配置：标题 + 图标
 export const PAGE_CONFIG = {

@@ -1,7 +1,7 @@
 // chat-pages/model-settings.js — 模型设置页面
 // 2026-08-25: 提取常量映射、CSS class 替代内联 style、简化 copyModelName
-import { fmtSpeed } from '../../utils/format.js?v=1783625456886';
-import { apiGetCached } from '../../utils/api.js?v=1783625456886';
+import { fmtSpeed } from '../../utils/format.js?v=1783575508437';
+import { apiGetCached } from '../../utils/api.js?v=1783575508437';
 
 // ===== 状态 =====
 export let settingsModelsCache = [];
