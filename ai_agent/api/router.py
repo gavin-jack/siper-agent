@@ -210,10 +210,10 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
         return result
 
     @router.post("/api/sessions/{sid}/model")
-    def api_session_set_model(sid, body):
+    async def api_session_set_model(sid, body):
         model = body.get("model", "") if body else ""
         if agent_ref and agent_ref.session_manager:
-            asyncio.ensure_future(agent_ref.session_manager.set_model(sid, model))
+            await agent_ref.session_manager.set_model(sid, model)
             return {"success": True}
         return {"success": False, "error": "no active agent"}
 
