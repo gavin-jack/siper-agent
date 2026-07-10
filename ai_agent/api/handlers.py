@@ -339,6 +339,7 @@ def api_get_sessions():
             "active": s.ended_at is None,
             "last_message": (last_msg["content"][:80] if last_msg and last_msg.get("content") else ""),
             "title": getattr(s, 'title', ''),
+            "model": getattr(s, 'model', ''),
         })
     # Sort by updated_at descending
     sessions.sort(key=lambda s: s.get("updated_at", s["created_at"]), reverse=True)

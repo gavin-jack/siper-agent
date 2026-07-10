@@ -1350,7 +1350,7 @@ async def main():
                 # Single query: JOIN messages to get count + last message per session (N+1 fix)
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT s.session_id, s.user_id, s.created_at, s.ended_at, s.title,
+                    SELECT s.session_id, s.user_id, s.created_at, s.ended_at, s.title, s.model,
                            COUNT(m.message_id) as msg_count,
                            m_last.content as last_content,
                            m_last.timestamp as last_ts
@@ -1377,6 +1377,7 @@ async def main():
                         "active": row["ended_at"] is None,
                         "last_message": (row["last_content"][:80] if row["last_content"] else ""),
                         "title": row["title"] or "",
+                        "model": row["model"] or "",
                     })
                 conn.close()
             except Exception as e:

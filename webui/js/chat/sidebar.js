@@ -6,6 +6,7 @@ import {
   _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile,
   _ctxMenu,
   setChatSessionId, setChatCurrentModel, setChatCurrentAgent, setSelectedAgent, setAgentConfigName,
+  setChatModelContextWindow,
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, setThinkingSteps, setIsThinking, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
