@@ -1,5 +1,5 @@
 // chat/message.js — 消息渲染与管理
-import { getWs } from '../core.js?v=1783575508437';
+import { getWs } from '../core.js?v=1783662625341';
 import {
   _chatSessionId, _chatCurrentAgent,
   _chatCurrentModel, _chatModelContextWindow,
@@ -12,10 +12,10 @@ import {
   setChatCurrentModel, setChatModelContextWindow,
   setChatSessionId, getIsSending, getStreamState,
   _isSending,
-} from '../chat/state.js?v=1783575508437';
-import { resetSendState } from '../chat/session.js?v=1783575508437';
-import { chatThinkingHide } from '../chat/thinking.js?v=1783575508437';
-import { toast } from '../components/toast.js?v=1783575508437';
+} from '../chat/state.js?v=1783662625341';
+import { resetSendState } from '../chat/session.js?v=1783662625341';
+import { chatThinkingHide } from '../chat/thinking.js?v=1783662625341';
+import { toast } from '../components/toast.js?v=1783662625341';
 
 // ===== Markdown & HTML Helpers =====
 

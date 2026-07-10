@@ -2,12 +2,12 @@
 // 从 pages/chat.js 拆分，包含 initSidebar + initChatPage
 // 包含消息列表、输入框、思考面板、模型选择
 
-import * as Message from '../../chat/message.js?v=1783575508437';
-import * as Input from '../../chat/input.js?v=1783575508437';
-import * as Sidebar from '../../chat/sidebar.js?v=1783575508437';
-import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1783575508437';
-import { escapeHtml } from '../../utils/escape.js?v=1783575508437';
-import { toast } from '../../components/toast.js?v=1783575508437';
+import * as Message from '../../chat/message.js?v=1783662625341';
+import * as Input from '../../chat/input.js?v=1783662625341';
+import * as Sidebar from '../../chat/sidebar.js?v=1783662625341';
+import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1783662625341';
+import { escapeHtml } from '../../utils/escape.js?v=1783662625341';
+import { toast } from '../../components/toast.js?v=1783662625341';
 
 // 从 page_cache 读取 agents（不再从 state.js import chatAgents）
 function _getAgents() {
@@ -239,10 +239,6 @@ window.selectChatAgent = async function(agentName) {
             '<textarea id="agentSoulContentFiles" rows="12" class="code-input" oninput="window.triggerAgentFileAutoSave&&window.triggerAgentFileAutoSave()"></textarea>' +
           '</div>' +
         '</div>' +
-        '<div class="files-system-prompt">' +
-          '<label class="config-label" for="agentMemoryContent">System Prompt 预览</label>' +
-          '<textarea id="agentMemoryContent" rows="4" class="code-input" oninput="window.triggerAgentFileAutoSave&&window.triggerAgentFileAutoSave()"></textarea>'+
-        '</div>' +
       '</div>' +
       // ── Tab: 记忆（记忆设置）──
       '<div class="agent-tab-content" id="agentTabContentMemory">' +
@@ -251,6 +247,7 @@ window.selectChatAgent = async function(agentName) {
           '<input type="text" id="agentCfgMemoryPath" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
           '<label class="config-label" for="agentCfgMemoryMaxTokens">记忆最大 Token 数</label>' +
           '<input type="number" id="agentCfgMemoryMaxTokens" class="select-input" oninput="window.triggerAgentAutoSave&&window.triggerAgentAutoSave()">' +
+          '<textarea id="agentMemoryContent" rows="8" class="code-input" style="display:none"></textarea>' +
         '</div>' +
       '</div>' +
       // ── Tab: 限制 ──

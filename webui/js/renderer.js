@@ -12,7 +12,7 @@
  */
 
 // ===== 路径 → 处理函数映射 =====
-import { showToastCompat, showDialogCompat } from './utils/ws-compat.js?v=1783575508437';
+import { showToastCompat, showDialogCompat } from './utils/ws-compat.js?v=1783662625341';
 
 const _handlers = {};
 
@@ -83,7 +83,7 @@ export { _handlers };
 
 // ===== Message rendering (migrated from dom.js) =====
 
-import { escapeHtml } from './utils/escape.js?v=1783575508437';
+import { escapeHtml } from './utils/escape.js?v=1783662625341';
 
 /**
  * Add a message bubble to the chat.

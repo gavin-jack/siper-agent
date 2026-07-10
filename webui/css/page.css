@@ -830,10 +830,11 @@
   flex: 1;
   overflow-y: auto;
   padding: 12px 24px;
-  animation: fadeIn 0.2s ease;
+  display: none;
 }
 /* Tab Content 切换动画 */
 .agent-tab-content.active {
+  display: block;
   animation: tabSlideIn 0.2s ease-out;
 }
 @keyframes tabSlideIn {
@@ -975,8 +976,6 @@
   flex: 1;
   min-width: 0;
 }
-.files-system-prompt {
-  /* System Prompt 预览占满整行 */
 }
 
 /* 记忆Tab左右分栏 */
