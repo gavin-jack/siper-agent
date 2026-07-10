@@ -4160,6 +4160,15 @@ async def main():
                                 old_sm._unsaved_sessions.discard(old_sid)
                                 logger.info(f"新会话：已丢弃旧的未持久化会话：{old_sid} (agent={old_agent_name})")
                         new_sid = await sm.create_session("web_user")
+                        # 绑定 agent 默认模型到新会话
+                        try:
+                            _agent_cfg = _config_db.get_agent_config(agent_name) if _config_db else None
+                            _default_model = _agent_cfg.get("default_chat_model", "") if _agent_cfg else ""
+                            if _default_model:
+                                await sm.set_model(new_sid, _default_model)
+                                logger.info(f"新会话绑定默认模型：{agent_name} → {_default_model}")
+                        except Exception as _e:
+                            logger.warning(f"绑定默认模型失败：{_e}")
                         _conn_sessions[conn_id] = new_sid
                         _conn_agent_names[conn_id] = agent_name
                         # Initialize per-session conversation history

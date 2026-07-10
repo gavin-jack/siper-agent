@@ -354,6 +354,10 @@ function _applySessionState(session, agent, prevSid) {
     const _ag = getAgentsFromCache().find(a => a.name === agent);
     const _m = _ag?.available_models?.find(m => m.name === session.model);
     if (_m) setChatModelContextWindow(_m.context_window || 8192);
+  } else {
+    /* 会话无模型：清空全局变量，避免上一个会话的模型污染 */
+    setChatCurrentModel('');
+    setChatModelContextWindow(8192);
   }
   if (prevSid !== session.session_id) {
     document.querySelectorAll('.siper-session-item').forEach(el => {
