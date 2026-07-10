@@ -12,6 +12,7 @@ import {
   syncStreamToCurrent, syncStreamFromCurrent
 } from './state.js?v=1783662625341';
 import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1783662625341';
+import { showChatToast } from './toast.js?v=1783662625341';
 import { chatThinkingHide } from './thinking.js?v=1783662625341';
 import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns, loadChatModels } from './input.js?v=1783662625341';
 import { toast, showInput } from '../components/toast.js?v=1783662625341';
