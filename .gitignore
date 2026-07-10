@@ -1,12 +1,13 @@
 *.db-corrupt
 # Python
-__pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 
 # Environment
 .env
 .siper.pid
+.venv/
 
 # Runtime data（程序自动生成）
 data/

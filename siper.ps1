@@ -272,6 +272,8 @@ function Start-SiperCommand {
 
     # 强制隔离：清除 PYTHONPATH，避免跨项目 venv 污染
     $env:PYTHONPATH = $null
+    # 禁止生成 __pycache__ 字节码缓存
+    $env:PYTHONDONTWRITEBYTECODE = "1"
 
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = "python"

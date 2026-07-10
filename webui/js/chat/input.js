@@ -377,6 +377,17 @@ export function renderChatModelDropdown(models, showNoModels) {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({model: m.name})
+        }).then(() => {
+          // 同步更新 page_cache，避免切换会话回弹旧数据
+          var _pc = window.__getPageCache ? window.__getPageCache('agents') : null;
+          if (_pc) {
+            for (var _a of _pc) {
+              for (var _s of (_a.sessions || [])) {
+                if (_s.session_id === _chatSessionId) { _s.model = m.name; }
+              }
+            }
+            window.__setPageCache('agents', _pc);
+          }
         }).catch(() => {});
       }
     });
