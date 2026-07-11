@@ -244,6 +244,19 @@ class LLMClient:
                 chunk_count += 1
                 choices = getattr(chunk, "choices", None)
                 if not choices:
+                    # 检查是否是 usage-only chunk（stream_options.include_usage 时最后一个 chunk 无 choices）
+                    usage_obj = getattr(chunk, "usage", None)
+                    if usage_obj:
+                        yield {
+                            "delta": "",
+                            "finish_reason": None,
+                            "tool_calls": None,
+                            "usage": {
+                                "prompt_tokens": getattr(usage_obj, "prompt_tokens", 0),
+                                "completion_tokens": getattr(usage_obj, "completion_tokens", 0),
+                                "total_tokens": getattr(usage_obj, "total_tokens", 0),
+                            },
+                        }
                     continue
                 choice = choices[0]
                 delta = getattr(choice, "delta", None)
@@ -377,6 +390,7 @@ class LLMClient:
         """
         payload = self._build_payload(messages, tools, temperature, max_tokens)
         payload["stream"] = True
+        payload["stream_options"] = {"include_usage": True}
 
         last_error = None
         for attempt in range(2):

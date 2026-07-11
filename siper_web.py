@@ -363,7 +363,7 @@ _jinja_env = jinja2.Environment(
     enable_async=False,
 )
 _version = int(time.time())  # Cache-buster for JS/CSS
-SIPER_VERSION = "v0.3.2"  # Current version — update on release
+SIPER_VERSION = "v0.4.1"  # Current version — update on release
 
 
 def _render_index() -> str:
@@ -3138,37 +3138,6 @@ async def main():
             except Exception as e:
                 logger.debug(f"Model {model} json_mode probe error: {e}")
 
-            # ===== Step 6: probe long_context + context_window =====
-            context_window_tested = None
-            try:
-                test_sizes = [2000, 4000, 8000, 16000, 32000, 65000, 131072]
-                base_sentence = "The quick brown fox jumps over the lazy dog. "
-                for sz in test_sizes:
-                    n = sz // len(base_sentence) + 1
-                    big_block = base_sentence * n
-                    try:
-                        raw_lc = _post({
-                            "model": model,
-                            "messages": [{"role": "user", "content": big_block + "\nWhat animal jumps? One word."}],
-                            "max_tokens": 10,
-                            "temperature": 0,
-                        }, timeout=8)
-                        choices_lc = raw_lc.get("choices", [])
-                        if choices_lc:
-                            finish = choices_lc[0].get("finish_reason", "")
-                            if finish == "stop":
-                                context_window_tested = sz
-                            else:
-                                break
-                        else:
-                            break
-                    except Exception:
-                        break
-                if context_window_tested and context_window_tested >= 4000:
-                    detected_caps.append("long_context")
-            except Exception as e:
-                logger.debug(f"Model {model} long_context probe error: {e}")
-
             # Always has chat
             if "chat" not in detected_caps:
                 detected_caps.insert(0, "chat")
@@ -3188,7 +3157,6 @@ async def main():
                 "ttft_ms": ttft_ms,
                 "streaming": streaming_ok,
                 "json_mode": json_mode_ok,
-                "context_window_tested": context_window_tested,
                 "capabilities": unique_caps,
             }
 
@@ -4113,7 +4081,29 @@ async def main():
                         data = json.loads(raw)
                     except Exception:
                         continue
-                    if data.get("type") == "message":
+                    if data.get("type") == "switch_session":
+                        _target_sid = data.get("session_id", "")
+                        logger.info(f"[WS] 收到 switch_session: conn={conn_id}, target={_target_sid}")
+                        if _target_sid and _target_sid in agent.session_manager.active_sessions:
+                            _conn_sessions[conn_id] = _target_sid
+                            _session_obj = agent.session_manager.active_sessions[_target_sid]
+                            _session_model = getattr(_session_obj, "model", "")
+                            _session_msgs = agent.conversation_history.get(_target_sid, [])
+                            await ws.send(json.dumps({
+                                "type": "session_switched",
+                                "session_id": _target_sid,
+                                "agent": _conn_agent_names.get(conn_id, "default"),
+                                "model": _session_model,
+                                "messages": _session_msgs,
+                            }))
+                            logger.info(f"[WS] 切换会话成功：conn={conn_id} → {_target_sid}")
+                        else:
+                            await ws.send(json.dumps({
+                                "type": "error",
+                                "message": f"Session not found: {_target_sid}"
+                            }))
+                            logger.warning(f"[WS] 切换会话失败：{_target_sid} not found")
+                    elif data.get("type") == "message":
                         # Mark as processing — disables heartbeat timeout
                         if conn_id not in _processing_events:
                             _processing_events[conn_id] = asyncio.Event()

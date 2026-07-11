@@ -1,5 +1,5 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
-import { getWs } from '../core.js?v=1783662625341';
+import { getWs } from '../core.js?v=1783763293586';
 import {
   _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
@@ -10,13 +10,13 @@ import {
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, setThinkingSteps, setIsThinking, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
-} from './state.js?v=1783662625341';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1783662625341';
-import { showChatToast } from './toast.js?v=1783662625341';
-import { chatThinkingHide } from './thinking.js?v=1783662625341';
-import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns, loadChatModels } from './input.js?v=1783662625341';
-import { toast, showInput } from '../components/toast.js?v=1783662625341';
-import { chatConfirm } from './toast.js?v=1783662625341';
+} from './state.js?v=1783763293586';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1783763293586';
+import { showChatToast } from './toast.js?v=1783763293586';
+import { chatThinkingHide } from './thinking.js?v=1783763293586';
+import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns, loadChatModels } from './input.js?v=1783763293586';
+import { toast, showInput } from '../components/toast.js?v=1783763293586';
+import { chatConfirm } from './toast.js?v=1783763293586';
 
 // ===== 从 page_cache 读取 agents 列表 =====
 function getAgentsFromCache() {
@@ -602,6 +602,31 @@ document.addEventListener('click', function() { chatHideSessionMenu(); });
 
 // ===== Window Mounts (for renderer handlers) =====
 window.renderMiddleList = renderMiddleList;
+
+/** WS 重连恢复：后端确认切换会话后，恢复消息和模型 */
+window.__onSessionSwitched = function(msg) {
+  const sid = msg.session_id;
+  if (!sid) return;
+  // 恢复消息
+  chatClearMessages();
+  if (msg.messages && msg.messages.length) {
+    msg.messages.forEach(function(m) {
+      if (m.role === 'user') {
+        chatAppendUserMsg(m.content);
+      } else if (m.role === 'assistant') {
+        chatAppendAgentMsg(m.content, m.meta);
+      }
+    });
+    const c = document.getElementById('chatMessages');
+    if (c) c.scrollTop = c.scrollHeight;
+  }
+  // 恢复模型
+  if (msg.model) {
+    setChatCurrentModel(msg.model);
+  }
+  // Update header if session switched didn't trigger
+  if (typeof updateChatHeader === 'function') updateChatHeader();
+};
 
 /**
  * Render agent list from backend snapshot data.

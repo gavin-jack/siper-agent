@@ -1,7 +1,7 @@
 // chat-pages/model-settings.js — 模型设置页面
 // 2026-08-25: 提取常量映射、CSS class 替代内联 style、简化 copyModelName
-import { fmtSpeed } from '../../utils/format.js?v=1783662625341';
-import { apiGetCached } from '../../utils/api.js?v=1783662625341';
+import { fmtSpeed } from '../../utils/format.js?v=1783763293586';
+import { apiGetCached } from '../../utils/api.js?v=1783763293586';
 
 // ===== 状态 =====
 export let settingsModelsCache = [];
@@ -118,16 +118,16 @@ function _tplDiscoverForm() {
   return '<div class="siper-form-card js-form-card-sidebar">' +
     '<form class="js-discover-form">' +
     '<div class="siper-form-title">🔍 发现模型</div>' +
-    '<div class="js-sort-group">' +
-    '<div style="flex:1"><div class="text-dim js-label-sm">Provider</div>' +
-    '<select id="providerPreset" class="siper-input js-input-sm" onchange="window.applyProviderPreset()" aria-label="Provider 预设">' +
+    '<div class="js-field-row">' +
+    '<div class="js-field-col"><div class="text-dim js-label-sm">Provider</div>' +
+    '<select id="providerPreset" class="siper-input js-input-field" onchange="window.applyProviderPreset()" aria-label="Provider 预设">' +
     '<option value="">— 选择 —</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="deepseek">DeepSeek</option><option value="moonshot">Moonshot</option><option value="qwen">Qwen</option><option value="longcat">LongCat</option><option value="zhipuai">ZhipuAI</option><option value="minimax">MiniMax</option><option value="groq">Groq</option><option value="openrouter">OpenRouter</option><option value="ollama">Ollama</option><option value="custom">自定义</option></select>' +
     '</div>' +
-    '<div style="flex:1.5"><div class="text-dim js-label-sm">Base URL</div>' +
-    '<input type="text" class="siper-input js-input-sm" id="discoverBaseUrl" placeholder="https://api.openai.com/v1" aria-label="发现 Base URL">' +
+    '<div class="js-field-col-wide"><div class="text-dim js-label-sm">Base URL</div>' +
+    '<input type="text" class="siper-input js-input-field" id="discoverBaseUrl" placeholder="https://api.openai.com/v1" aria-label="发现 Base URL">' +
     '</div></div>' +
     '<div class="js-mb-6"><div class="text-dim js-label-sm">API Key</div>' +
-    '<input type="password" class="siper-input js-input-sm" id="discoverApiKey" placeholder="sk-..." autocomplete="off" aria-label="发现 API Key">' +
+    '<input type="password" class="siper-input js-input-field" id="discoverApiKey" placeholder="sk-..." autocomplete="off" aria-label="发现 API Key">' +
     '</div>' +
     '<div class="js-select-group">' +
     '<button class="siper-btn primary" onclick="window.discoverModels()">获取模型列表</button>' +
@@ -137,8 +137,8 @@ function _tplDiscoverForm() {
     '</div></div>' +
     '<div id="discoverResult" class="js-scroll-flex"></div>' +
     '</div></div></form></div>';
-}
 
+}
 // ===== 加载模型列表 ──────────────────────────────────
 
 export function loadSettingsModels() {
@@ -296,7 +296,7 @@ export function renderSettingsModelsList() {
 // ===== 模型卡片 ──────────────────────────────────────
 
 function buildCardHtml(m) {
-  var ctx = _fmtCtx(m.context_window);
+  var ctx = _fmtCtx(m.context_window_tested || m.context_window);
   var capBadges = renderCapBadges(m.capabilities);
   var ctxTested = m.context_window_tested ? _fmtCtx(m.context_window_tested) : '';
   var ttft = m.ttft ? fmtSpeed(m.ttft) : null;

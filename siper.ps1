@@ -276,7 +276,7 @@ function Start-SiperCommand {
     $env:PYTHONDONTWRITEBYTECODE = "1"
 
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "python"
+    $psi.FileName = "$ProjectDir\.venv\Scripts\python.exe"
     $psi.Arguments = "-u `"$MainFile`" $Port"
     $psi.WorkingDirectory = $ProjectDir
     $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden

@@ -1,5 +1,5 @@
 // chat/input.js — 输入框、文件上传、模型选择
-import { getWs, setWs } from '../core.js?v=1783662625341';
+import { getWs, setWs } from '../core.js?v=1783763293586';
 import {
   _chatSessionId, _chatCurrentAgent, _chatCurrentPage,
   _chatCurrentModel, _chatModelContextWindow, _isSending,
@@ -11,7 +11,7 @@ import {
   fmtTokens,
   markSessionReady,
   setChatSessionId,
-} from '../chat/state.js?v=1783662625341';
+} from '../chat/state.js?v=1783763293586';
 
 // 从 page_cache 读取 agents 列表（替代已删除的 chatAgents 变量）
 function _getAgents() {
@@ -21,13 +21,13 @@ function _getAgents() {
   }
   return [];
 }
-import { resetSendState } from '../chat/session.js?v=1783662625341';
+import { resetSendState } from '../chat/session.js?v=1783763293586';
 
 // 全局待发送文件列表，存放 base64 数据、mime、名称及分类
 window.chatPendingFiles = [];
 let chatPendingFiles = window.chatPendingFiles;
-import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js?v=1783662625341';
-import { renderMiddleList, refreshAgentsAndRender } from './sidebar.js?v=1783662625341';
+import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js?v=1783763293586';
+import { renderMiddleList, refreshAgentsAndRender } from './sidebar.js?v=1783763293586';
 
 // ------------------------------------------------
 // Ensure a chat input element exists (creates one if missing)
@@ -92,8 +92,8 @@ function _ensureChatInput() {
   if (typeof window !== 'undefined') window._adjustInputHeight = _adjustInputHeight;
 }
 
-import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js?v=1783662625341';
-import { toast } from '../components/toast.js?v=1783662625341';
+import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js?v=1783763293586';
+import { toast } from '../components/toast.js?v=1783763293586';
 
 // ===== File Upload & Preview =====
 
@@ -254,7 +254,7 @@ export async function chatUploadFiles(files) {
 }
 
 // ===== Model Capability Icons =====
-import { CAP_ICONS } from '../utils/capabilities.js?v=1783662625341';
+import { CAP_ICONS } from '../utils/capabilities.js?v=1783763293586';
 
 function _renderCapBadges(capabilities) {
   if (!capabilities || !capabilities.length) return '';
@@ -303,8 +303,12 @@ export async function loadChatModels() {
     // 从会话中获取模型，若无则 fallback 到 agent 默认模型
     const globalDefault = models.length ? (models[0].name || '') : '';
     if (!_chatCurrentModel && _chatCurrentModel !== '') {
-      setCurrentModel(globalDefault);
-      const cur = models.find(m => m.name === globalDefault);
+      // 优先从 localStorage 恢复上次选择的模型
+      const savedModel = localStorage.getItem('siper_last_model');
+      const savedInList = savedModel && models.find(m => m.name === savedModel);
+      const fallbackModel = savedInList ? savedModel : globalDefault;
+      setCurrentModel(fallbackModel);
+      const cur = models.find(m => m.name === fallbackModel);
       if (cur && cur.context_window) setModelContextWindow(cur.context_window);
     }
     renderChatModelDropdown(models, noModels);
@@ -366,6 +370,7 @@ export function renderChatModelDropdown(models, showNoModels) {
     item.addEventListener('click', () => {
       setChatCurrentModel(m.name);
       setChatModelContextWindow(m.context_window || 8192);
+      try { localStorage.setItem('siper_last_model', m.name); } catch(e) {}
       renderChatModelDropdown(models, false);
       closeChatModelDropdown();
       toast.success('模型切换为：' + (m.alias || m.name));

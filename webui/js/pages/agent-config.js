@@ -1,12 +1,12 @@
 // pages/agent-config.js — Agent 配置管理
 // 优化：提取 _loadConfigWithCache / _buildAgentConfigBody 消除重复
 
-import { t } from '../utils/i18n.js?v=1783662625341';
-import { escapeHtml } from '../utils/escape.js?v=1783662625341';
-import { showConfirm, showForm } from '../components/toast.js?v=1783662625341';
-import { toast } from '../components/toast.js?v=1783662625341';
-import { _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile, setChatAgentFiles, setChatCurAgentFile } from '../chat/state.js?v=1783662625341';
-import { loadGlobalModelsForAgent, renderAgentModelSection, renderAgentModelsForAgent, globalModelsList, modelsLoaded, setPendingAgentModels } from '../components/agent-models.js?v=1783662625341';
+import { t } from '../utils/i18n.js?v=1783763293586';
+import { escapeHtml } from '../utils/escape.js?v=1783763293586';
+import { showConfirm, showForm } from '../components/toast.js?v=1783763293586';
+import { toast } from '../components/toast.js?v=1783763293586';
+import { _chatAgentData, _chatSelectedAgent, _agentConfigName, _chatAgentFiles, _chatCurAgentFile, setChatAgentFiles, setChatCurAgentFile } from '../chat/state.js?v=1783763293586';
+import { loadGlobalModelsForAgent, renderAgentModelSection, renderAgentModelsForAgent, globalModelsList, modelsLoaded, setPendingAgentModels } from '../components/agent-models.js?v=1783763293586';
 export { loadGlobalModelsForAgent };
 
 // ===== 页面模板 =====
@@ -285,11 +285,11 @@ export function switchConfigAgentPageTab(tab) {
   document.getElementById('agentTabMemory').className = 'agent-tab' + (tab === 'memory' ? ' active' : '');
   const limitsTabBtn = document.querySelector('[data-tab="limits"]');
   if (limitsTabBtn) limitsTabBtn.className = 'agent-tab' + (tab === 'limits' ? ' active' : '');
-  document.getElementById('agentTabContentAbout').classList[tab !== 'about' ? 'add' : 'remove']('hidden');
-  document.getElementById('agentTabContentFiles').classList[tab !== 'files' ? 'add' : 'remove']('hidden');
-  document.getElementById('agentTabContentMemory').classList[tab !== 'memory' ? 'add' : 'remove']('hidden');
+  document.getElementById('agentTabContentAbout').className = 'agent-tab-content' + (tab === 'about' ? ' active' : '');
+  document.getElementById('agentTabContentFiles').className = 'agent-tab-content' + (tab === 'files' ? ' active' : '');
+  document.getElementById('agentTabContentMemory').className = 'agent-tab-content' + (tab === 'memory' ? ' active' : '');
   const tabLimits = document.getElementById('tab-limits');
-  if (tabLimits) tabLimits.classList[tab !== 'limits' ? 'add' : 'remove']('hidden');
+  if (tabLimits) tabLimits.className = 'agent-tab-content' + (tab === 'limits' ? ' active' : '');
   if (tab === 'memory' && currentConfigAgent) {
     loadAgentMemoryContent(currentConfigAgent);
   }

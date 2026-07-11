@@ -2,7 +2,7 @@
 
 > **一个独立的 AI Agent 框架 — 有状态 UI · 多模型 · 多 Agent · 27 个内置工具 · 三语言 · 前后端隔离**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org) [![Version](https://img.shields.io/badge/Version-v0.3.2-green.svg)](https://github.com/gavin-jack/siper-agent/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org) [![Version](https://img.shields.io/badge/Version-v0.4.1-green.svg)](https://github.com/gavin-jack/siper-agent/releases)
 
 **核心仅依赖 `openai` + `websockets` + `jinja2` + `psutil`，27 个工具中 25 个纯 stdlib。完全独立于任何 Agent 框架，不依赖 Hermes / LangChain / AutoGPT。**
 

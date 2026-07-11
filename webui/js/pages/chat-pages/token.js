@@ -1,8 +1,8 @@
 // chat-pages/token.js — Token 统计页面
 // 从 pages/chat.js 拆分
-import { fmtNum } from '../../utils/format.js?v=1783662625341';
-import { apiGetCached } from '../../utils/api.js?v=1783662625341';
-import { renderMonitorCharts } from './monitor.js?v=1783662625341';
+import { fmtNum } from '../../utils/format.js?v=1783763293586';
+import { apiGetCached } from '../../utils/api.js?v=1783763293586';
+import { renderMonitorCharts } from './monitor.js?v=1783763293586';
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {

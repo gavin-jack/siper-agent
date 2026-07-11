@@ -63,7 +63,7 @@ export let _chatCurrentPage = 'chat';
 export function setCurrentPage(page) { _chatCurrentPage = page; }
 
 export function getChatSessionId() { return _chatSessionId; }
-export function setChatSessionId(sid) { _chatSessionId = sid; }
+export function setChatSessionId(sid) { _chatSessionId = sid; if (sid) localStorage.setItem('siper_last_session', sid); else localStorage.removeItem('siper_last_session'); }
 
 export function getChatCurrentAgent() { return _chatCurrentAgent; }
 export function setChatCurrentAgent(agent) { _chatCurrentAgent = agent; }

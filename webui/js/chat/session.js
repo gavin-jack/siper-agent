@@ -8,12 +8,12 @@ import {
     setIsSending, setChatSessionId, setChatCurrentAgent,
     setChatCurrentModel, setChatModelContextWindow,
     setCurrentModel,
-} from './state.js?v=1783662625341';
-import { send } from '../core.js?v=1783662625341';
-import { chatThinkingHide } from './thinking.js?v=1783662625341';
-import { updateStreamingBadge } from './state.js?v=1783662625341';
-import { _hideNewMsgIndicator } from './badge.js?v=1783662625341';
-import { updateSendBtns } from './input.js?v=1783662625341';
+} from './state.js?v=1783763293586';
+import { send } from '../core.js?v=1783763293586';
+import { chatThinkingHide } from './thinking.js?v=1783763293586';
+import { updateStreamingBadge } from './state.js?v=1783763293586';
+import { _hideNewMsgIndicator } from './badge.js?v=1783763293586';
+import { updateSendBtns } from './input.js?v=1783763293586';
 
 // ===== Send State Reset =====
 
@@ -28,7 +28,10 @@ export function resetSendState() {
 export function newSession(agent) {
     send({ type: 'new_session', agent: agent || 'default' });
     // expose globally for debugging / manual triggers
-    if (typeof window !== 'undefined') window.newSession = newSession;
+    if (typeof window !== 'undefined') {
+    window.newSession = newSession;
+    window.switchSession = switchSession;
+}
 }
 
 export function switchSession(sessionId) {

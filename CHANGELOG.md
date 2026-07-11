@@ -2,6 +2,21 @@
 
 > 所有版本变更记录
 
+## v0.4.1 (2026-07-11)
+
+### Bug 修复 (fix)
+- **验证按钮修复**：移除上下文探测（费 token 且导致 `context_window_tested` 未定义报错），验证链路恢复正常
+- **上下探测完全移除**：删除全量上下文窗口探测（2000..131072），避免每次验证浪费 token
+- **前端模型卡片字号优化**：`.text-warning-sm` 从 12px 调至 11px，视觉更精致
+
+### 优化 (refactor)
+- 前端 40 项更新（badge.js, message.js, nav.js, thinking.js, toast.js, agent-config.js 等 chunk 更新）
+- `siper_web.py` 新增 `switch_session` WS 消息处理（前端刷新后恢复会话）
+- `llm_client.py` 修复空流式响应和 LongCat token 追踪（`stream_options: {include_usage: true}`）
+- `siper.ps1` / `start.bat` 改用 .venv + PYTHONDONTWRITEBYTECODE=1
+
+---
+
 ## v0.3.2 (2026-07-09)
 
 ### Bug 修复 (fix)

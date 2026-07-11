@@ -1511,6 +1511,7 @@ def _detect_provider(base_url):
         ("dashscope", "qwen"), ("qwen", "qwen"),
         ("longcat", "longcat"),
         ("sensenova", "sensenova"),
+        ("agnes", "agnes"),
         ("zhipuai", "zhipuai"), ("glm", "zhipuai"),
         ("minimax", "minimax"),
         ("baichuan", "baichuan"),

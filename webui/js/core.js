@@ -13,11 +13,11 @@
  *   页面导航 → chat/nav.js
  *   会话管理 → chat/session.js
  */
-import { renderFull, applyDelta } from './renderer.js?v=1783662625341';
-import { appendStream, finalizeStream, handleStopped } from './chat/stream.js?v=1783662625341';
-import { setConnected, getStreamState, markSessionReady, setChatSessionId, setIsSending, setIsThinking, setThinkingSteps } from './chat/state.js?v=1783662625341';
-import { chatThinkingShow, chatThinkingAddToolStep, chatThinkingAddTextRow } from './chat/thinking.js?v=1783662625341';
-import { showToastCompat, showDialogCompat } from './utils/ws-compat.js?v=1783662625341';
+import { renderFull, applyDelta } from './renderer.js?v=1783763293586';
+import { appendStream, finalizeStream, handleStopped } from './chat/stream.js?v=1783763293586';
+import { setConnected, getStreamState, markSessionReady, setChatSessionId, setIsSending, setIsThinking, setThinkingSteps } from './chat/state.js?v=1783763293586';
+import { chatThinkingShow, chatThinkingAddToolStep, chatThinkingAddTextRow } from './chat/thinking.js?v=1783763293586';
+import { showToastCompat, showDialogCompat } from './utils/ws-compat.js?v=1783763293586';
 
 let ws = null;
 let _ver = 0;
@@ -28,7 +28,20 @@ export function connectWS() {
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${proto}//${location.hostname}:${parseInt(location.port) + 1}`);
-    ws.onopen = () => { setConnected(true); window.newSession?.(); };
+    ws.onopen = () => {
+        setConnected(true);
+        // 恢复上次会话（如有），否则新建
+        const lastSid = localStorage.getItem('siper_last_session');
+        if (lastSid) {
+            const restore = () => {
+                const s = window.switchSession || (window.session?.switchSession);
+                if (s) s(lastSid);
+            };
+            setTimeout(restore, 300);
+        } else {
+            window.newSession?.();
+        }
+    };
     ws.onmessage = (e) => {
         try { dispatch(JSON.parse(e.data)); }
         catch (err) { console.error('[SiPer] parse error:', err); }
@@ -126,6 +139,11 @@ function dispatch(msg) {
             setChatSessionId(msg.session_id);
             markSessionReady();
             break;
+        case 'session_switched':
+            if (typeof window.__onSessionSwitched === 'function') {
+                window.__onSessionSwitched(msg);
+            }
+            break;
         case 'stopped':
             handleStopped();
             break;
@@ -139,4 +157,4 @@ function dispatch(msg) {
 }
 
 // Re-export from state.js for app.js backward compat
-export { setConnected } from './chat/state.js?v=1783662625341';
+export { setConnected } from './chat/state.js?v=1783763293586';
