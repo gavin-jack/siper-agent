@@ -1,5 +1,5 @@
 // chat-pages/logs.js — 日志页面渲染
-import { t } from '../../utils/i18n.js?v=1783763293586';
+import { t } from '../../utils/i18n.js?v=1783954506464';
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {

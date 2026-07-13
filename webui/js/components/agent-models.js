@@ -1,10 +1,10 @@
 // components/agent-models.js — Agent 模型管理
 // 从 pages/page-agent-config.js 提取
 
-import { escapeHtml } from '../utils/escape.js?v=1783763293586';
-import { t } from '../utils/i18n.js?v=1783763293586';
-import { toast } from '../components/toast.js?v=1783763293586';
-import { CAP_ICONS, CAP_ORDER } from '../utils/capabilities.js?v=1783763293586';
+import { escapeHtml } from '../utils/escape.js?v=1783954506464';
+import { t } from '../utils/i18n.js?v=1783954506464';
+import { toast } from '../components/toast.js?v=1783954506464';
+import { CAP_ICONS, CAP_ORDER } from '../utils/capabilities.js?v=1783954506464';
 
 // 模块级状态
 let globalModelsList = [];

@@ -3,8 +3,8 @@
  * 
  * 删除所有 fetch 调用，数据由后端快照通过 WS 推送。
  */
-import { t } from '../utils/i18n.js?v=1783763293586';
-import { toast } from '../components/toast.js?v=1783763293586';
+import { t } from '../utils/i18n.js?v=1783954506464';
+import { toast } from '../components/toast.js?v=1783954506464';
 
 let _currentMemoryAgent = '';
 let _memoryContent = '';

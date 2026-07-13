@@ -1,6 +1,6 @@
 // chat-pages/skills.js — 技能页面渲染
-import { t } from '../../utils/i18n.js?v=1783763293586';
-import { apiGetCached } from '../../utils/api.js?v=1783763293586';
+import { t } from '../../utils/i18n.js?v=1783954506464';
+import { apiGetCached } from '../../utils/api.js?v=1783954506464';
 
 var _skills = [];
 

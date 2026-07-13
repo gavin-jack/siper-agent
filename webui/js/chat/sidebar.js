@@ -1,5 +1,5 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
-import { getWs } from '../core.js?v=1783763293586';
+import { getWs } from '../core.js?v=1783954506464';
 import {
   _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
@@ -10,13 +10,13 @@ import {
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, setThinkingSteps, setIsThinking, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
-} from './state.js?v=1783763293586';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1783763293586';
-import { showChatToast } from './toast.js?v=1783763293586';
-import { chatThinkingHide } from './thinking.js?v=1783763293586';
-import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns, loadChatModels } from './input.js?v=1783763293586';
-import { toast, showInput } from '../components/toast.js?v=1783763293586';
-import { chatConfirm } from './toast.js?v=1783763293586';
+} from './state.js?v=1783954506464';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1783954506464';
+import { showChatToast } from './toast.js?v=1783954506464';
+import { chatThinkingHide } from './thinking.js?v=1783954506464';
+import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns, loadChatModels } from './input.js?v=1783954506464';
+import { toast, showInput } from '../components/toast.js?v=1783954506464';
+import { chatConfirm } from './toast.js?v=1783954506464';
 
 // ===== 从 page_cache 读取 agents 列表 =====
 function getAgentsFromCache() {
@@ -345,6 +345,8 @@ function _resetSessionState(prevSid) {
   setIsThinking(false);
   if (_chatStreamRow) _chatStreamRow.style.display = 'none';
   if (prevSid) _saveDomCache(prevSid);
+  // 切换会话时立即清空旧消息，防止 API 加载期间旧内容残留
+  if (prevSid) chatClearMessages();
   saveInputCache();
 }
 

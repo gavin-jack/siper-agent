@@ -3,8 +3,8 @@
  * 优先从 page_cache 读取，后端推送时自动刷新
  */
 
-import { apiGetCached } from '../../utils/api.js?v=1783763293586';
-import { escapeHtml } from '../../utils/escape.js?v=1783763293586';
+import { apiGetCached } from '../../utils/api.js?v=1783954506464';
+import { escapeHtml } from '../../utils/escape.js?v=1783954506464';
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {

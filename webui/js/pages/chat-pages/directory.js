@@ -1,7 +1,7 @@
 // chat-pages/directory.js — 项目目录独立页面
-import { escapeHtml } from '../../utils/escape.js?v=1783763293586';
-import { fmtSize } from '../../utils/format.js?v=1783763293586';
-import { apiGetCached } from '../../utils/api.js?v=1783763293586';
+import { escapeHtml } from '../../utils/escape.js?v=1783954506464';
+import { fmtSize } from '../../utils/format.js?v=1783954506464';
+import { apiGetCached } from '../../utils/api.js?v=1783954506464';
 
 // 注册 page_cache 回调
 if (typeof window.__onPageCacheRegister === 'function') {
