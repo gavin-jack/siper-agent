@@ -1477,7 +1477,6 @@ async def main():
 
     def api_delete_session(sid):
         try:
-            # Delete from all agent session databases
             agents_dir = Path(os.path.dirname(__file__)) / "agents"
             agent_dirs = [agents_dir / "default"]
             if agents_dir.exists():
@@ -1489,35 +1488,24 @@ async def main():
                 db_path = agent_dir / "sessions" / "sessions.db"
                 if not db_path.exists():
                     continue
-                agent_name = agent_dir.name
-                sm = _agent_session_managers.get(agent_name)
-                if sm and sm._db_connection:
-                    try:
-                        # Use the existing session manager's connection to avoid WAL conflicts
-                        cursor = sm._db_connection.cursor()
-                        cursor.execute("DELETE FROM messages WHERE session_id = ?", (sid,))
-                        cursor.execute("DELETE FROM sessions WHERE session_id = ?", (sid,))
-                        sm._db_connection.commit()
-                        logger.warning(f"api_delete_session: deleted session {sid} via {agent_name} session manager")
-                        continue  # Successfully deleted, move to next agent
-                    except Exception as e:
-                        logger.error(f"api_delete_session: {agent_name} session manager delete failed: {e}")
-                # Fallback: create a new connection
+                # Always use a fresh connection to avoid WAL snapshot isolation issues
                 try:
                     conn = _sq.connect(str(db_path), timeout=30, check_same_thread=False)
-                    conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
-                    conn.execute("DELETE FROM messages WHERE session_id = ?", (sid,))
-                    conn.execute("DELETE FROM sessions WHERE session_id = ?", (sid,))
-                    conn.commit()
+                    cur = conn.cursor()
+                    cur.execute("SELECT 1 FROM sessions WHERE session_id = ?", (sid,))
+                    found = cur.fetchone()
+                    if found:
+                        cur.execute("DELETE FROM messages WHERE session_id = ?", (sid,))
+                        cur.execute("DELETE FROM sessions WHERE session_id = ?", (sid,))
+                        conn.commit()
+                        cur.execute("PRAGMA wal_checkpoint(TRUNCATE)")
                     conn.close()
-                    logger.warning(f"api_delete_session: deleted session {sid} via new connection to {db_path}")
                 except Exception as e:
-                    logger.error(f"api_delete_session: failed to delete from {db_path}: {e}")
+                    logger.error(f"api_delete_session: failed: {e}")
             # Also remove from all in-memory active sessions
             for _name, _sm in _agent_session_managers.items():
                 if sid in _sm.active_sessions:
                     del _sm.active_sessions[sid]
-                    logger.info(f"api_delete_session: removed session {sid} from {_name} active_sessions")
             return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}

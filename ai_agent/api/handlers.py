@@ -391,7 +391,7 @@ def api_get_session_messages(sid):
 def api_delete_session(sid):
     try:
         # Delete from all agent session databases
-        agents_dir = Path(os.path.dirname(str(PROJECT_ROOT))) / "agents"
+        agents_dir = PROJECT_ROOT / "agents"
         agent_dirs = [agents_dir / "default"]
         if agents_dir.exists():
             for d in agents_dir.iterdir():
@@ -405,34 +405,35 @@ def api_delete_session(sid):
             sm = _agent_session_managers.get(agent_name)
             if sm and sm._db_connection:
                 try:
-                    # Use the existing session manager's connection to avoid WAL conflicts
                     cursor = sm._db_connection.cursor()
                     cursor.execute("DELETE FROM messages WHERE session_id = ?", (sid,))
                     cursor.execute("DELETE FROM sessions WHERE session_id = ?", (sid,))
                     sm._db_connection.commit()
-                    logger.warning(f"api_delete_session: deleted session {sid} via {agent_name} session manager")
                     continue
                 except Exception as e:
                     logger.error(f"api_delete_session: {agent_name} session manager delete failed: {e}")
             # Fallback: create a new connection
             try:
                 conn = sqlite3.connect(str(db_path), timeout=30, check_same_thread=False)
-                conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
-                conn.execute("DELETE FROM messages WHERE session_id = ?", (sid,))
-                conn.execute("DELETE FROM sessions WHERE session_id = ?", (sid,))
-                conn.commit()
+                cur = conn.cursor()
+                cur.execute("SELECT 1 FROM sessions WHERE session_id = ?", (sid,))
+                found = cur.fetchone()
+                if found:
+                    cur.execute("DELETE FROM messages WHERE session_id = ?", (sid,))
+                    cur.execute("DELETE FROM sessions WHERE session_id = ?", (sid,))
+                    conn.commit()
+                    cur.execute("PRAGMA wal_checkpoint(TRUNCATE)")
                 conn.close()
-                logger.warning(f"api_delete_session: deleted session {sid} via new connection to {db_path}")
             except Exception as e:
                 logger.error(f"api_delete_session: failed to delete from {db_path}: {e}")
         # Also remove from all in-memory active sessions
         for _name, _sm in _agent_session_managers.items():
             if sid in _sm.active_sessions:
                 del _sm.active_sessions[sid]
-                logger.info(f"api_delete_session: removed session {sid} from {_name} active_sessions")
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
 
 
 def api_touch_session(sid, body=None):
@@ -506,7 +507,7 @@ def api_save_response_dict(body):
         if not message_id or not response_dict:
             return {"success": False, "error": "message_id and response_dict required"}
         # Find the message across all agent session DBs
-        agents_dir = Path(os.path.dirname(str(PROJECT_ROOT))) / "agents"
+        agents_dir = PROJECT_ROOT / "agents"
         agent_dirs = [agents_dir / "default"]
         if agents_dir.exists():
             for d in agents_dir.iterdir():
