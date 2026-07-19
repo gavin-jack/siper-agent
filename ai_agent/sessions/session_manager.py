@@ -53,6 +53,7 @@ class ConversationSession:
     session_id: str
     user_id: str
     created_at: str
+    title: str = ""
     ended_at: Optional[str] = None
     messages: List[Dict] = field(default_factory=list)
     context: Dict[str, Any] = field(default_factory=dict)
@@ -111,6 +112,7 @@ class ConversationSession:
             'session_id': self.session_id,
             'user_id': self.user_id,
             'created_at': self.created_at,
+            'title': self.title,
             'ended_at': self.ended_at,
             'messages': self.messages,
             'context': self.context,
@@ -125,6 +127,7 @@ class ConversationSession:
             session_id=data['session_id'],
             user_id=data['user_id'],
             created_at=data['created_at'],
+            title=data.get('title', ''),
             ended_at=data.get('ended_at'),
             messages=data.get('messages', []),
             context=data.get('context', {}),
@@ -488,7 +491,7 @@ class SessionManager:
             session.updated_at,
             json.dumps(session.context),
             json.dumps(session.metadata),
-            getattr(session, 'title', ''),
+            session.title,
             session.model
         ))
         self._db_connection.commit()
@@ -511,6 +514,7 @@ class SessionManager:
             user_id=row['user_id'],
             created_at=row['created_at'],
             ended_at=row['ended_at'],
+            title=row['title'] or '',
             context=json.loads(row['context']) if row['context'] else {},
             metadata=json.loads(row['metadata']) if row['metadata'] else {},
             model=row['model'] or ''
