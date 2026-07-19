@@ -126,6 +126,15 @@ class AgentConfig:
     enabled_toolsets: List[str] = None
     disabled_toolsets: List[str] = None
 
+import sys as _sys
+_WSL_ENVIRONMENT = False
+if _sys.platform == "linux":
+    try:
+        with open("/proc/version") as _f:
+            _WSL_ENVIRONMENT = "microsoft" in _f.read().lower()
+    except:
+        pass
+
 class AIAgent:
     """
     Main AI Agent class implementing the core conversation loop
@@ -1006,7 +1015,10 @@ class AIAgent:
         """Auto-convert Windows paths in tool parameters.
         
         File-related tools get automatic path conversion.
+        Only active in WSL environments (skipped on native Windows).
         """
+        if not _WSL_ENVIRONMENT:
+            return params
         path_tools = {'list_dir', 'read_file', 'write_file', 'search_files', 'execute_command'}
         if tool_name not in path_tools:
             return params

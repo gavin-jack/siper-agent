@@ -1,3 +1,14 @@
+## v0.4.2 (2026-07-19)
+
+### Bug Fixes
+- Session delete: fix path resolution bug (`Path(os.path.dirname(PROJECT_ROOT))` → `PROJECT_ROOT`) that caused delete to silently skip all databases
+- Session switch: clear messages immediately when switching sessions to avoid stale content flicker
+- WSL path conversion: `_auto_convert_paths` now only runs in WSL environments, preventing Windows paths from being incorrectly converted to `/mnt/c/...` on native Windows
+- Session title: right bar now shows full session ID when user hasn't renamed (was truncated to 8 chars)
+- Models: remove broken agnes-image-2.0-flash and agnes-image-2.1-flash from available list (API returns 404)
+
+### Maintenance
+- Sync config.json with config_db after available_models changes
 # Changelog
 
 > 所有版本变更记录
