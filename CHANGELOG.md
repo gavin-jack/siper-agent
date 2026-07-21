@@ -1,3 +1,13 @@
+## v0.5.0 (2026-07-21)
+
+### Features
+- **Streaming optimization**: Circuit breaker, error classification, model fallback, guide button, steer API route, stream generation tracking
+- **Thinking panel enhancement**: Complete rewrite with header/footer layout, elapsed_ms per step, collapsible reasoning, live preview, round counter
+
+### Bug Fixes
+- **Prevent duplicate LLM calls**: Fixed missing `break` in `_llm_call` success paths causing two rounds of thinking
+- **Session rename persistence**: Added `title` field to `ConversationSession` dataclass
+
 ## v0.4.2 (2026-07-19)
 
 ### Bug Fixes
