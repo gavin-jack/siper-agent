@@ -10,13 +10,13 @@ import {
     getStreamState, syncStreamFromCurrent, syncStreamToCurrent,
     setChatStreamAcc, setChatStreamRow, setChatStreamBubble,
     setIsThinking, updateStreamingBadge,
-} from './state.js?v=1784626478121';
-import { chatEscapeHtml, chatRenderMarkdown, buildMetaHtml, updateCtxInfoDisplay, playNotifySound } from './message.js?v=1784626478121';
-import { updateCtxFromStreamEnd, resetSendState } from './session.js?v=1784626478121';
-import { chatThinkingHide, chatThinkingClear, chatThinkingAddTextRow, chatThinkingShow, chatThinkingSetHeader, chatThinkingSetFooter, chatThinkingSetRound, chatThinkingSetStreamPreview } from './thinking.js?v=1784626478121';
-import { _showNewMsgIndicator, _hideNewMsgIndicator } from './badge.js?v=1784626478121';
-import { renderFull, applyDelta } from '../renderer.js?v=1784626478121';
-import { markSessionUnread, renderMiddleList, refreshAgentsAndRender } from './sidebar.js?v=1784626478121';
+} from './state.js?v=1784646183336';
+import { chatEscapeHtml, chatRenderMarkdown, buildMetaHtml, updateCtxInfoDisplay, playNotifySound } from './message.js?v=1784646183336';
+import { updateCtxFromStreamEnd, resetSendState } from './session.js?v=1784646183336';
+import { chatThinkingHide, chatThinkingClear, chatThinkingAddTextRow, chatThinkingShow, chatThinkingSetHeader, chatThinkingSetFooter, chatThinkingSetRound, chatThinkingSetStreamPreview } from './thinking.js?v=1784646183336';
+import { _showNewMsgIndicator, _hideNewMsgIndicator } from './badge.js?v=1784646183336';
+import { renderFull, applyDelta } from '../renderer.js?v=1784646183336';
+import { markSessionUnread, renderMiddleList, refreshAgentsAndRender } from './sidebar.js?v=1784646183336';
 
 // 流式 DOM 元素（当前会话）
 let _streamTextEl = null;
@@ -139,7 +139,7 @@ function _cleanupStreamState() {
     setChatStreamAcc('');
     setChatStreamRow(null);
     setChatStreamBubble(null);
-    _thinkingSteps.length = 0;
+    // 不清空 _thinkingSteps — 已完成的思考过程保留在 per-session 的 completedThinkingSteps 中
     setIsThinking(false);
     if (_chatSessionId) updateStreamingBadge(_chatSessionId, false);
     resetSendState();
@@ -153,7 +153,6 @@ export function finalizeStream(data, streamSessionId) {
     if (streamSessionId && _chatSessionId && streamSessionId !== _chatSessionId) {
         const s = getStreamState(streamSessionId);
         s.thinking = false;
-        s.thinkingSteps = [];
         s.row = null; s.bubble = null; s.acc = '';
         if (typeof window._sessionDomCache !== 'undefined' && window._sessionDomCache.has(streamSessionId)) {
             window._sessionDomCache.delete(streamSessionId);

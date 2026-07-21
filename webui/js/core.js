@@ -13,11 +13,11 @@
  *   页面导航 → chat/nav.js
  *   会话管理 → chat/session.js
  */
-import { renderFull, applyDelta } from './renderer.js?v=1784626478121';
-import { appendStream, finalizeStream, handleStopped } from './chat/stream.js?v=1784626478121';
-import { setConnected, getStreamState, markSessionReady, setChatSessionId, setIsSending, setIsThinking, setThinkingSteps } from './chat/state.js?v=1784626478121';
-import { chatThinkingShow, chatThinkingAddToolStep, chatThinkingAddTextRow, chatThinkingAddReasoning, chatThinkingSetClarifyPending, chatThinkingSetHeader, chatThinkingSetFooter, chatThinkingSetRound, chatThinkingSetStreamPreview } from './chat/thinking.js?v=1784626478121';
-import { showToastCompat, showDialogCompat } from './utils/ws-compat.js?v=1784626478121';
+import { renderFull, applyDelta } from './renderer.js?v=1784646183336';
+import { appendStream, finalizeStream, handleStopped } from './chat/stream.js?v=1784646183336';
+import { setConnected, getStreamState, markSessionReady, setChatSessionId, setIsSending, setIsThinking, setThinkingSteps } from './chat/state.js?v=1784646183336';
+import { chatThinkingShow, chatThinkingAddToolStep, chatThinkingAddTextRow, chatThinkingAddReasoning, chatThinkingSetClarifyPending, chatThinkingSetHeader, chatThinkingSetFooter, chatThinkingSetRound, chatThinkingSetStreamPreview } from './chat/thinking.js?v=1784646183336';
+import { showToastCompat, showDialogCompat } from './utils/ws-compat.js?v=1784646183336';
 
 let ws = null;
 let _ver = 0;
@@ -90,7 +90,7 @@ function dispatch(msg) {
             {
                 const sid = msg.session_id || '';
                 const ss = getStreamState(sid);
-                const steps = ss.thinkingSteps;
+                const steps = ss.completedThinkingSteps;
                 // 避免重复添加同一 call_id
                 const exists = steps.some(s => s.callId === msg.call_id);
                 if (!exists) {
@@ -98,7 +98,8 @@ function dispatch(msg) {
                         callId: msg.call_id || msg.tool_name,
                         toolName: msg.tool_name,
                         status: msg.status,
-                        info: msg.info || {},
+                        params: msg.params || {},
+                        resultSummary: msg.info?.resultSummary || msg.result_summary || '',
                     });
                     setThinkingSteps(steps);
                     setIsThinking(true);
@@ -173,4 +174,4 @@ function dispatch(msg) {
 }
 
 // Re-export from state.js for app.js backward compat
-export { setConnected } from './chat/state.js?v=1784626478121';
+export { setConnected } from './chat/state.js?v=1784646183336';

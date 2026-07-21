@@ -2,8 +2,9 @@
  * chat/thinking.js — 思考面板
  * 从 core.js 拆出。处理思考面板的显示/隐藏/添加步骤。
  */
-import { _thinkingSteps, setIsThinking } from './state.js?v=1784626478121';
-import { escapeHtml } from '../utils/escape.js?v=1784626478121';
+import { _thinkingSteps, setIsThinking } from './state.js?v=1784646183336';
+import { escapeHtml } from '../utils/escape.js?v=1784646183336';
+import { chatRenderMarkdown } from './message.js?v=1784646183336';
 
 // ===== 面板元状态 =====
 let _thinkingStartTime = null;
@@ -138,16 +139,18 @@ export function chatThinkingAddToolStep(callId, toolName, status, params, result
     if (resultSummary) {
         const resultEl = document.createElement('div');
         resultEl.className = 'siper-step-result';
-        resultEl.textContent = resultSummary.substring(0, 100);
-        if (resultSummary.length > 100) {
+        // 使用 MD 渲染结果内容
+        resultEl.innerHTML = chatRenderMarkdown(resultSummary.substring(0, 200));
+        if (resultSummary.length > 200) {
             resultEl.classList.add('siper-step-result-expand');
             resultEl.title = '点击展开';
+            const fullHtml = chatRenderMarkdown(resultSummary);
             resultEl.addEventListener('click', () => {
                 if (resultEl.classList.contains('expanded')) {
-                    resultEl.textContent = resultSummary.substring(0, 100);
+                    resultEl.innerHTML = chatRenderMarkdown(resultSummary.substring(0, 200));
                     resultEl.classList.remove('expanded');
                 } else {
-                    resultEl.textContent = resultSummary;
+                    resultEl.innerHTML = fullHtml;
                     resultEl.classList.add('expanded');
                 }
             });
@@ -167,7 +170,7 @@ export function chatThinkingAddTextRow(text) {
     if (!body) return;
     const row = document.createElement('div');
     row.className = 'siper-thinking-text-row';
-    row.textContent = text;
+    row.innerHTML = chatRenderMarkdown(text);
     body.appendChild(row);
     body.scrollTop = body.scrollHeight;
 }
@@ -189,8 +192,9 @@ export function chatThinkingAddReasoning(text) {
     const reasoningBody = block.querySelector('.siper-reasoning-body');
     const line = document.createElement('div');
     line.className = 'siper-reasoning-line';
-    line.textContent = text;
+    line.innerHTML = chatRenderMarkdown(text);
     reasoningBody.appendChild(line);
+    body.scrollTop = body.scrollHeight;
 }
 
 // ===== 流式预览 =====
@@ -204,6 +208,7 @@ export function chatThinkingSetStreamPreview(text) {
         body.appendChild(preview);
     }
     preview.textContent = text;
+    body.scrollTop = body.scrollHeight;
 }
 
 // ===== Clarify 等待状态 =====

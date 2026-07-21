@@ -153,7 +153,7 @@ export function ensureSessionReady() {
 // ===== Per-Session Streaming Helpers =====
 export function getStreamState(sessionId) {
     if (!_streamState.has(sessionId)) {
-        _streamState.set(sessionId, { acc: '', row: null, bubble: null, thinkingSteps: [], thinking: false, sending: false });
+        _streamState.set(sessionId, { acc: '', row: null, bubble: null, completedThinkingSteps: [], thinking: false, sending: false });
     }
     return _streamState.get(sessionId);
 }
@@ -163,7 +163,7 @@ export function syncStreamFromCurrent() {
     if (!sid) { _chatStreamAcc = ''; _chatStreamRow = null; _chatStreamBubble = null; _isSending = false; _isThinking = false; return; }
     const s = getStreamState(sid);
     _chatStreamAcc = s.acc; _chatStreamRow = s.row; _chatStreamBubble = s.bubble;
-    _thinkingSteps = s.thinkingSteps || [];
+    _thinkingSteps = s.completedThinkingSteps || [];
     _isThinking = s.thinking || false;
     _isSending = s.sending || false;
 }
@@ -173,7 +173,7 @@ export function syncStreamToCurrent() {
     if (!sid) return;
     const s = getStreamState(sid);
     s.acc = _chatStreamAcc; s.row = _chatStreamRow; s.bubble = _chatStreamBubble;
-    s.thinkingSteps = _thinkingSteps || [];
+    s.completedThinkingSteps = _thinkingSteps || [];
     s.thinking = _isThinking || false;
     s.sending = _isSending || false;
 }

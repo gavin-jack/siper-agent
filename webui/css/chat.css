@@ -1037,6 +1037,32 @@
 }
 
 
+/* ===== Thinking Panel Markdown Styles ===== */
+.siper-thinking-text-row code,
+.siper-step-result code,
+.siper-reasoning-line code {
+  background: rgba(0,0,0,0.06);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: monospace;
+}
+.siper-thinking-text-row pre,
+.siper-step-result pre,
+.siper-reasoning-line pre {
+  background: rgba(0,0,0,0.04);
+  padding: 6px 8px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 4px 0;
+  font-size: 11px;
+}
+.siper-thinking-text-row strong,
+.siper-step-result strong { font-weight: 600; }
+.siper-thinking-text-row em,
+.siper-step-result em { font-style: italic; }
+.siper-thinking-text-row a { color: var(--color-primary, #2d9e8a); }
+
 /* ===== Markdown Table ===== */
 .md-table {
   display: table;

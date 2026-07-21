@@ -1,5 +1,5 @@
 // chat/sidebar.js — 中间栏、会话列表、右键菜单、Agent 配置
-import { getWs } from '../core.js?v=1784626478121';
+import { getWs } from '../core.js?v=1784646183336';
 import {
   _chatSessionId, _chatCurrentAgent,
   _unreadSessions, _chatStreamAcc, _chatStreamRow, _chatStreamBubble, _thinkingSteps, _isThinking,
@@ -10,13 +10,13 @@ import {
   setChatAgentData, setChatAgentFiles, setChatCurAgentFile, setCtxMenu,
   setChatStreamAcc, setChatStreamRow, setChatStreamBubble, setIsSending, setThinkingSteps, setIsThinking, resetSessionReady, updateStreamingBadge, reapplyAllStreamingBadges,
   syncStreamToCurrent, syncStreamFromCurrent
-} from './state.js?v=1784626478121';
-import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1784626478121';
-import { showChatToast } from './toast.js?v=1784626478121';
-import { chatThinkingHide } from './thinking.js?v=1784626478121';
-import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns, loadChatModels } from './input.js?v=1784626478121';
-import { toast, showInput } from '../components/toast.js?v=1784626478121';
-import { chatConfirm } from './toast.js?v=1784626478121';
+} from './state.js?v=1784646183336';
+import { chatEscapeHtml, chatRenderMarkdown, chatClearMessages, updateCtxInfoDisplay, buildMetaHtml } from './message.js?v=1784646183336';
+import { showChatToast } from './toast.js?v=1784646183336';
+import { chatThinkingHide } from './thinking.js?v=1784646183336';
+import { updateChatHeader, saveInputCache, restoreInputCache, updateSendBtns, loadChatModels } from './input.js?v=1784646183336';
+import { toast, showInput } from '../components/toast.js?v=1784646183336';
+import { chatConfirm } from './toast.js?v=1784646183336';
 
 // ===== 从 page_cache 读取 agents 列表 =====
 function getAgentsFromCache() {
@@ -40,6 +40,9 @@ function _saveDomCache(sessionId) {
   const container = document.getElementById('chatMessages');
   if (!container) return;
   const streamRow = container.querySelector('.siper-stream-row');
+  // 保护：如果当前内容只有空状态或无消息，不缓存（防止切换到空内容）
+  const html = container.innerHTML;
+  if (!html || html.includes('siper-empty-state') || html.trim() === '') return;
   if (streamRow) streamRow.remove();
   _sessionDomCache.set(sessionId, { html: container.innerHTML, streamRow: streamRow || null });
 }
@@ -401,11 +404,12 @@ function _restoreSessionUI(session, agent) {
 
 function _restoreThinkingPanel() {
   chatThinkingHide();
-  if (!_thinkingSteps?.length && !_isThinking) return;
   const panel = document.getElementById('chatThinkingPanel');
   const body = document.getElementById('chatThinkingBody');
   if (!panel || !body) return;
+  // 始终清空 body，防止旧 session 内容残留
   body.innerHTML = '';
+  if (!_thinkingSteps?.length && !_isThinking) return;
   if (_isThinking && !_thinkingSteps?.length) {
     chatThinkingAddTextRow('正在思考...');
   }
@@ -414,6 +418,8 @@ function _restoreThinkingPanel() {
     else chatThinkingAddToolStep(step.callId, step.toolName, step.status, step.params, step.resultSummary);
   }
   panel.classList.add('open');
+  // 恢复后滚动到底部
+  body.scrollTop = body.scrollHeight;
 }
 
 function _restoreOrLoadMessages(session) {
