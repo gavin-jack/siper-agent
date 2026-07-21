@@ -172,6 +172,14 @@ class AIAgent:
         self.active_skills: Dict[str, Any] = {}
         self.conversation_history: Dict[str, List[Dict]] = {}  # session_id -> messages
 
+        # Stream control
+        self._disable_streaming = False       # circuit breaker: provider doesn't support streaming
+        self._stream_stale_count = 0          # consecutive stale-stream counts
+        self._stream_generation = 0           # incremented per user turn; prevents stale delta delivery
+        self._pending_steer: Optional[str] = None  # user steer injection (don't interrupt running)
+        self._pending_steer_lock = asyncio.Lock()
+        self._last_llm_error_class: str = 'none'   # 'none' | 'retry' | 'failover' | 'abort'
+
         # WebSocket send callback — set by siper_web.py during message processing
         # Allows tools (e.g. send_message) to push messages to the frontend directly
         self.ws_send: Optional[callable] = None
@@ -331,6 +339,9 @@ class AIAgent:
         """
         start_time = datetime.now()
         _MAX_TOOL_ROUNDS = self.config.max_tool_rounds or 100  # Prevent infinite tool call loops
+
+        # Increment stream generation — turns any in-flight stale stream old
+        self._stream_generation += 1
 
         # Set ws_send callback for tools to push messages directly to frontend
         self.ws_send = ws_send
@@ -1114,6 +1125,17 @@ class AIAgent:
                         _clear_pending_future(session_id)
                     formatted_result = f"[用户回复] {user_answer}"
                     result = ToolResult(success=True, data=formatted_result)
+                    # 通知前端 clarify 已收到回复
+                    if self.ws_send is not None:
+                        try:
+                            await self.ws_send({
+                                "type": "clarify_response",
+                                "session_id": session_id,
+                                "call_id": call_id,
+                                "answer": user_answer,
+                            })
+                        except Exception:
+                            pass
 
                 tool_results.append(self._build_tool_result_entry(
                     tool_call, call_id, params, formatted_result, result.success, elapsed_ms
@@ -1719,6 +1741,91 @@ Always aim to be helpful, honest, and harmless in your responses.
 
         return "工具执行结果：\n\n" + "\n\n".join(lines)
 
+    def _select_fallback_model(self) -> Optional[Dict]:
+        """Select a fallback model different from the current one."""
+        current = self.llm_client.model if self.llm_client else ""
+        try:
+            from ai_agent.models_db import ModelsDB
+            db_path = str(Path(__file__).resolve().parent.parent.parent / "data" / "models.db")
+            db = ModelsDB(db_path)
+            all_models = db.get_models_flat()
+            for m in all_models:
+                name = m.get("name", "")
+                if name != current and m.get("api_key"):
+                    return m
+        except Exception:
+            pass
+        return None
+
+    def _pre_call_context_check(self, messages: List[Dict]) -> List[Dict]:
+        """Pre-call context size check and tool result truncation."""
+        # Quick message count check
+        if len(messages) > 100:
+            # Keep system + last 50 messages
+            system_msgs = [m for m in messages if m.get("role") == "system"]
+            recent = [m for m in messages if m.get("role") != "system"][-50:]
+            messages = system_msgs + recent
+        # Truncate oversized tool results
+        return self._truncate_tool_results(messages, max_chars=getattr(self.config, 'tool_result_max_tokens', 500) * 4)
+
+    def _truncate_tool_results(self, messages: List[Dict], max_chars: int = 2000) -> List[Dict]:
+        """Truncate tool result messages to prevent context overflow."""
+        result = []
+        for msg in messages:
+            if msg.get("role") == "tool":
+                content = msg.get("content", "")
+                if len(content) > max_chars:
+                    msg = dict(msg)
+                    msg["content"] = content[:max_chars] + "\n...[已截断]"
+            elif msg.get("role") == "assistant":
+                # Also check tool_calls in assistant messages
+                tcs = msg.get("tool_calls")
+                if tcs:
+                    truncated_tcs = []
+                    for tc in tcs:
+                        func = tc.get("function", {})
+                        args_str = func.get("arguments", "")
+                        if isinstance(args_str, str) and len(args_str) > max_chars:
+                            tc = dict(tc)
+                            tc["function"] = dict(func)
+                            tc["function"]["arguments"] = args_str[:max_chars] + "\n...[已截断]"
+                        truncated_tcs.append(tc)
+                    if truncated_tcs != tcs:
+                        msg = dict(msg)
+                        msg["tool_calls"] = truncated_tcs
+            result.append(msg)
+        return result
+
+    @staticmethod
+    def _classify_error(exc) -> str:
+        """Classify LLM error: 'retry' | 'failover' | 'abort'."""
+        from openai import RateLimitError, APIConnectionError, APIError
+        if isinstance(exc, RateLimitError):
+            return 'retry'
+        if isinstance(exc, APIConnectionError):
+            return 'retry'
+        if isinstance(exc, APIError):
+            if exc.status_code in (401, 403):
+                return 'failover'
+            if exc.status_code >= 500:
+                return 'retry'
+            if exc.status_code == 422 and 'stream' in str(exc.message).lower():
+                # Provider doesn't support streaming — disable for this session
+                return 'retry_no_stream'
+            return 'abort'
+        return 'abort'
+
+    async def steer(self, user_note: str):
+        """Inject a user note into the current running turn without interrupting."""
+        async with self._pending_steer_lock:
+            self._pending_steer = (self._pending_steer or "") + user_note
+
+    def _drain_pending_steer(self) -> Optional[str]:
+        """Take and clear the pending steer text."""
+        text = self._pending_steer
+        self._pending_steer = None
+        return text
+
     async def _llm_call(
         self,
         messages: List[Dict],
@@ -1752,7 +1859,8 @@ Always aim to be helpful, honest, and harmless in your responses.
                 content = f"收到你的消息。抱歉，LLM 服务暂时不可用（可能是 API 额度不足或网络问题），请稍后再试。"
             return {'content': content, 'tool_calls': None, 'usage': {}, 'finish_reason': 'stop'}
 
-        # Build tools payload for OpenAI-compatible API
+        # Pre-call context check + truncation
+        messages = self._pre_call_context_check(messages)
         tools_payload = None
         if tools:
             tools_payload = []
@@ -1774,14 +1882,32 @@ Always aim to be helpful, honest, and harmless in your responses.
         loop = asyncio.get_event_loop()
         max_attempts = self.config.llm_max_retries
         result = None
+        self._last_llm_error_class = 'none'
+
+        # Determine if we should use streaming
+        _use_streaming = bool(stream_callback) and not self._disable_streaming
+
         for attempt in range(1, max_attempts + 1):
             # Exponential backoff: wait before retry (not on first attempt)
             if attempt > 1:
                 backoff = 2 ** (attempt - 2)  # 1s, 2s, 4s...
                 self.logger.info(f"LLM 调用退避等待 {backoff}s 后重试（第 {attempt}/{max_attempts} 次）...")
                 await asyncio.sleep(backoff)
+
+            # Failover: if previous errors were fatal, switch model
+            if self._last_llm_error_class == 'failover' and attempt > 1:
+                fallback = self._select_fallback_model()
+                if fallback:
+                    self.logger.warning(f"Failover: {self.llm_client.model} → {fallback['name']}")
+                    self.configure_llm(
+                        api_key=fallback.get('api_key', ''),
+                        base_url=fallback.get('base_url', ''),
+                        model=fallback['name'],
+                    )
+                    self._last_llm_error_class = 'none'
+
             try:
-                if stream_callback:
+                if _use_streaming:
                     # Streaming mode: collect chunks via callback
                     collected_content = []
                     collected_tool_calls = None
@@ -1789,17 +1915,40 @@ Always aim to be helpful, honest, and harmless in your responses.
                     collected_finish = "stop"
                     pending_futures = []
                     last_raw_chunk = None
+                    current_gen = self._stream_generation
 
                     def _stream_collector():
-                        """Runs in executor thread, collects streaming chunks."""
+                        """Runs in executor thread, collects streaming chunks with stale detection."""
                         nonlocal collected_content, collected_tool_calls, collected_usage, collected_finish, pending_futures
                         last_chunk = None
                         chunk_count = 0
-                        for chunk in self.llm_client.chat_completion_stream(
+                        last_data_time = time.time()
+                        empty_content_stale = time.time()
+                        STALE_TIMEOUT = 90  # 90s without any data = wedged stream
+
+                        raw_stream = self.llm_client.chat_completion_stream(
                             messages=messages,
                             tools=tools_payload,
-                        ):
+                        )
+                        for chunk in raw_stream:
                             chunk_count += 1
+                            now = time.time()
+
+                            # Stale-stream watchdog
+                            if now - last_data_time > STALE_TIMEOUT:
+                                self.logger.warning(f"流式响应卡死 {now - last_data_time:.0f}s（stale），中止流")
+                                self._stream_stale_count += 1
+                                if self._stream_stale_count >= 3:
+                                    self._disable_streaming = True
+                                    self.logger.warning("连续 stale 3 次，断路器断开，本会话禁用流式")
+                                break
+                            last_data_time = now
+
+                            # Generation check — stop if a newer turn superseded this one
+                            if current_gen != self._stream_generation:
+                                self.logger.info("流已被新 turn 取代，停止旧流投递")
+                                break
+
                             if chunk_count <= 3:
                                 self.logger.info(f"[_stream_collector] chunk#{chunk_count}: keys={list(chunk.keys())}, delta={chunk.get('delta','')[:50]!r}")
                             # Check stop event — break immediately if user cancelled
@@ -1823,12 +1972,20 @@ Always aim to be helpful, honest, and harmless in your responses.
                             delta = chunk.get("delta", "")
                             if delta:
                                 collected_content.append(delta)
-                                self.logger.info(f"[_stream_collector] calling stream_callback, delta={delta[:50]!r}")
-                                # Schedule callback in the event loop thread-safely
-                                future = asyncio.run_coroutine_threadsafe(
-                                    stream_callback(delta), loop
-                                )
-                                pending_futures.append(future)
+                                last_data_time = time.time()  # reset on actual content
+                                if not empty_content_stale:
+                                    pass
+                                empty_content_stale = now  # track last content time
+                                # Generation check before delivering delta
+                                if current_gen != self.ws_session_id if False else current_gen == self._stream_generation:
+                                    future = asyncio.run_coroutine_threadsafe(
+                                        stream_callback(delta), loop
+                                    )
+                                    pending_futures.append(future)
+                            else:
+                                # Empty delta — track for early degradation
+                                pass
+
                             fr = chunk.get("finish_reason")
                             if fr:
                                 collected_finish = fr
@@ -1838,6 +1995,7 @@ Always aim to be helpful, honest, and harmless in your responses.
                             usage = chunk.get("usage")
                             if usage:
                                 collected_usage = usage
+
                         # Save last chunk as raw LLM response (contains full data)
                         nonlocal last_raw_chunk
                         last_raw_chunk = last_chunk
@@ -1930,16 +2088,47 @@ Always aim to be helpful, honest, and harmless in your responses.
                         result['content'] = "[服务暂时没有响应，请重试]"
                         result['finish_reason'] = 'error'
             except asyncio.TimeoutError:
+                self.logger.warning(f"LLM 调用超时（第 {attempt}/{max_attempts} 次）")
+                self._last_llm_error_class = 'retry'
+                result = {
+                    'content': f"[⏱️ LLM 调用超时（{self.config.llm_timeout}s），请重试或减少历史消息长度]",
+                    'tool_calls': None,
+                    'usage': {},
+                    'finish_reason': 'timeout',
+                }
                 if attempt < max_attempts:
-                    self.logger.warning(f"LLM 调用超时，正在重试（第 {attempt}/{max_attempts} 次）...")
                     continue
-                self.logger.error("LLM 调用超时（已重试 1 次）")
-                return {'content': '[LLM API 错误：请求超时，请稍后重试]', 'tool_calls': None, 'usage': {}, 'finish_reason': 'timeout'}
+                break
             except Exception as e:
-                self.logger.error(f"LLM 调用异常：{e}")
-                return {'content': f'[LLM API 错误：调用异常] {e}', 'tool_calls': None, 'usage': {}, 'finish_reason': 'error'}
-            else:
-                # Success, exit retry loop
+                error_class = self._classify_error(e)
+                self._last_llm_error_class = error_class
+                self.logger.error(f"LLM 调用异常（class={error_class}）：{e}", exc_info=True)
+
+                # Streaming circuit breakers
+                if error_class == 'retry_no_stream':
+                    self._disable_streaming = True
+                    self.logger.warning("Provider returned 422 for streaming — disabling streaming for this session")
+                    _use_streaming = False  # retry immediately in non-streaming mode
+                    continue
+
+                if error_class == 'failover':
+                    result = {
+                        'content': "[🔄 LLM 授权失败，正在切换备用模型...]",
+                        'tool_calls': None,
+                        'usage': {},
+                        'finish_reason': 'error',
+                    }
+                    # Failover will be handled in the next attempt
+                    continue
+
+                result = {
+                    'content': f"[LLM 调用异常：{str(e)[:200]}，可能是网络或服务端问题，请重试]",
+                    'tool_calls': None,
+                    'usage': {},
+                    'finish_reason': 'error',
+                }
+                if attempt < max_attempts:
+                    continue
                 break
 
         self.logger.info(f"LLM 调用完成：finish_reason={result.get('finish_reason')}")

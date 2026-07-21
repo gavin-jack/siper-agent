@@ -303,7 +303,7 @@
   background: var(--color-input-bg);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  max-height: 200px;
+  max-height: 300px;
   overflow-x: hidden;
   overflow-y: auto;
   z-index: var(--z-base);
@@ -312,6 +312,135 @@
 }
 .siper-thinking-panel.open {
   display: block;
+}
+
+/* ===== 面板头部 ===== */
+.siper-thinking-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface, rgba(0,0,0,0.03));
+  border-radius: 8px 8px 0 0;
+  font-size: 12px;
+  color: var(--color-text-dim);
+}
+.siper-thinking-header-model {
+  font-weight: 600;
+  color: var(--color-primary, #2d9e8a);
+}
+.siper-thinking-header-timer {
+  margin-left: auto;
+  color: var(--color-text-dim);
+  opacity: 0.7;
+}
+.siper-thinking-header-round {
+  background: var(--color-primary, #2d9e8a);
+  color: white;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+/* ===== 面板底部 ===== */
+.siper-thinking-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface, rgba(0,0,0,0.03));
+  border-radius: 0 0 8px 8px;
+  font-size: 12px;
+  color: var(--color-text-dim);
+}
+.siper-thinking-footer-token {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== P0: 增强工具步骤 ===== */
+.siper-thinking-step-failed {
+  background: rgba(229, 62, 62, 0.08);
+}
+.siper-thinking-step-failed .siper-thinking-step-name {
+  color: var(--color-danger, #e53e3e);
+}
+.siper-thinking-step-elapsed {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  opacity: 0.7;
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.siper-thinking-step-expand {
+  cursor: pointer;
+  color: var(--color-primary, #2d9e8a);
+  margin-left: 4px;
+  font-size: 11px;
+  user-select: none;
+}
+.siper-thinking-step-expand:hover {
+  opacity: 0.8;
+}
+.siper-thinking-step-detail {
+  display: none;
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: rgba(0,0,0,0.04);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--color-text-dim);
+  max-height: 100px;
+  overflow-y: auto;
+  word-break: break-all;
+}
+.siper-thinking-step-detail.open {
+  display: block;
+}
+
+/* ===== P2: 推理过程 ===== */
+.siper-thinking-reasoning {
+  margin: 4px 0;
+  padding: 6px 8px;
+  background: rgba(0,0,0,0.04);
+  border-left: 2px solid var(--color-primary, #2d9e8a);
+  font-size: 11px;
+  color: var(--color-text-dim);
+  max-height: 80px;
+  overflow-y: auto;
+  word-break: break-all;
+}
+
+/* ===== P1: Clarify 等待状态 ===== */
+.siper-thinking-clarify {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: rgba(255, 193, 7, 0.1);
+  border-left: 2px solid #ffc107;
+  border-radius: 4px;
+  margin: 4px 0;
+  font-size: 12px;
+  color: var(--color-text);
+}
+.siper-thinking-clarify-icon {
+  font-size: 14px;
+}
+
+/* ===== P2: 流式预览 ===== */
+.siper-thinking-stream-preview {
+  margin: 4px 0;
+  padding: 6px 8px;
+  font-size: 11px;
+  color: var(--color-text-dim);
+  opacity: 0.8;
+  font-style: italic;
+  border-top: 1px solid var(--color-border);
+  max-height: 60px;
+  overflow-y: auto;
+  word-break: break-word;
 }
 
 /* Thinking details inside message bubble */

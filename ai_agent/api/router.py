@@ -222,6 +222,17 @@ def register_routes(router, agent_ref, snapshot_mgr_ref, carrier_mgr_ref,
         result = local_handlers["api_touch_session"](sid)
         return result
 
+    @router.post("/api/sessions/{sid}/steer")
+    async def api_session_steer(sid, body):
+        """Steer agent's current running turn without interrupting."""
+        if not agent_ref:
+            return {"success": False, "error": "no active agent"}
+        note = body.get("note", "") if body else ""
+        if not note:
+            return {"success": False, "error": "note is empty"}
+        await agent_ref.steer(note)
+        return {"success": True}
+
     @router.post("/api/save-response-dict")
     def api_save_response_dict(body):
         return local_handlers["api_save_response_dict"](body)

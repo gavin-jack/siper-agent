@@ -4300,6 +4300,7 @@ async def main():
         # Accumulated streaming response text
         _stream_acc = {"text": ""}
         _stream_delta_sent = False  # Track whether any delta was actually sent
+        _connection_stream_gen = agent._stream_generation  # Capture generation at turn start
 
         async def _send_stream_delta(delta_text):
             """Send streaming delta to the frontend in real-time."""
@@ -4312,6 +4313,7 @@ async def main():
                     "type": "stream_delta",
                     "delta": delta_text,
                     "session_id": session_id,
+                    "generation": _connection_stream_gen,
                 }))
             except Exception as e:
                 logger.warning(f"[_send_stream_delta] 发送失败: {e}, conn={conn_id}")
@@ -4332,11 +4334,17 @@ async def main():
         async def _send_tool_progress(tool_name, status, info, call_id=None):
             """Send tool execution progress to the frontend."""
             try:
+                # Enhance info with elapsed_ms and result_summary for frontend display
+                enhanced_info = {
+                    'elapsedMs': info.get('elapsed_ms'),
+                    'resultSummary': info.get('result', '')[:200] if info.get('result') else '',
+                    **info
+                }
                 await ws.send(json.dumps({
                     "type": "tool_progress",
                     "tool_name": tool_name,
                     "status": status,
-                    "info": info or {},
+                    "info": enhanced_info,
                     "call_id": call_id or tool_name,
                     "session_id": session_id,
                 }))

@@ -1,6 +1,6 @@
 // utils/dom.js — 纯 UI 工具函数
 
-import { t, currentLang } from './i18n.js?v=1783954506464';
+import { t, currentLang } from './i18n.js?v=1784626478121';
 
 // ===== Sidebar =====
 export function toggleChatSidebar() {

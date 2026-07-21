@@ -1,5 +1,5 @@
 // chat/input.js — 输入框、文件上传、模型选择
-import { getWs, setWs } from '../core.js?v=1784447927619';
+import { getWs, setWs } from '../core.js?v=1784626478121';
 import {
   _chatSessionId, _chatCurrentAgent, _chatCurrentPage,
   _chatCurrentModel, _chatModelContextWindow, _isSending,
@@ -11,7 +11,7 @@ import {
   fmtTokens,
   markSessionReady,
   setChatSessionId,
-} from '../chat/state.js?v=1784447927619';
+} from '../chat/state.js?v=1784626478121';
 
 // 从 page_cache 读取 agents 列表（替代已删除的 chatAgents 变量）
 function _getAgents() {
@@ -21,13 +21,13 @@ function _getAgents() {
   }
   return [];
 }
-import { resetSendState } from '../chat/session.js?v=1784447927619';
+import { resetSendState } from '../chat/session.js?v=1784626478121';
 
 // 全局待发送文件列表，存放 base64 数据、mime、名称及分类
 window.chatPendingFiles = [];
 let chatPendingFiles = window.chatPendingFiles;
-import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js?v=1784447927619';
-import { renderMiddleList, refreshAgentsAndRender } from './sidebar.js?v=1784447927619';
+import { chatAppendUserMsg, chatRenderMarkdown, chatEscapeHtml, updateCtxInfoDisplay } from './message.js?v=1784626478121';
+import { renderMiddleList, refreshAgentsAndRender } from './sidebar.js?v=1784626478121';
 
 // ------------------------------------------------
 // Ensure a chat input element exists (creates one if missing)
@@ -92,8 +92,8 @@ function _ensureChatInput() {
   if (typeof window !== 'undefined') window._adjustInputHeight = _adjustInputHeight;
 }
 
-import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js?v=1784447927619';
-import { toast } from '../components/toast.js?v=1784447927619';
+import { chatThinkingShow, chatThinkingClear, chatThinkingAddTextRow, chatThinkingHide } from '../chat/thinking.js?v=1784626478121';
+import { toast } from '../components/toast.js?v=1784626478121';
 
 // ===== File Upload & Preview =====
 
@@ -254,7 +254,7 @@ export async function chatUploadFiles(files) {
 }
 
 // ===== Model Capability Icons =====
-import { CAP_ICONS } from '../utils/capabilities.js?v=1784447927619';
+import { CAP_ICONS } from '../utils/capabilities.js?v=1784626478121';
 
 function _renderCapBadges(capabilities) {
   if (!capabilities || !capabilities.length) return '';
@@ -302,7 +302,7 @@ export async function loadChatModels() {
     }
     // 从会话中获取模型，若无则 fallback 到 agent 默认模型
     const globalDefault = models.length ? (models[0].name || '') : '';
-    if (!_chatCurrentModel && _chatCurrentModel !== '') {
+    if (!_chatCurrentModel) {
       // 优先从 localStorage 恢复上次选择的模型
       const savedModel = localStorage.getItem('siper_last_model');
       const savedInList = savedModel && models.find(m => m.name === savedModel);
@@ -441,6 +441,8 @@ export function updateChatHeader() {
 // Session readiness — uses core.js ensureSessionReady() via import
 
 export async function chatSendMessage() {
+  chatThinkingClear();
+  chatThinkingHide();
   const input = document.getElementById('chatInput');
   if (!input) return;
   const text = (input.value || input.textContent || input.innerText || '').trim();
@@ -565,19 +567,67 @@ export function restoreInputCache(sessionId) {
 export function updateSendBtns() {
   const sendBtn = document.getElementById('chatSendBtn');
   const stopBtn = document.getElementById('chatStopBtn');
+  const guideBtn = document.getElementById('chatGuideBtn');
   if (!sendBtn) return;
   const sending = _isSending;
   sendBtn.disabled = sending;
   if (sending) {
     stopBtn?.classList.remove('hidden');
+    guideBtn?.classList.remove('hidden');
   } else {
     stopBtn?.classList.add('hidden');
+    guideBtn?.classList.add('hidden');
   }
+}
+
+/** 发送🪶引导（不中断当前运行） */
+export function chatSendGuide() {
+  const input = document.getElementById('chatInput');
+  if (!input) return;
+  const note = input.value.trim();
+  if (!note) return;
+  input.value = '';
+  _adjustInputHeight(input);
+
+  // 非运行状态不发送
+  if (!_isSending) {
+    toast('当前没有正在运行的回复');
+    return;
+  }
+
+  if (!_chatSessionId) {
+    toast('没有活跃会话');
+    return;
+  }
+
+  // 在聊天区显示一个轻量引导提示
+  appendGuideBubble(note);
+
+  // 发送引导到后端
+  fetch('/api/sessions/' + encodeURIComponent(_chatSessionId) + '/steer', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note })
+  }).then(r => r.json()).then(data => {
+    if (!data.success) toast('引导发送失败');
+  }).catch(() => toast('引导发送失败'));
+}
+
+/** 在聊天区追加引导提示气泡 */
+function appendGuideBubble(text) {
+  const msgs = document.getElementById('chatMessages');
+  if (!msgs) return;
+  const row = document.createElement('div');
+  row.className = 'siper-msg-row guide-hint';
+  row.innerHTML = '<div class="guide-bubble">🪶 ' + chatEscapeHtml(text) + '</div>';
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
 }
 
 // expose for debugging / manual testing
 if (typeof window !== 'undefined') {
   window.chatSendMessage = chatSendMessage;
+  window.chatSendGuide = chatSendGuide;
   window._ensureChatInput = _ensureChatInput;
   window.saveInputCache = saveInputCache;
   window.restoreInputCache = restoreInputCache;

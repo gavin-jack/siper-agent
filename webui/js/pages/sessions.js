@@ -5,11 +5,11 @@
  * 保留 UI 交互逻辑（点击、预览、删除确认、撤销）。
  * DOM 构建改用模板字符串 + innerHTML，消除 ~80 行 createElement 代码。
  */
-import { t } from '../utils/i18n.js?v=1783954506464';
-import { escapeHtml } from '../utils/escape.js?v=1783954506464';
-import { fmtTime } from '../utils/format.js?v=1783954506464';
-import { showConfirm, _getNotifRoot } from '../components/toast.js?v=1783954506464';
-import { toast } from '../components/toast.js?v=1783954506464';
+import { t } from '../utils/i18n.js?v=1784626478121';
+import { escapeHtml } from '../utils/escape.js?v=1784626478121';
+import { fmtTime } from '../utils/format.js?v=1784626478121';
+import { showConfirm, _getNotifRoot } from '../components/toast.js?v=1784626478121';
+import { toast } from '../components/toast.js?v=1784626478121';
 
 // ===== 页面模板 =====
 export function _tplSessionsPage() {

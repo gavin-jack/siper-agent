@@ -13,11 +13,11 @@
  *   页面导航 → chat/nav.js
  *   会话管理 → chat/session.js
  */
-import { renderFull, applyDelta } from './renderer.js?v=1783954506464';
-import { appendStream, finalizeStream, handleStopped } from './chat/stream.js?v=1783954506464';
-import { setConnected, getStreamState, markSessionReady, setChatSessionId, setIsSending, setIsThinking, setThinkingSteps } from './chat/state.js?v=1783954506464';
-import { chatThinkingShow, chatThinkingAddToolStep, chatThinkingAddTextRow } from './chat/thinking.js?v=1783954506464';
-import { showToastCompat, showDialogCompat } from './utils/ws-compat.js?v=1783954506464';
+import { renderFull, applyDelta } from './renderer.js?v=1784626478121';
+import { appendStream, finalizeStream, handleStopped } from './chat/stream.js?v=1784626478121';
+import { setConnected, getStreamState, markSessionReady, setChatSessionId, setIsSending, setIsThinking, setThinkingSteps } from './chat/state.js?v=1784626478121';
+import { chatThinkingShow, chatThinkingAddToolStep, chatThinkingAddTextRow, chatThinkingAddReasoning, chatThinkingSetClarifyPending, chatThinkingSetHeader, chatThinkingSetFooter, chatThinkingSetRound, chatThinkingSetStreamPreview } from './chat/thinking.js?v=1784626478121';
+import { showToastCompat, showDialogCompat } from './utils/ws-compat.js?v=1784626478121';
 
 let ws = null;
 let _ver = 0;
@@ -106,14 +106,30 @@ function dispatch(msg) {
                 // 只有当前会话才显示思考面板，非当前会话只更新 per-session 状态
                 if (!_chatSessionId || sid === _chatSessionId) {
                     chatThinkingShow();
+                    if (!document.getElementById('chatThinkingHeader')?.textContent) {
+                        chatThinkingSetHeader(_chatCurrentModel || document.getElementById('chatModelBtnName')?.textContent || '');
+                    }
+                    const elapsedMs = msg.info?.elapsedMs;
+                    const resultSummary = msg.info?.resultSummary || msg.result_summary || '';
                     chatThinkingAddToolStep(
                         msg.call_id || msg.tool_name,
                         msg.tool_name,
                         msg.status || 'running',
                         msg.params || {},
-                        msg.result_summary || ''
+                        resultSummary,
+                        elapsedMs
                     );
                 }
+            }
+            break;
+        case 'clarify_request':
+            if (!_chatSessionId || msg.session_id === _chatSessionId) {
+                chatThinkingSetClarifyPending(true);
+            }
+            break;
+        case 'clarify_response':
+            if (!_chatSessionId || msg.session_id === _chatSessionId) {
+                chatThinkingSetClarifyPending(false);
             }
             break;
         case 'thinking_text':
@@ -121,7 +137,7 @@ function dispatch(msg) {
             // thinking_text 无 session_id，只对当前会话显示
             if (msg.text && (!_chatSessionId || msg.session_id === _chatSessionId)) {
                 chatThinkingShow();
-                chatThinkingAddTextRow(msg.text);
+                chatThinkingAddReasoning(msg.text);
             }
             break;
         case 'toast': showToastCompat(msg.data); break;
@@ -157,4 +173,4 @@ function dispatch(msg) {
 }
 
 // Re-export from state.js for app.js backward compat
-export { setConnected } from './chat/state.js?v=1783954506464';
+export { setConnected } from './chat/state.js?v=1784626478121';

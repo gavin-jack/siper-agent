@@ -41,6 +41,10 @@ class ImageGenTool(BaseTool):
             category=ToolCategory.UTILITY
         )
 
+    def check_fn(self):
+        """Only advertise this tool when IMAGE_GEN_API_KEY is configured."""
+        return bool(os.environ.get("IMAGE_GEN_API_KEY"))
+
     async def execute(self, parameters: Dict[str, Any]) -> ToolResult:
         prompt = parameters.get("prompt", "").strip()
         size = parameters.get("size", "1024x1024")

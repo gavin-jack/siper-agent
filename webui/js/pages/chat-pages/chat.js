@@ -2,12 +2,12 @@
 // 从 pages/chat.js 拆分，包含 initSidebar + initChatPage
 // 包含消息列表、输入框、思考面板、模型选择
 
-import * as Message from '../../chat/message.js?v=1783954506464';
-import * as Input from '../../chat/input.js?v=1783954506464';
-import * as Sidebar from '../../chat/sidebar.js?v=1783954506464';
-import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1783954506464';
-import { escapeHtml } from '../../utils/escape.js?v=1783954506464';
-import { toast } from '../../components/toast.js?v=1783954506464';
+import * as Message from '../../chat/message.js?v=1784626478121';
+import * as Input from '../../chat/input.js?v=1784626478121';
+import * as Sidebar from '../../chat/sidebar.js?v=1784626478121';
+import { _chatSessionId, _chatCurrentAgent, _chatSidebarExpanded, setChatCurrentAgent } from '../../chat/state.js?v=1784626478121';
+import { escapeHtml } from '../../utils/escape.js?v=1784626478121';
+import { toast } from '../../components/toast.js?v=1784626478121';
 
 // 从 page_cache 读取 agents（不再从 state.js import chatAgents）
 function _getAgents() {
@@ -86,8 +86,9 @@ function _tplChatPage() {
         <span class="siper-chat-header-name" id="chatRightHeaderName">SiPer</span>
       </div>
       <div class="siper-thinking-panel" id="chatThinkingPanel">
-        <div class="siper-thinking-header"><span class="siper-thinking-icon">💭</span><span>正在思考</span></div>
+        <div class="siper-thinking-header" id="chatThinkingHeader"></div>
         <div class="siper-thinking-body" id="chatThinkingBody"></div>
+        <div class="siper-thinking-footer" id="chatThinkingFooter"></div>
       </div>
       <div class="siper-content" id="chatContentArea"></div>
     </div>`;
@@ -603,6 +604,7 @@ function _tplInputArea() {
     '<div class="siper-input-row">' +
       '<textarea id="chatInput" placeholder="输入消息... (Enter 发送, Shift+Enter 换行)" rows="3" aria-label="聊天输入"></textarea>' +
       '<button class="siper-send-btn" id="chatSendBtn" onclick="chatSendMessage()">发送</button>' +
+      '<button class="siper-send-btn" id="chatGuideBtn" onclick="chatSendGuide()" title="引导当前回复方向（不中断）">🪶</button>' +
       '<button class="siper-stop-btn hidden" id="chatStopBtn" onclick="chatStopGeneration()" title="停止生成">⏹</button>' +
     '</div>';
 }
