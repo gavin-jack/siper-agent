@@ -2054,8 +2054,10 @@ Always aim to be helpful, honest, and harmless in your responses.
                             'usage': result_raw.get('usage', {}),
                             'finish_reason': result_raw.get('finish_reason', 'stop'),
                         }
-                        # 已经得到非流式结果，直接跳出流式处理循环
+                        # 非流式降级后必须 break，否则会继续重试导致重复思考
                         break
+                    # 流式成功且有内容，必须 break 防止循环继续执行第二次重试
+                    break
                 else:
                     # Non-streaming mode (original behavior)
                     result_raw = await asyncio.wait_for(
@@ -2087,6 +2089,8 @@ Always aim to be helpful, honest, and harmless in your responses.
                         self.logger.error("LLM 非流式返回空 content，已重试耗尽")
                         result['content'] = "[服务暂时没有响应，请重试]"
                         result['finish_reason'] = 'error'
+                    # 非流式成功，必须 break 防止循环继续
+                    break
             except asyncio.TimeoutError:
                 self.logger.warning(f"LLM 调用超时（第 {attempt}/{max_attempts} 次）")
                 self._last_llm_error_class = 'retry'
